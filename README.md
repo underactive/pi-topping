@@ -2,7 +2,7 @@
 
 We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is a [Pi](https://github.com/earendil-works/pi-coding-agent) extension that changes the default "Working..." loader with a shimmering activity word, a scrolling token-activity meter, an elapsed timer, and a live output-token count.
 
-![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, and token count](demo.gif)
+![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, and token count](https://raw.githubusercontent.com/underactive/pi-topping/main/demo.gif)
 
 ## What it does
 
