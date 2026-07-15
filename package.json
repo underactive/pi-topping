@@ -1,0 +1,41 @@
+{
+  "name": "@underactive/pi-topping",
+  "version": "0.1.0",
+  "description": "A Pi extension that replaces the default \"Working...\" loader with a shimmering, randomized activity word, live elapsed timer, and output-token activity meter",
+  "keywords": ["pi-package", "pi-extension"],
+  "license": "MIT",
+  "author": "Eric Sison",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/underactive/pi-topping.git"
+  },
+  "bugs": {
+    "url": "https://github.com/underactive/pi-topping/issues"
+  },
+  "homepage": "https://github.com/underactive/pi-topping#readme",
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["*.ts", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=0.80.0"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.80.6",
+    "@earendil-works/pi-tui": "0.80.6",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3"
+  },
+  "pi": {
+    "extensions": ["./index.ts"],
+    "video": "https://cdn.jsdelivr.net/gh/underactive/pi-topping@main/demo.mp4"
+  }
+}
