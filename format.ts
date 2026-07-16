@@ -3,7 +3,7 @@ export function formatTokens(count: number): string {
 	if (count < 1000) return count.toString();
 	const UNITS = [
 		{ threshold: 10_000, divisor: 1_000, decimals: 1, suffix: "k" },
-		{ threshold: 1_000_000, divisor: 1_000, decimals: 0, suffix: "k" },
+		{ threshold: 999_500, divisor: 1_000, decimals: 0, suffix: "k" },
 		{ threshold: 10_000_000, divisor: 1_000_000, decimals: 1, suffix: "M" },
 	];
 	const unit = UNITS.find(u => count < u.threshold);

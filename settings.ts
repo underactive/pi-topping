@@ -56,6 +56,17 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function mergeBooleanGroup<T extends Record<string, boolean>>(defaults: T, parsed: unknown): T {
+	const merged = { ...defaults } as T;
+	if (!isPlainObject(parsed)) return merged;
+	for (const [key, value] of Object.entries(parsed)) {
+		if (typeof value === "boolean" && key in merged) {
+			merged[key as keyof T] = value as T[keyof T];
+		}
+	}
+	return merged;
+}
+
 function cloneDefaults(): DecoratorSettings {
 	return {
 		decorations: { ...DEFAULT_SETTINGS.decorations },
@@ -81,8 +92,8 @@ export function loadSettings(): DecoratorSettings {
 		const parsed = JSON.parse(raw) as Partial<DecoratorSettings> | null;
 		if (!isPlainObject(parsed)) return defaults;
 		return {
-			decorations: { ...defaults.decorations, ...(isPlainObject(parsed.decorations) ? parsed.decorations : undefined) },
-			features: { ...defaults.features, ...(isPlainObject(parsed.features) ? parsed.features : undefined) },
+			decorations: mergeBooleanGroup(defaults.decorations, parsed.decorations),
+			features: mergeBooleanGroup(defaults.features, parsed.features),
 		};
 	} catch {
 		return defaults;

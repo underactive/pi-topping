@@ -136,7 +136,14 @@ export class MenuComponent implements Component {
 	}
 
 	handleInput(data: string): void {
-		if (this.flat.length === 0) return;
+		if (this.flat.length === 0) {
+			if (matchesKey(data, Key.enter)) {
+				this.done({ applied: true, values: { ...this.values } });
+			} else if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c"))) {
+				this.done({ applied: false, values: { ...this.initialValues } });
+			}
+			return;
+		}
 
 		if (matchesKey(data, Key.up)) {
 			this.cursor = (this.cursor - 1 + this.flat.length) % this.flat.length;
