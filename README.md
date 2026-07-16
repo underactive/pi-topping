@@ -11,7 +11,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 - Shows an elapsed timer (`Xm YYs`) that counts up from when you submitted the prompt.
 - Shows a live output-token estimate (`↓ N tokens`), reconciled against the real usage total once each assistant message finishes.
 - Resets everything — word, timer, token count — on each new prompt, and restores Pi's normal loader between turns.
-- Leaves a durable completion marker in the transcript after each finished turn, e.g. `π Baking for 6m 41s` — a fresh random word and the total time for that turn, rendered with `π` in the theme's primary text color and the rest dimmed. It's TUI-only display content and never enters LLM context.
+- Leaves a durable completion marker in the transcript after each finished turn, e.g. `π Baked for 6m 41s` — a fresh random word and the total time for that turn, rendered with `π` in the theme's primary text color and the rest dimmed. It's TUI-only display content and never enters LLM context.
 
 ## Activity meter
 

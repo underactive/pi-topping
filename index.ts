@@ -25,7 +25,7 @@ import { formatElapsed, formatTokens, StreamingWordCounter } from "./format.ts";
 import { ActivityMeter, rateToLevel, TokRateTracker } from "./activity-meter.ts";
 import { showMenu, type MenuSection } from "./menu.ts";
 import { type DecoratorSettings, loadSettings, saveSettings } from "./settings.ts";
-import { WORDS } from "./words.ts";
+import { WORDS, type WordEntry } from "./words.ts";
 
 /** Custom-entry type name for the durable completion marker appended at `agent_settled`. */
 const DONE_ENTRY_TYPE = "pi-topping-done";
@@ -36,12 +36,12 @@ interface DoneEntryData {
 	elapsedMs: number;
 }
 
-function pickRawWord(): string {
+function pickRawWord(): WordEntry {
 	return WORDS[Math.floor(Math.random() * WORDS.length)]!;
 }
 
 function pickRandomWord(): string {
-	return `${pickRawWord()}\u2026`;
+	return `${pickRawWord().present_tense}\u2026`;
 }
 
 // ---------------------------------------------------------------------------
@@ -415,7 +415,7 @@ export default function (pi: ExtensionAPI) {
 		state.rateTracker.reset();
 		state.lastActivityMeterUpdate = 0;
 		if (settings.features.doneMarker && hadPrompt) {
-			pi.appendEntry<DoneEntryData>(DONE_ENTRY_TYPE, { word: pickRawWord(), elapsedMs });
+			pi.appendEntry<DoneEntryData>(DONE_ENTRY_TYPE, { word: pickRawWord().past_tense, elapsedMs });
 		}
 		currentCtx = null;
 	});

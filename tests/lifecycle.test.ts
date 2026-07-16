@@ -510,7 +510,7 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 
 		const initial = capturedComponent!.render(72).map(stripAnsi);
 		assert.ok(initial.some((l) => l.includes("Preview")));
-		// Math.random mocked to 0, so the simulated preview word is WORDS[0].
+		// Math.random mocked to 0, so the simulated preview word is WORDS[0].present_tense.
 		assert.ok(initial.some((l) => l.includes("Accomplishing\u2026")));
 		// Default settings: animatedSpinner is on, so the simulated spinner glyph shows.
 		assert.ok(initial.some((l) => l.includes("\u280b")));
@@ -719,7 +719,7 @@ test("preview's simulated activity meter visibly animates (oscillates) rather th
 	});
 });
 
-test("agent_settled appends a pi-topping-done entry with the raw word and elapsed duration", async (t) => {
+test("agent_settled appends a pi-topping-done entry with the past-tense word and elapsed duration", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		const ctx = createContext([], []);
@@ -739,7 +739,7 @@ test("agent_settled appends a pi-topping-done entry with the raw word and elapse
 		const entry = extension.appendedEntries[0]!;
 		assert.equal(entry.customType, "pi-topping-done");
 		const data = entry.data as { word: string; elapsedMs: number };
-		assert.equal(data.word, "Zigzagging");
+		assert.equal(data.word, "Zigzagged");
 		assert.equal(data.elapsedMs, 6 * 60_000 + 41_000);
 	});
 });
@@ -791,7 +791,7 @@ test("the pi-topping-done entry renderer renders the word/time in dim text and Ï
 		assert.ok(renderer, "expected a pi-topping-done entry renderer to be registered");
 
 		const component = renderer(
-			{ type: "custom", customType: "pi-topping-done", data: { word: "Baking", elapsedMs: 6 * 60_000 + 41_000 } },
+			{ type: "custom", customType: "pi-topping-done", data: { word: "Baked", elapsedMs: 6 * 60_000 + 41_000 } },
 			{ expanded: false },
 			ctx.ui.theme,
 		) as { render(width: number): string[] };
@@ -800,6 +800,6 @@ test("the pi-topping-done entry renderer renders the word/time in dim text and Ï
 		const lines = component.render(80);
 		const text = lines.join("\n");
 		assert.match(text, /<text>\u03c0<\/text>/);
-		assert.match(text, /<dim> Baking for 6m 41s<\/dim>/);
+		assert.match(text, /<dim> Baked for 6m 41s<\/dim>/);
 	});
 });

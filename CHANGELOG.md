@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Durable completion marker appended after each finished turn, e.g. `π Baking for 6m 41s` — a fresh random word plus the turn's total elapsed time, rendered with `π` in the theme's primary text color and the rest dimmed. It's a TUI-only transcript entry that never enters LLM context.
+- Durable completion marker appended after each finished turn, e.g. `π Baked for 6m 41s` — a fresh random word plus the turn's total elapsed time, rendered with `π` in the theme's primary text color and the rest dimmed. It's a TUI-only transcript entry that never enters LLM context.
 - Seventh independent setting, "Show completion marker", toggleable via `/topping-settings` (on by default)
 
 ## [0.1.1] - 2026-07-14
