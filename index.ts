@@ -20,15 +20,28 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
 import { formatElapsed, formatTokens, StreamingWordCounter } from "./format.ts";
 import { ActivityMeter, rateToLevel, TokRateTracker } from "./activity-meter.ts";
 import { showMenu, type MenuSection } from "./menu.ts";
 import { type DecoratorSettings, loadSettings, saveSettings } from "./settings.ts";
 import { WORDS } from "./words.ts";
 
+/** Custom-entry type name for the durable completion marker appended at `agent_settled`. */
+const DONE_ENTRY_TYPE = "pi-topping-done";
+
+/** Payload persisted on the durable completion marker entry. */
+interface DoneEntryData {
+	word: string;
+	elapsedMs: number;
+}
+
+function pickRawWord(): string {
+	return WORDS[Math.floor(Math.random() * WORDS.length)]!;
+}
+
 function pickRandomWord(): string {
-	const word = WORDS[Math.floor(Math.random() * WORDS.length)]!;
-	return `${word}\u2026`;
+	return `${pickRawWord()}\u2026`;
 }
 
 // ---------------------------------------------------------------------------
@@ -390,6 +403,8 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("agent_settled", async (_event, ctx) => {
 		if (!useUI(ctx)) return;
+		const hadPrompt = state.startTime !== 0;
+		const elapsedMs = hadPrompt ? Date.now() - state.startTime : 0;
 		state.busy = false;
 		state.startTime = 0;
 		liveWordCounter.reset();
@@ -399,11 +414,22 @@ export default function (pi: ExtensionAPI) {
 		state.activityMeter.reset();
 		state.rateTracker.reset();
 		state.lastActivityMeterUpdate = 0;
+		if (settings.features.doneMarker && hadPrompt) {
+			pi.appendEntry<DoneEntryData>(DONE_ENTRY_TYPE, { word: pickRawWord(), elapsedMs });
+		}
 		currentCtx = null;
 	});
 
 	pi.on("session_shutdown", async (_event, _ctx) => {
 		stopTimer();
+	});
+
+	pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _options, theme) => {
+		const data = entry.data;
+		if (!data) return undefined;
+		const elapsedStr = formatElapsed(data.elapsedMs);
+		const text = `${theme.fg("text", "\u03c0")}${theme.fg("dim", ` ${data.word} for ${elapsedStr}`)}`;
+		return new Text(text);
 	});
 
 	pi.registerCommand("topping-settings", {
@@ -438,6 +464,7 @@ export default function (pi: ExtensionAPI) {
 						},
 						{ id: "elapsedTime", label: "Elapsed time since prompt", value: settings.features.elapsedTime },
 						{ id: "outputTokens", label: "Show output tokens", value: settings.features.outputTokens },
+						{ id: "doneMarker", label: "Show completion marker", value: settings.features.doneMarker },
 					],
 				},
 			];

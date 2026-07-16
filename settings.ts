@@ -2,7 +2,7 @@
  * settings.ts
  *
  * Persistent, per-user settings for pi-topping, stored at
- * `~/.pi/agent/pi-topping/settings.json`. All six toggles
+ * `~/.pi/agent/pi-topping/settings.json`. All seven toggles
  * default to enabled so behavior is unchanged for users who never open
  * `/topping-settings`.
  */
@@ -21,6 +21,7 @@ export interface DecoratorSettings {
 		substituteDefaultMessage: boolean;
 		elapsedTime: boolean;
 		outputTokens: boolean;
+		doneMarker: boolean;
 	};
 }
 
@@ -34,6 +35,7 @@ export const DEFAULT_SETTINGS: DecoratorSettings = {
 		substituteDefaultMessage: true,
 		elapsedTime: true,
 		outputTokens: true,
+		doneMarker: true,
 	},
 };
 

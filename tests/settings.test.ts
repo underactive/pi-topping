@@ -36,7 +36,7 @@ test("loadSettings deep-merges a partial nested file over defaults", () => {
 		const loaded = loadSettings();
 		assert.deepEqual(loaded, {
 			decorations: { animatedSpinner: false, shimmer: true, tokenActivityMonitor: true },
-			features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: false },
+			features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: false, doneMarker: true },
 		});
 	});
 });
@@ -55,7 +55,7 @@ test("saveSettings then loadSettings round-trips the full schema", () => {
 	withTempAgentDir(() => {
 		const custom = {
 			decorations: { animatedSpinner: false, shimmer: false, tokenActivityMonitor: true },
-			features: { substituteDefaultMessage: false, elapsedTime: true, outputTokens: false },
+			features: { substituteDefaultMessage: false, elapsedTime: true, outputTokens: false, doneMarker: true },
 		};
 		saveSettings(custom);
 		assert.deepEqual(loadSettings(), custom);

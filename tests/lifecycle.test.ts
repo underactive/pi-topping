@@ -53,6 +53,8 @@ type RegisteredCommandLike = { description?: string; handler: CommandHandler };
 class MockExtension {
 	readonly handlers: Partial<{ [K in TestedEventName]: Handler<K> }> = {};
 	readonly commands: Record<string, RegisteredCommandLike> = {};
+	readonly appendedEntries: { customType: string; data: unknown }[] = [];
+	readonly entryRenderers: Record<string, (entry: unknown, options: unknown, theme: unknown) => unknown> = {};
 
 	on<K extends TestedEventName>(name: K, handler: Handler<K>): void {
 		this.handlers[name] = handler as never;
@@ -60,6 +62,14 @@ class MockExtension {
 
 	registerCommand(name: string, options: RegisteredCommandLike): void {
 		this.commands[name] = options;
+	}
+
+	appendEntry(customType: string, data?: unknown): void {
+		this.appendedEntries.push({ customType, data });
+	}
+
+	registerEntryRenderer(customType: string, renderer: (entry: unknown, options: unknown, theme: unknown) => unknown): void {
+		this.entryRenderers[customType] = renderer;
 	}
 
 	async emit<K extends TestedEventName>(name: K, event: TestedEvents[K], ctx: ExtensionContext): Promise<void> {
@@ -563,7 +573,7 @@ test("/topping-settings persists toggled values to settings.json on apply", asyn
 	});
 });
 
-test("/topping-settings persists all six toggles flipped in one pass", async (t) => {
+test("/topping-settings persists all seven toggles flipped in one pass", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		let capturedComponent: { render(width: number): string[]; handleInput?(data: string): void } | undefined;
@@ -588,9 +598,9 @@ test("/topping-settings persists all six toggles flipped in one pass", async (t)
 
 		// Cursor order (flattened across both sections): animatedSpinner,
 		// shimmer, tokenActivityMonitor, substituteDefaultMessage, elapsedTime,
-		// outputTokens. Toggle every item, moving down between each.
+		// outputTokens, doneMarker. Toggle every item, moving down between each.
 		capturedComponent!.handleInput!(" ");
-		for (let i = 0; i < 5; i++) {
+		for (let i = 0; i < 6; i++) {
 			capturedComponent!.handleInput!("\x1b[B");
 			capturedComponent!.handleInput!(" ");
 		}
@@ -609,6 +619,7 @@ test("/topping-settings persists all six toggles flipped in one pass", async (t)
 		);
 		assert.equal(persisted.features.elapsedTime, !DEFAULT_SETTINGS.features.elapsedTime);
 		assert.equal(persisted.features.outputTokens, !DEFAULT_SETTINGS.features.outputTokens);
+		assert.equal(persisted.features.doneMarker, !DEFAULT_SETTINGS.features.doneMarker);
 	});
 });
 
@@ -705,5 +716,90 @@ test("preview's simulated activity meter visibly animates (oscillates) rather th
 
 		capturedComponent!.handleInput!("\x1b"); // escape: cancel
 		await handlerPromise;
+	});
+});
+
+test("agent_settled appends a pi-topping-done entry with the raw word and elapsed duration", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		t.mock.method(Math, "random", () => 0.999);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+
+		now = 1_000 + 6 * 60_000 + 41_000; // 6m 41s later
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		assert.equal(extension.appendedEntries.length, 1);
+		const entry = extension.appendedEntries[0]!;
+		assert.equal(entry.customType, "pi-topping-done");
+		const data = entry.data as { word: string; elapsedMs: number };
+		assert.equal(data.word, "Zigzagging");
+		assert.equal(data.elapsedMs, 6 * 60_000 + 41_000);
+	});
+});
+
+test("agent_settled does not append a completion marker when doneMarker is disabled", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			features: { ...DEFAULT_SETTINGS.features, doneMarker: false },
+		});
+
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		assert.equal(extension.appendedEntries.length, 0);
+	});
+});
+
+test("agent_settled without a preceding prompt start does not append a completion marker", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		// No "input"/"agent_start" emitted first, so state.startTime is still 0.
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		assert.equal(extension.appendedEntries.length, 0);
+	});
+});
+
+test("the pi-topping-done entry renderer renders the word/time in dim text and π in the text color", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		const renderer = extension.entryRenderers["pi-topping-done"];
+		assert.ok(renderer, "expected a pi-topping-done entry renderer to be registered");
+
+		const component = renderer(
+			{ type: "custom", customType: "pi-topping-done", data: { word: "Baking", elapsedMs: 6 * 60_000 + 41_000 } },
+			{ expanded: false },
+			ctx.ui.theme,
+		) as { render(width: number): string[] };
+		assert.ok(component, "expected the renderer to return a component");
+
+		const lines = component.render(80);
+		const text = lines.join("\n");
+		assert.match(text, /<text>\u03c0<\/text>/);
+		assert.match(text, /<dim> Baking for 6m 41s<\/dim>/);
 	});
 });
