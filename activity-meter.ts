@@ -69,13 +69,31 @@ export class TokRateTracker {
 	}
 }
 
-/** Eight-column, left-to-right scrolling activity meter. */
+/** Eight-column scrolling activity meter, scrolling either left-to-right or right-to-left. */
 export class ActivityMeter {
 	#levels: ActivityMeterLevel[] = Array<ActivityMeterLevel>(WIDTH).fill(0);
+	#direction: "ltr" | "rtl";
+
+	constructor(direction: "ltr" | "rtl" = "ltr") {
+		this.#direction = direction;
+	}
+
+	setDirection(direction: "ltr" | "rtl"): void {
+		if (direction !== this.#direction) {
+			this.#direction = direction;
+			// Reverse the existing data so the visual flow instantly flips.
+			this.#levels.reverse();
+		}
+	}
 
 	push(level: ActivityMeterLevel): void {
-		this.#levels.pop();
-		this.#levels.unshift(level);
+		if (this.#direction === "rtl") {
+			this.#levels.shift();
+			this.#levels.push(level);
+		} else {
+			this.#levels.pop();
+			this.#levels.unshift(level);
+		}
 	}
 
 	render(colorize?: CellColorizer): string {

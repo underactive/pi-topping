@@ -205,7 +205,7 @@ test("an input-less run resets the token count after settling", async (t) => {
 		now = 10_000;
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 
-		assert.match(messages.at(-1)!, /\(0m 00s · ↓ 0 tokens\)/);
+		assert.match(messages.at(-1)!, /\(0s · ↓ 0 tokens\)/);
 	});
 });
 
@@ -225,7 +225,7 @@ test("agent_start preserves the spinner and places the activity meter after the 
 		const message = messages[0]!;
 		const meter = "<dim>⢀</dim>".repeat(8);
 		assert.ok(message.indexOf(meter) > 0);
-		assert.ok(message.indexOf("(0m 00s · ↓ 0 tokens)") > message.indexOf(meter));
+		assert.ok(message.indexOf("(0s · ↓ 0 tokens)") > message.indexOf(meter));
 	});
 });
 
@@ -338,7 +338,7 @@ test("substituteDefaultMessage=false shows a Working\u2026 placeholder but other
 		assert.equal(messages.length, 1);
 		const message = messages[0]!;
 		assert.match(stripAnsi(message), /^Working\u2026/);
-		assert.match(message, /\(0m 00s \u00b7 \u2193 0 tokens\)/);
+		assert.match(message, /\(0s \u00b7 \u2193 0 tokens\)/);
 	});
 });
 
@@ -598,9 +598,10 @@ test("/topping-settings persists all seven toggles flipped in one pass", async (
 
 		// Cursor order (flattened across both sections): animatedSpinner,
 		// shimmer, tokenActivityMonitor, substituteDefaultMessage, elapsedTime,
-		// outputTokens, doneMarker. Toggle every item, moving down between each.
+		// outputTokens, doneMarker, meterDirection_rtl.
+		// Toggle every item, moving down between each.
 		capturedComponent!.handleInput!(" ");
-		for (let i = 0; i < 6; i++) {
+		for (let i = 0; i < 7; i++) {
 			capturedComponent!.handleInput!("\x1b[B");
 			capturedComponent!.handleInput!(" ");
 		}
@@ -613,6 +614,7 @@ test("/topping-settings persists all seven toggles flipped in one pass", async (
 		assert.equal(persisted.decorations.animatedSpinner, !DEFAULT_SETTINGS.decorations.animatedSpinner);
 		assert.equal(persisted.decorations.shimmer, !DEFAULT_SETTINGS.decorations.shimmer);
 		assert.equal(persisted.decorations.tokenActivityMonitor, !DEFAULT_SETTINGS.decorations.tokenActivityMonitor);
+		assert.equal(persisted.decorations.meterDirection, "rtl");
 		assert.equal(
 			persisted.features.substituteDefaultMessage,
 			!DEFAULT_SETTINGS.features.substituteDefaultMessage,
@@ -648,7 +650,7 @@ test("preview reflects the substituteDefaultMessage fix: toggling it off keeps e
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
 		// Flat cursor order: [0] animatedSpinner, [1] shimmer, [2] tokenActivityMonitor,
-		// [3] substituteDefaultMessage, [4] elapsedTime, [5] outputTokens.
+		// [3] substituteDefaultMessage, [4] elapsedTime, [5] outputTokens, [6] doneMarker, [7] meterDirection_rtl.
 		capturedComponent!.handleInput!("\x1b[B"); // down x3 -> substituteDefaultMessage
 		capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!("\x1b[B");
@@ -659,7 +661,7 @@ test("preview reflects the substituteDefaultMessage fix: toggling it off keeps e
 		assert.ok(lines.some((l) => l.includes("Working\u2026")));
 		assert.ok(!lines.some((l) => l.includes("Accomplishing\u2026")));
 		// ...but elapsed time and output tokens (still on) keep showing.
-		assert.ok(lines.some((l) => l.includes("(0m 00s \u00b7 \u2193 0 tokens)")));
+		assert.ok(lines.some((l) => l.includes("(0s \u00b7 \u2193 0 tokens)")));
 
 		capturedComponent!.handleInput!("\x1b"); // escape: cancel
 		await handlerPromise;

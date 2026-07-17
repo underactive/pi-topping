@@ -16,12 +16,24 @@ export function formatTokens(count: number): string {
 	return `${Math.round(count / 1_000_000)}M`;
 }
 
-/** Format elapsed milliseconds as minutes and zero-padded seconds. */
+/** Format elapsed milliseconds as a compact human-readable duration, skipping leading zero units. */
 export function formatElapsed(ms: number): string {
-	const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+	let totalSeconds = Math.max(0, Math.floor(ms / 1000));
+	const parts: string[] = [];
+
+	const days = Math.floor(totalSeconds / 86400);
+	totalSeconds -= days * 86400;
+	const hours = Math.floor(totalSeconds / 3600);
+	totalSeconds -= hours * 3600;
 	const minutes = Math.floor(totalSeconds / 60);
 	const seconds = totalSeconds % 60;
-	return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+
+	if (days > 0) parts.push(`${days}d`);
+	if (hours > 0) parts.push(`${hours}h`);
+	if (minutes > 0) parts.push(`${minutes}m`);
+	parts.push(`${seconds}s`);
+
+	return parts.join(" ");
 }
 
 /**

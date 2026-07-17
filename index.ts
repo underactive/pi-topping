@@ -303,6 +303,9 @@ export default function (pi: ExtensionAPI) {
 		let lastMeterUpdate = 0;
 
 		return (values, elapsedMs) => {
+			const direction = values.meterDirection_rtl ? "rtl" : "ltr";
+			meter.setDirection(direction);
+
 			const simulatedTokens = Math.max(0, Math.floor((elapsedMs / 1000) * PREVIEW_TOKEN_RATE_PER_SEC));
 			if (elapsedMs - lastMeterUpdate >= ACTIVITY_METER_INTERVAL_MS) {
 				meter.push(rateToLevel(previewMeterRate(elapsedMs)));
@@ -355,6 +358,7 @@ export default function (pi: ExtensionAPI) {
 		currentCtx = null;
 		state = makeFreshState();
 		settings = loadSettings();
+		state.activityMeter.setDirection(settings.decorations.meterDirection);
 		if (useUI(ctx)) applyIndicator(ctx);
 	});
 
@@ -455,7 +459,7 @@ export default function (pi: ExtensionAPI) {
 					],
 				},
 				{
-					title: "Features",
+					title: "Options",
 					items: [
 						{
 							id: "substituteDefaultMessage",
@@ -465,6 +469,11 @@ export default function (pi: ExtensionAPI) {
 						{ id: "elapsedTime", label: "Elapsed time since prompt", value: settings.features.elapsedTime },
 						{ id: "outputTokens", label: "Show output tokens", value: settings.features.outputTokens },
 						{ id: "doneMarker", label: "Show completion marker", value: settings.features.doneMarker },
+						{
+							id: "meterDirection_rtl",
+							label: "Scrolling: Right \u2192 Left",
+							value: settings.decorations.meterDirection === "rtl",
+						},
 					],
 				},
 			];
@@ -481,10 +490,16 @@ export default function (pi: ExtensionAPI) {
 			const next = cloneSettings(settings);
 			applyMenuValues(next.decorations, result.values);
 			applyMenuValues(next.features, result.values);
+			// Map the boolean menu toggle back to the string direction setting.
+			if (result.values.meterDirection_rtl !== undefined) {
+				next.decorations.meterDirection = result.values.meterDirection_rtl ? "rtl" : "ltr";
+			}
 
 			settings = next;
 			saveSettings(settings);
 			if (settings.decorations.animatedSpinner !== before) applyIndicator(ctx);
+			// Sync the live meter's direction so changes take effect immediately.
+			state.activityMeter.setDirection(settings.decorations.meterDirection);
 			ctx.ui.notify("Pi Topping settings saved", "info");
 		},
 	});

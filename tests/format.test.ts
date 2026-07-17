@@ -11,8 +11,17 @@ test("formatTokens uses readable thresholds", () => {
 });
 
 test("formatElapsed clamps negatives and pads seconds", () => {
-	assert.equal(formatElapsed(-1), "0m 00s");
+	assert.equal(formatElapsed(-1), "0s");
 	assert.equal(formatElapsed(286_000), "4m 46s");
+});
+
+test("formatElapsed skips leading zero units", () => {
+	assert.equal(formatElapsed(0), "0s");
+	assert.equal(formatElapsed(30_000), "30s");
+	assert.equal(formatElapsed(59_000), "59s");
+	assert.equal(formatElapsed(60_000), "1m 0s");
+	assert.equal(formatElapsed(3_600_000), "1h 0s");
+	assert.equal(formatElapsed(86_400_000), "1d 0s");
 });
 
 test("StreamingWordCounter counts words split across deltas once", () => {

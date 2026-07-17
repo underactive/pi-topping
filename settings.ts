@@ -16,6 +16,7 @@ export interface DecoratorSettings {
 		animatedSpinner: boolean;
 		shimmer: boolean;
 		tokenActivityMonitor: boolean;
+		meterDirection: "ltr" | "rtl";
 	};
 	features: {
 		substituteDefaultMessage: boolean;
@@ -30,6 +31,7 @@ export const DEFAULT_SETTINGS: DecoratorSettings = {
 		animatedSpinner: true,
 		shimmer: true,
 		tokenActivityMonitor: true,
+		meterDirection: "ltr",
 	},
 	features: {
 		substituteDefaultMessage: true,
@@ -54,6 +56,30 @@ export function settingsPath(): string {
  */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Merge persisted JSON values onto a defaults object, accepting both boolean
+ * fields and a known enum-typed string field (`meterDirection`). Any unknown
+ * or wrong-typed keys are silently ignored so hand-edited settings.json can't
+ * corrupt the resulting shape.
+ */
+function mergeDecorations(
+	defaults: DecoratorSettings["decorations"],
+	parsed: unknown,
+): DecoratorSettings["decorations"] {
+	const merged = { ...defaults };
+	if (!isPlainObject(parsed)) return merged;
+	for (const [key, value] of Object.entries(parsed)) {
+		if (key === "meterDirection") {
+			if (value === "ltr" || value === "rtl") {
+				merged.meterDirection = value;
+			}
+		} else if (typeof value === "boolean" && key in merged) {
+			(merged as Record<string, unknown>)[key] = value;
+		}
+	}
+	return merged;
 }
 
 function mergeBooleanGroup<T extends Record<string, boolean>>(defaults: T, parsed: unknown): T {
@@ -92,7 +118,7 @@ export function loadSettings(): DecoratorSettings {
 		const parsed = JSON.parse(raw) as Partial<DecoratorSettings> | null;
 		if (!isPlainObject(parsed)) return defaults;
 		return {
-			decorations: mergeBooleanGroup(defaults.decorations, parsed.decorations),
+			decorations: mergeDecorations(defaults.decorations, parsed.decorations),
 			features: mergeBooleanGroup(defaults.features, parsed.features),
 		};
 	} catch {
