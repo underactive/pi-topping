@@ -10,6 +10,14 @@ export interface WordEntry {
 	past_tense: string;
 }
 
+export function pickRawWord(): WordEntry {
+	return WORDS[Math.floor(Math.random() * WORDS.length)]!;
+}
+
+export function pickRandomWord(): string {
+	return `${pickRawWord().present_tense}…`;
+}
+
 export const WORDS: WordEntry[] = [
 	{ present_tense: "Accomplishing", past_tense: "Accomplished" },
 	{ present_tense: "Actioning", past_tense: "Actioned" },
@@ -36,7 +44,6 @@ export const WORDS: WordEntry[] = [
 	{ present_tense: "Catapulting", past_tense: "Catapulted" },
 	{ present_tense: "Cerebrating", past_tense: "Cerebrated" },
 	{ present_tense: "Channeling", past_tense: "Channeled" },
-	{ present_tense: "Channelling", past_tense: "Channelled" },
 	{ present_tense: "Choreographing", past_tense: "Choreographed" },
 	{ present_tense: "Churning", past_tense: "Churned" },
 	{ present_tense: "Clauding", past_tense: "Clauded" },

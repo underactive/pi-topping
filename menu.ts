@@ -145,21 +145,36 @@ export class MenuComponent implements Component {
 			return;
 		}
 
-		if (matchesKey(data, Key.up)) {
-			this.cursor = (this.cursor - 1 + this.flat.length) % this.flat.length;
-			this.invalidate();
-		} else if (matchesKey(data, Key.down)) {
-			this.cursor = (this.cursor + 1) % this.flat.length;
-			this.invalidate();
-		} else if (matchesKey(data, Key.space)) {
-			const item = this.flat[this.cursor]!;
-			this.values[item.id] = !this.values[item.id];
-			this.invalidate();
-		} else if (matchesKey(data, Key.enter)) {
-			this.done({ applied: true, values: { ...this.values } });
-		} else if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c"))) {
-			this.done({ applied: false, values: { ...this.initialValues } });
+		// Map input to a normalized key name.
+		let mappedKey: string | undefined;
+		for (const k of [Key.up, Key.down, Key.space, Key.enter, Key.escape]) {
+			if (matchesKey(data, k)) {
+				mappedKey = k;
+				break;
+			}
 		}
+		if (!mappedKey && matchesKey(data, Key.ctrl("c"))) mappedKey = Key.escape;
+
+		const keyActions: Record<string, () => void> = {
+			[Key.up]: () => {
+				this.cursor = (this.cursor - 1 + this.flat.length) % this.flat.length;
+				this.invalidate();
+			},
+			[Key.down]: () => {
+				this.cursor = (this.cursor + 1) % this.flat.length;
+				this.invalidate();
+			},
+			[Key.space]: () => {
+				const item = this.flat[this.cursor]!;
+				this.values[item.id] = !this.values[item.id];
+				this.invalidate();
+			},
+			[Key.enter]: () => this.done({ applied: true, values: { ...this.values } }),
+			[Key.escape]: () => this.done({ applied: false, values: { ...this.initialValues } }),
+		};
+
+		const handler = mappedKey ? keyActions[mappedKey] : undefined;
+		if (handler) handler();
 	}
 
 	invalidate(): void {
@@ -193,42 +208,33 @@ export class MenuComponent implements Component {
 		return 2 + Math.max(...candidates);
 	}
 
-	private buildLines(maxWidth: number): string[] {
-		// Computed once per render so a stateful `preview` callback (e.g. one
-		// driving a rolling activity meter) is never sampled twice per frame.
-		const previewLines = this.previewFn
-			? this.previewFn(this.values, this.previewOrigin !== undefined ? Date.now() - this.previewOrigin : 0)
-			: undefined;
+	private samplePreview(): string[] | undefined {
+		return this.previewFn ? this.previewFn(this.values, this.previewOrigin !== undefined ? Date.now() - this.previewOrigin : 0) : undefined;
+	}
 
-		const desired = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, this.preferredWidth(previewLines)));
-		const boxWidth = Math.max(0, Math.min(desired, maxWidth));
-		const innerWidth = Math.max(0, boxWidth - 2);
+	private buildPreviewBlock(previewLines: string[] | undefined, innerWidth: number): string[] {
+		if (!previewLines?.length) return [];
+		return [this.renderSectionDivider("Preview", innerWidth), this.renderBlankRow(innerWidth), ...previewLines.map(line => this.renderContentRow(` ${line}`, innerWidth)), this.renderBlankRow(innerWidth)];
+	}
 
-		const lines: string[] = [];
-		lines.push(this.renderTopBorder(innerWidth));
-
-		if (previewLines && previewLines.length > 0) {
-			lines.push(this.renderSectionDivider("Preview", innerWidth));
-			lines.push(this.renderBlankRow(innerWidth));
-			for (const line of previewLines) lines.push(this.renderContentRow(` ${line}`, innerWidth));
-			lines.push(this.renderBlankRow(innerWidth));
-		}
-
+	private buildToggleSections(innerWidth: number): string[] {
 		let flatIndex = 0;
-		for (const section of this.sections) {
-			lines.push(this.renderSectionDivider(section.title, innerWidth));
-			for (const item of section.items) {
-				lines.push(this.renderItemRow(item, flatIndex === this.cursor, innerWidth));
-				flatIndex++;
-			}
-			lines.push(this.renderBlankRow(innerWidth));
-		}
+		return this.sections.flatMap(section => [
+			this.renderSectionDivider(section.title, innerWidth),
+			...section.items.map(item => this.renderItemRow(item, flatIndex++ === this.cursor, innerWidth)),
+			this.renderBlankRow(innerWidth),
+		]);
+	}
 
-		lines.push(this.renderSeparator(innerWidth));
-		lines.push(this.renderHintsRow(innerWidth));
-		lines.push(this.renderBottomBorder(innerWidth));
+	private buildFooter(innerWidth: number): string[] {
+		return [this.renderSeparator(innerWidth), this.renderHintsRow(innerWidth), this.renderBottomBorder(innerWidth)];
+	}
 
-		return lines.map((line) => truncateToWidth(line, boxWidth, ""));
+	private buildLines(maxWidth: number): string[] {
+		const previewLines = this.samplePreview();
+		const boxWidth = Math.max(0, Math.min(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, this.preferredWidth(previewLines))), maxWidth));
+		const innerWidth = Math.max(0, boxWidth - 2);
+		return [this.renderTopBorder(innerWidth), ...this.buildPreviewBlock(previewLines, innerWidth), ...this.buildToggleSections(innerWidth), ...this.buildFooter(innerWidth)].map(line => truncateToWidth(line, boxWidth, ""));
 	}
 
 	private wrap(left: string, content: string, right: string): string {
@@ -236,13 +242,34 @@ export class MenuComponent implements Component {
 		return th.fg("accent", left) + content + th.fg("accent", right);
 	}
 
-	private renderTopBorder(innerWidth: number): string {
+	/** Render a filled horizontal line with optional title. */
+	private renderFilledLine(
+		left: string,
+		right: string,
+		fillChar: string,
+		innerWidth: number,
+		title?: string,
+		titlePrefix?: string,
+		titleSuffix?: string,
+		boldTitle?: boolean,
+	): string {
 		const th = this.theme;
-		const maxTitleLen = Math.max(0, innerWidth - 5);
-		const title = this.title.length > maxTitleLen ? truncateToWidth(this.title, maxTitleLen) : this.title;
-		const fillCount = Math.max(0, innerWidth - 5 - visibleWidth(title));
-		const content = th.fg("accent", `\u2550[ ${th.bold(title)} `) + th.fg("accent", `]${"\u2550".repeat(fillCount)}`);
-		return this.wrap("\u2554", content, "\u2557");
+		if (!title) {
+			const content = th.fg("accent", fillChar.repeat(innerWidth));
+			return this.wrap(left, content, right);
+		}
+		const prefix = titlePrefix ?? "";
+		const suffix = titleSuffix ?? "";
+		const maxTitleLen = Math.max(0, innerWidth - prefix.length - suffix.length);
+		const shownTitle = title.length > maxTitleLen ? truncateToWidth(title, maxTitleLen) : title;
+		const styledTitle = boldTitle ? th.bold(shownTitle) : shownTitle;
+		const fillCount = Math.max(0, innerWidth - visibleWidth(prefix + shownTitle + suffix));
+		const content = th.fg("accent", `${prefix}${styledTitle}${suffix}${fillChar.repeat(fillCount)}`);
+		return this.wrap(left, content, right);
+	}
+
+	private renderTopBorder(innerWidth: number): string {
+		return this.renderFilledLine("\u2554", "\u2557", "\u2550", innerWidth, this.title, "\u2550[ ", " ]", true);
 	}
 
 	private renderBottomBorder(innerWidth: number): string {
@@ -253,17 +280,11 @@ export class MenuComponent implements Component {
 	}
 
 	private renderSectionDivider(title: string, innerWidth: number): string {
-		const th = this.theme;
-		const maxTitleLen = Math.max(0, innerWidth - 3);
-		const shownTitle = title.length > maxTitleLen ? truncateToWidth(title, maxTitleLen) : title;
-		const fillCount = Math.max(0, innerWidth - 3 - visibleWidth(shownTitle));
-		const content = th.fg("accent", `\u2500 ${shownTitle} ${"\u2500".repeat(fillCount)}`);
-		return this.wrap("\u255f", content, "\u2562");
+		return this.renderFilledLine("\u255f", "\u2562", "\u2500", innerWidth, title, "\u2500 ", " \u2500");
 	}
 
 	private renderSeparator(innerWidth: number): string {
-		const content = this.theme.fg("accent", "\u2500".repeat(innerWidth));
-		return this.wrap("\u255f", content, "\u2562");
+		return this.renderFilledLine("\u255f", "\u2562", "\u2500", innerWidth);
 	}
 
 	private renderBlankRow(innerWidth: number): string {

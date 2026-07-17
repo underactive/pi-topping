@@ -42,6 +42,7 @@ export class TokRateTracker {
 	#lastTime = 0;
 	#rate = 0;
 	#hasSample = false;
+	#pendingTokens = 0;
 
 	sample(totalTokens: number, now: number): number {
 		if (!this.#hasSample) {
@@ -52,12 +53,18 @@ export class TokRateTracker {
 		}
 
 		const elapsedSeconds = (now - this.#lastTime) / 1_000;
-		if (elapsedSeconds <= 0) return this.#rate;
+		if (elapsedSeconds <= 0) {
+			this.#pendingTokens += Math.max(0, totalTokens - this.#lastTotal);
+			this.#lastTotal = totalTokens;
+			return this.#rate;
+		}
 
-		const instantRate = Math.max(0, (totalTokens - this.#lastTotal) / elapsedSeconds);
+		const totalDelta = this.#pendingTokens + Math.max(0, totalTokens - this.#lastTotal);
+		const instantRate = totalDelta / elapsedSeconds;
 		this.#rate = EMA_ALPHA * instantRate + (1 - EMA_ALPHA) * this.#rate;
 		this.#lastTotal = totalTokens;
 		this.#lastTime = now;
+		this.#pendingTokens = 0;
 		return this.#rate;
 	}
 
@@ -66,6 +73,7 @@ export class TokRateTracker {
 		this.#lastTime = 0;
 		this.#rate = 0;
 		this.#hasSample = false;
+		this.#pendingTokens = 0;
 	}
 }
 

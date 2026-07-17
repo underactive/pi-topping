@@ -31,11 +31,12 @@ Run `/topping-settings` (TUI only) to toggle things on or off:
 ║  ▸ [■] Animated spinner                       ON  ║
 ║    [■] "Working..." text shimmer              ON  ║
 ║    [■] Token activity monitor                 ON  ║
-╟─ Features ────────────────────────────────────────╢
+╟─ Options ─────────────────────────────────────────╢
 ║    [■] Substitute Pi's "Working..." message   ON  ║
 ║    [■] Elapsed time since prompt              ON  ║
 ║    [■] Show output tokens                     ON  ║
 ║    [■] Show completion marker                 ON  ║
+║    [ ] Scrolling: Right → Left               OFF  ║
 ╟───────────────────────────────────────────────────╢
 ║  ↑↓ move  ␣ toggle  ⏎ apply  esc cancel           ║
 ╚═══════════════════════════════════════════════════╝
@@ -43,7 +44,7 @@ Run `/topping-settings` (TUI only) to toggle things on or off:
 
 **Decorations** — animated spinner, word shimmer, activity meter.
 
-**Features** — whether to substitute the random word at all, the elapsed timer, the token count, and the completion marker.
+**Options** — whether to substitute the random word at all, the elapsed timer, the token count, the completion marker, and the meter scrolling direction.
 
 The menu has a live preview so you can see changes as you make them. Everything is on by default, so nothing changes unless you open the menu. Use `↑↓` to move, `␣` to toggle, `⏎` to save, `esc` to cancel. Settings are saved to `~/.pi/agent/pi-topping/settings.json`.
 

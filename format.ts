@@ -1,3 +1,5 @@
+import type { Theme } from "@earendil-works/pi-coding-agent";
+
 /** Format an output-token count for the working indicator. */
 export function formatTokens(count: number): string {
 	if (count < 1000) return count.toString();
@@ -5,6 +7,8 @@ export function formatTokens(count: number): string {
 		{ threshold: 10_000, divisor: 1_000, decimals: 1, suffix: "k" },
 		{ threshold: 999_500, divisor: 1_000, decimals: 0, suffix: "k" },
 		{ threshold: 10_000_000, divisor: 1_000_000, decimals: 1, suffix: "M" },
+		{ threshold: 1_000_000_000, divisor: 1_000_000, decimals: 0, suffix: "M" },
+		{ threshold: 1e15, divisor: 1_000_000_000, decimals: 1, suffix: "B" },
 	];
 	const unit = UNITS.find(u => count < u.threshold);
 	if (unit) {
@@ -13,7 +17,7 @@ export function formatTokens(count: number): string {
 			: `${Math.round(count / unit.divisor)}`;
 		return `${value}${unit.suffix}`;
 	}
-	return `${Math.round(count / 1_000_000)}M`;
+	return `${(count / 1_000_000_000).toFixed(1)}B`;
 }
 
 /** Format elapsed milliseconds as a compact human-readable duration, skipping leading zero units. */
@@ -34,6 +38,58 @@ export function formatElapsed(ms: number): string {
 	parts.push(`${seconds}s`);
 
 	return parts.join(" ");
+}
+
+/** Codex-style light-sweep shimmer using the active Pi theme. */
+export function isFullyDefaultAppearance(features: {
+	substituteDefaultMessage: boolean;
+	elapsedTime: boolean;
+	outputTokens: boolean;
+}, decorations: { shimmer: boolean; tokenActivityMonitor: boolean }): boolean {
+	return !features.substituteDefaultMessage && !decorations.shimmer && !decorations.tokenActivityMonitor && !features.elapsedTime && !features.outputTokens;
+}
+
+/** Assemble the styled word, meter, and optional detail fields. */
+export function buildWorkingMessage(
+	theme: Pick<Theme, "fg">,
+	word: string,
+	frame: string,
+	elapsed: string,
+	tokens: string,
+	features: { elapsedTime: boolean; outputTokens: boolean },
+): string {
+	const parts = [word, frame].filter(Boolean);
+	const details = [features.elapsedTime ? elapsed : "", features.outputTokens ? `↓ ${tokens} tokens` : ""].filter(Boolean);
+	if (details.length) parts.push(theme.fg("dim", `(${details.join(" · ")})`));
+	return parts.join(" ");
+}
+
+export function shimmerString(
+	text: string,
+	elapsedMs: number,
+	theme: Pick<Theme, "fg" | "bold">,
+): string {
+	const chars = [...text];
+	if (chars.length === 0) return "";
+	const SHIMMER_SWEEP_S = 2.0;
+	const SHIMMER_BAND_HALF = 5.0;
+	const SHIMMER_PADDING = 10;
+	const period = chars.length + SHIMMER_PADDING * 2;
+	const elapsedS = elapsedMs / 1000;
+	const pos = ((elapsedS % SHIMMER_SWEEP_S) / SHIMMER_SWEEP_S) * period;
+
+	return chars
+		.map((ch, i) => {
+			const dist = Math.abs(i + SHIMMER_PADDING - pos);
+			const intensity =
+				dist <= SHIMMER_BAND_HALF
+					? 0.5 * (1 + Math.cos((Math.PI * dist) / SHIMMER_BAND_HALF))
+					: 0;
+			if (intensity > 0.6) return theme.bold(theme.fg("text", ch));
+			if (intensity > 0.15) return theme.fg("muted", ch);
+			return theme.fg("dim", ch);
+		})
+		.join("");
 }
 
 /**

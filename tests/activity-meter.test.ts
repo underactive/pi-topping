@@ -42,7 +42,9 @@ test("TokRateTracker avoids first-sample spikes and smooths subsequent samples",
 	assert.equal(tracker.sample(3, 200), 6);
 	assert.equal(tracker.sample(9, 400), 15.6);
 	assert.equal(tracker.sample(20, 400), 15.6);
-	assert.equal(tracker.sample(0, 600), 9.36);
+	// The 11 pending tokens at the duplicate timestamp are included at 600 ms:
+	// 0.6 × (31 / 0.2) + 0.4 × 15.6 = 31.36.
+	assert.equal(tracker.sample(0, 600), 31.36);
 
 	tracker.reset();
 	assert.equal(tracker.sample(100, 2_000), 0);

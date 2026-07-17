@@ -10,6 +10,7 @@
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import type { MenuSection } from "./menu.ts";
 
 export interface DecoratorSettings {
 	decorations: {
@@ -93,11 +94,80 @@ function mergeBooleanGroup<T extends Record<string, boolean>>(defaults: T, parse
 	return merged;
 }
 
+interface DecorationBooleanMenuEntry {
+	id: "animatedSpinner" | "shimmer" | "tokenActivityMonitor";
+	label: string;
+	section: "Decorations";
+	group: "decorations";
+}
+
+interface FeatureBooleanMenuEntry {
+	id: "substituteDefaultMessage" | "elapsedTime" | "outputTokens" | "doneMarker";
+	label: string;
+	section: "Options";
+	group: "features";
+}
+
+interface DirectionMenuEntry {
+	id: "meterDirection_rtl";
+	label: string;
+	section: "Options";
+	group: "decorations";
+}
+
+type MenuEntry = DecorationBooleanMenuEntry | FeatureBooleanMenuEntry | DirectionMenuEntry;
+
+/** The ordered settings-menu schema and its explicit settings conversions. */
+export const MENU_ENTRIES: readonly MenuEntry[] = [
+	{ id: "animatedSpinner", label: "Animated spinner", section: "Decorations", group: "decorations" },
+	{ id: "shimmer", label: "“Working...” text shimmer", section: "Decorations", group: "decorations" },
+	{ id: "tokenActivityMonitor", label: "Token activity monitor", section: "Decorations", group: "decorations" },
+	{ id: "substituteDefaultMessage", label: "Substitute Pi's “Working…” message", section: "Options", group: "features" },
+	{ id: "elapsedTime", label: "Elapsed time since prompt", section: "Options", group: "features" },
+	{ id: "outputTokens", label: "Show output tokens", section: "Options", group: "features" },
+	{ id: "doneMarker", label: "Show completion marker", section: "Options", group: "features" },
+	{ id: "meterDirection_rtl", label: "Scrolling: Right → Left", section: "Options", group: "decorations" },
+];
+
+/** Build the ordered toggle-menu sections from persisted settings. */
+export function buildMenuSections(settings: DecoratorSettings): MenuSection[] {
+	return ["Decorations", "Options"].map((title) => ({
+		title,
+		items: MENU_ENTRIES.filter((entry) => entry.section === title).map((entry) => ({
+			id: entry.id,
+			label: entry.label,
+			value:
+				entry.id === "meterDirection_rtl"
+					? settings.decorations.meterDirection === "rtl"
+					: entry.group === "decorations"
+						? settings.decorations[entry.id]
+						: settings.features[entry.id],
+		})),
+	}));
+}
+
+/** Clone settings and apply recognized menu values, including direction conversion. */
+export function applyMenuResult(
+	settings: DecoratorSettings,
+	values: Record<string, boolean>,
+): DecoratorSettings {
+	const next = structuredClone(settings);
+	for (const entry of MENU_ENTRIES) {
+		const value = values[entry.id];
+		if (value === undefined) continue;
+		if (entry.id === "meterDirection_rtl") {
+			next.decorations.meterDirection = value ? "rtl" : "ltr";
+		} else if (entry.group === "decorations") {
+			next.decorations[entry.id] = value;
+		} else {
+			next.features[entry.id] = value;
+		}
+	}
+	return next;
+}
+
 function cloneDefaults(): DecoratorSettings {
-	return {
-		decorations: { ...DEFAULT_SETTINGS.decorations },
-		features: { ...DEFAULT_SETTINGS.features },
-	};
+	return structuredClone(DEFAULT_SETTINGS);
 }
 
 /**

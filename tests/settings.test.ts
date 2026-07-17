@@ -4,7 +4,15 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 
-import { DEFAULT_SETTINGS, loadSettings, saveSettings, settingsPath } from "../settings.ts";
+import {
+	applyMenuResult,
+	buildMenuSections,
+	DEFAULT_SETTINGS,
+	type DecoratorSettings,
+	loadSettings,
+	saveSettings,
+	settingsPath,
+} from "../settings.ts";
 
 function withTempAgentDir<T>(fn: (dir: string) => T): T {
 	const dir = mkdtempSync(join(tmpdir(), "pi-topping-test-"));
@@ -18,6 +26,50 @@ function withTempAgentDir<T>(fn: (dir: string) => T): T {
 		rmSync(dir, { recursive: true, force: true });
 	}
 }
+
+test("buildMenuSections preserves menu IDs, labels, section order, and values", () => {
+	const settings: DecoratorSettings = {
+		decorations: { animatedSpinner: false, shimmer: true, tokenActivityMonitor: false, meterDirection: "rtl" },
+		features: { substituteDefaultMessage: true, elapsedTime: false, outputTokens: true, doneMarker: false },
+	};
+
+	assert.deepEqual(buildMenuSections(settings), [
+		{
+			title: "Decorations",
+			items: [
+				{ id: "animatedSpinner", label: "Animated spinner", value: false },
+				{ id: "shimmer", label: "“Working...” text shimmer", value: true },
+				{ id: "tokenActivityMonitor", label: "Token activity monitor", value: false },
+			],
+		},
+		{
+			title: "Options",
+			items: [
+				{ id: "substituteDefaultMessage", label: "Substitute Pi's “Working…” message", value: true },
+				{ id: "elapsedTime", label: "Elapsed time since prompt", value: false },
+				{ id: "outputTokens", label: "Show output tokens", value: true },
+				{ id: "doneMarker", label: "Show completion marker", value: false },
+				{ id: "meterDirection_rtl", label: "Scrolling: Right → Left", value: true },
+			],
+		},
+	]);
+});
+
+test("applyMenuResult clones settings and applies known partial values", () => {
+	const original = structuredClone(DEFAULT_SETTINGS);
+	const updated = applyMenuResult(original, {
+		shimmer: false,
+		meterDirection_rtl: true,
+		unknown: false,
+	});
+
+	assert.deepEqual(original, DEFAULT_SETTINGS);
+	assert.equal(updated.decorations.shimmer, false);
+	assert.equal(updated.decorations.meterDirection, "rtl");
+	assert.equal(updated.features.doneMarker, true);
+
+	assert.equal(applyMenuResult(updated, { meterDirection_rtl: false }).decorations.meterDirection, "ltr");
+});
 
 test("loadSettings returns defaults when the file is missing", () => {
 	withTempAgentDir(() => {
@@ -53,7 +105,7 @@ test("loadSettings returns defaults on malformed JSON", () => {
 
 test("saveSettings then loadSettings round-trips the full schema", () => {
 	withTempAgentDir(() => {
-		const custom = {
+		const custom: DecoratorSettings = {
 			decorations: { animatedSpinner: false, shimmer: false, tokenActivityMonitor: true, meterDirection: "ltr" },
 			features: { substituteDefaultMessage: false, elapsedTime: true, outputTokens: false, doneMarker: true },
 		};
