@@ -12,7 +12,7 @@ import {
 	loadSettings,
 	saveSettings,
 	settingsPath,
-} from "../settings.ts";
+} from "../src/settings.ts";
 
 function withTempAgentDir<T>(fn: (dir: string) => T): T {
 	const dir = mkdtempSync(join(tmpdir(), "pi-topping-test-"));

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ActivityMeter, rateToLevel, TokRateTracker } from "../activity-meter.ts";
+import { ActivityMeter, rateToLevel, TokRateTracker } from "../src/activity-meter.ts";
 
 test("rateToLevel maps token-rate boundaries", () => {
 	assert.equal(rateToLevel(0), 0);

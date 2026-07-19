@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { formatElapsed, formatTokens, shimmerString, StreamingWordCounter } from "../format.ts";
+import { formatElapsed, formatTokens, shimmerString, StreamingWordCounter } from "../src/format.ts";
 
 test("formatTokens uses readable thresholds", () => {
 	assert.equal(formatTokens(999), "999");

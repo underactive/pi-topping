@@ -32,7 +32,7 @@ type MessageUpdateEvent = {
 };
 type MessageEndEvent = { type: "message_end"; message: AssistantMessage };
 type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown };
-import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "../settings.ts";
+import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/settings.ts";
 import workingDecorator from "../index.ts";
 
 type TestedEvents = {

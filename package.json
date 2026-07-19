@@ -20,7 +20,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": ["*.ts", "README.md", "LICENSE"],
+  "files": ["index.ts", "src/**/*.ts", "README.md", "LICENSE"],
   "scripts": {
     "test": "node --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"

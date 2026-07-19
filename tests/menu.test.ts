@@ -6,7 +6,7 @@ import { visibleWidth } from "@earendil-works/pi-tui";
 
 import type { TUI } from "@earendil-works/pi-tui";
 
-import { MenuComponent, type MenuConfig, type MenuResult } from "../menu.ts";
+import { MenuComponent, type MenuConfig, type MenuResult } from "../src/menu.ts";
 
 const KEY = {
 	up: "\x1b[A",
