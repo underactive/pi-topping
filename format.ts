@@ -67,29 +67,39 @@ export function buildWorkingMessage(
 export function shimmerString(
 	text: string,
 	elapsedMs: number,
-	theme: Pick<Theme, "fg" | "bold">,
+	theme: Pick<Theme, "getFgAnsi">,
 ): string {
 	const chars = [...text];
 	if (chars.length === 0) return "";
 	const SHIMMER_SWEEP_S = 2.0;
 	const SHIMMER_BAND_HALF = 5.0;
 	const SHIMMER_PADDING = 10;
+	const SHIMMER_BASE = ansiToRgb(theme.getFgAnsi("dim"));
+	const SHIMMER_HIGHLIGHT = ansiToRgb(theme.getFgAnsi("text"));
 	const period = chars.length + SHIMMER_PADDING * 2;
 	const elapsedS = elapsedMs / 1000;
 	const pos = ((elapsedS % SHIMMER_SWEEP_S) / SHIMMER_SWEEP_S) * period;
 
 	return chars
 		.map((ch, i) => {
-			const dist = Math.abs(i + SHIMMER_PADDING - pos);
-			const intensity =
-				dist <= SHIMMER_BAND_HALF
-					? 0.5 * (1 + Math.cos((Math.PI * dist) / SHIMMER_BAND_HALF))
-					: 0;
-			if (intensity > 0.6) return theme.bold(theme.fg("text", ch));
-			if (intensity > 0.15) return theme.fg("muted", ch);
-			return theme.fg("dim", ch);
+			const dist = Math.abs((i + SHIMMER_PADDING) - pos);
+			const t = dist <= SHIMMER_BAND_HALF
+				? 0.5 * (1 + Math.cos(Math.PI * dist / SHIMMER_BAND_HALF))
+				: 0;
+			const alpha = t * 0.9;
+			const r = Math.round(SHIMMER_HIGHLIGHT[0] * alpha + SHIMMER_BASE[0] * (1 - alpha));
+			const g = Math.round(SHIMMER_HIGHLIGHT[1] * alpha + SHIMMER_BASE[1] * (1 - alpha));
+			const b = Math.round(SHIMMER_HIGHLIGHT[2] * alpha + SHIMMER_BASE[2] * (1 - alpha));
+			const bold = t > 0.2 ? "\x1b[1m" : "";
+			return `${bold}\x1b[38;2;${r};${g};${b}m${ch}\x1b[22m`;
 		})
-		.join("");
+		.join("") + "\x1b[0m";
+}
+
+function ansiToRgb(ansi: string): [number, number, number] {
+	const match = ansi.match(/^\x1b\[38;2;(\d+);(\d+);(\d+)m$/);
+	if (!match) throw new Error(`Shimmer requires truecolor theme colors, received ${JSON.stringify(ansi)}`);
+	return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 
 /**

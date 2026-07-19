@@ -101,7 +101,11 @@ function createContext(
 	},
 ): ExtensionContext {
 	const notifications = options?.notifications ?? [];
-	const theme = { fg, bold: (text: string) => text };
+	const theme = {
+		fg,
+		bold: (text: string) => text,
+		getFgAnsi: (color: string) => color === "dim" ? "\x1b[38;2;96;96;96m" : "\x1b[38;2;224;224;224m",
+	};
 	const fakeTui = { requestRender: () => {} };
 	return {
 		hasUI: true,
