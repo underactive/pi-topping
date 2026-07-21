@@ -6,11 +6,13 @@ import { visibleWidth } from "@earendil-works/pi-tui";
 
 import type { TUI } from "@earendil-works/pi-tui";
 
-import { MenuComponent, type MenuConfig, type MenuResult } from "../src/menu.ts";
+import { MenuComponent, type MenuConfig, type MenuResult, type MenuValue } from "../src/menu.ts";
 
 const KEY = {
 	up: "\x1b[A",
 	down: "\x1b[B",
+	left: "\x1b[D",
+	right: "\x1b[C",
 	space: " ",
 	enter: "\r",
 	escape: "\x1b",
@@ -60,7 +62,7 @@ function baseConfig(): MenuConfig {
 }
 
 function makeMenu(
-	done: (result: MenuResult<Record<string, boolean>>) => void,
+	done: (result: MenuResult<Record<string, MenuValue>>) => void,
 	overrides: Partial<MenuConfig> = {},
 	tui?: TUI,
 ): MenuComponent {
@@ -75,7 +77,7 @@ test("render produces a well-formed frame at the requested width", () => {
 	assert.equal(lines.length, 1 + (1 + 2 + 1) + (1 + 1 + 1) + 1 + 1 + 1);
 
 	for (const line of lines) {
-		assert.ok(visibleWidth(line) <= 64, `line exceeds width: ${JSON.stringify(line)}`);
+		assert.equal(visibleWidth(line), 64, `line does not fill the overlay: ${JSON.stringify(line)}`);
 	}
 
 	const plain = lines.map(stripTags);
@@ -86,6 +88,47 @@ test("render produces a well-formed frame at the requested width", () => {
 	assert.ok(plain.some((l) => l.includes("OFF")));
 	assert.ok(plain.at(-1)!.includes("\u255a"));
 	assert.ok(plain.at(-1)!.includes("[ 1/3 ]"));
+});
+
+test("scrolls the item body to fit a 24-row terminal while keeping chrome and cursor visible", (t) => {
+	const terminal = { rows: 24 };
+	const tui = { terminal, requestRender: () => {} } as unknown as TUI;
+	const menu = new MenuComponent({
+		title: "TEST",
+		sections: [{ title: "Many settings", items: Array.from({ length: 20 }, (_, i) => ({ id: `item-${i}`, label: `Item ${i}`, value: true })) }],
+		preview: () => ["preview"],
+	}, fakeTheme(), () => {}, tui);
+	t.after(() => menu.dispose());
+
+	let lines = menu.render(64).map(stripTags);
+	assert.equal(lines.length, 24);
+	assert.ok(lines[0]!.includes("╔═[ TEST "));
+	assert.ok(lines.at(-1)!.includes("[ 1/20 ]"));
+	assert.ok(lines.some((line) => line.includes("Item 0") && line.includes("▸")));
+	assert.ok(lines.some((line) => line.includes("↓ more below")));
+
+	for (let i = 0; i < 15; i++) menu.handleInput(KEY.down);
+	lines = menu.render(64).map(stripTags);
+	assert.equal(lines.length, 24);
+	assert.ok(lines.some((line) => line.includes("Item 15") && line.includes("▸")));
+	assert.ok(lines.some((line) => line.includes("↑ more above") && line.includes("↓ more below")));
+	assert.ok(lines.at(-1)!.includes("[ 16/20 ]"));
+
+	for (let i = 0; i < 4; i++) menu.handleInput(KEY.down);
+	lines = menu.render(64).map(stripTags);
+	assert.ok(lines.some((line) => line.includes("Item 19") && line.includes("▸")));
+	assert.ok(lines.some((line) => line.includes("↑ more above")));
+	assert.ok(!lines.some((line) => line.includes("↓ more below")));
+	assert.ok(lines.at(-1)!.includes("[ 20/20 ]"));
+
+	// A taller terminal is detected without reconstructing the component and
+	// reveals the complete natural-height menu rather than adding empty rows.
+	terminal.rows = 40;
+	lines = menu.render(64).map(stripTags);
+	assert.equal(lines.length, 30);
+	assert.ok(lines.some((line) => line.includes("Item 0")));
+	assert.ok(lines.some((line) => line.includes("Item 19")));
+	assert.ok(!lines.some((line) => line.includes("more above") || line.includes("more below")));
 });
 
 test("arrow keys move the cursor with wrap-around in both directions", () => {
@@ -125,8 +168,71 @@ test("space toggles the selected item's value", () => {
 	assert.ok(after.includes("OFF"));
 });
 
+test("left/right cycle multi-value items without changing boolean toggle behavior", () => {
+	let result: MenuResult<Record<string, MenuValue>> | undefined;
+	const menu = new MenuComponent({
+		title: "TEST",
+		sections: [{ title: "S1", items: [
+			{ id: "color", label: "Border color", value: "accent", cycleValues: ["accent", "border", "borderAccent"] },
+			{ id: "enabled", label: "Enabled", value: true },
+		] }],
+	}, fakeTheme(), (value) => { result = value; });
+
+	menu.handleInput(KEY.right);
+	assert.ok(menu.render(64).map(stripTags).some((line) => line.includes("‹ border ›")));
+	menu.handleInput(KEY.space);
+	assert.ok(menu.render(64).map(stripTags).some((line) => line.includes("‹ border ›")), "space does not toggle a cycle item");
+	menu.handleInput(KEY.left);
+	menu.handleInput(KEY.left);
+	assert.ok(menu.render(64).map(stripTags).some((line) => line.includes("‹ borderAccent ›")));
+	menu.handleInput(KEY.down);
+	menu.handleInput(KEY.space);
+	menu.handleInput(KEY.enter);
+
+	assert.equal(result!.values.color, "borderAccent");
+	assert.equal(result!.values.enabled, false);
+});
+
+test("gated cycle item: checkbox resets to disabled value and blocks arrows until re-checked", () => {
+	let result: MenuResult<Record<string, MenuValue>> | undefined;
+	const menu = new MenuComponent({
+		title: "TEST",
+		sections: [{ title: "S1", items: [
+			{ id: "color", label: "Border color", value: "accent", cycleValues: ["accent", "border", "borderAccent"], cycleEnabledBy: "colorEnabled", cycleEnabled: true, cycleDisabledValue: "border" },
+		] }],
+	}, fakeTheme(), (value) => { result = value; });
+
+	// Checked by default: checkbox renders filled and arrows cycle.
+	const checked = menu.render(64).map(stripTags).find((l) => l.includes("Border color"))!;
+	assert.ok(checked.includes("[■]"), `expected filled checkbox: ${JSON.stringify(checked)}`);
+	menu.handleInput(KEY.right);
+	assert.ok(menu.render(64).map(stripTags).some((line) => line.includes("‹ border ›")));
+	menu.handleInput(KEY.right);
+	assert.ok(menu.render(64).map(stripTags).some((line) => line.includes("‹ borderAccent ›")));
+
+	// Uncheck: resets to the disabled value, renders empty checkbox, arrows are no-ops.
+	menu.handleInput(KEY.space);
+	let lines = menu.render(64).map(stripTags);
+	assert.ok(lines.some((l) => l.includes("Border color") && l.includes("[ ]")), `expected empty checkbox: ${JSON.stringify(lines)}`);
+	assert.ok(lines.some((line) => line.includes("‹ border ›")));
+	menu.handleInput(KEY.right);
+	menu.handleInput(KEY.left);
+	assert.ok(menu.render(64).map(stripTags).some((line) => line.includes("‹ border ›")), "arrows must not change a disabled cycle item");
+
+	// Re-check: cycling works again.
+	menu.handleInput(KEY.space);
+	lines = menu.render(64).map(stripTags);
+	assert.ok(lines.some((l) => l.includes("Border color") && l.includes("[■]")));
+	menu.handleInput(KEY.left);
+	assert.ok(menu.render(64).map(stripTags).some((line) => line.includes("‹ accent ›")));
+
+	menu.handleInput(KEY.enter);
+	assert.equal(result!.values.color, "accent");
+	assert.equal(result!.values.colorEnabled, true);
+});
+
 test("enter applies the current (possibly toggled) values", () => {
-	let result: MenuResult<Record<string, boolean>> | undefined;
+	let result: MenuResult<Record<string, MenuValue>> | undefined;
 	const menu = makeMenu((r) => {
 		result = r;
 	});
@@ -142,7 +248,7 @@ test("enter applies the current (possibly toggled) values", () => {
 });
 
 test("escape cancels and restores the original values", () => {
-	let result: MenuResult<Record<string, boolean>> | undefined;
+	let result: MenuResult<Record<string, MenuValue>> | undefined;
 	const menu = makeMenu((r) => {
 		result = r;
 	});
@@ -181,7 +287,7 @@ test("render never exceeds a narrow width even with long labels", () => {
 });
 
 test("preview renders a Preview section reflecting the current toggle values", () => {
-	const calls: { values: Record<string, boolean>; elapsedMs: number }[] = [];
+	const calls: { values: Record<string, MenuValue>; elapsedMs: number }[] = [];
 	const menu = makeMenu(() => {}, {
 		preview: (values, elapsedMs) => {
 			calls.push({ values: { ...values }, elapsedMs });
@@ -258,26 +364,87 @@ test("preview lines are padded/truncated to fit and never exceed the requested w
 	}
 });
 
-test("dispose() stops the preview animation timer when a TUI is provided", (t) => {
-	const timers: { started: number; cleared: unknown[] } = { started: 0, cleared: [] };
-	t.mock.method(globalThis, "setInterval", ((..._args: unknown[]) => {
-		timers.started++;
+test("dispose() stops the preview refresh timer when a TUI is provided", (t) => {
+	const timers: { delays: (number | undefined)[]; cleared: unknown[] } = { delays: [], cleared: [] };
+	t.mock.method(globalThis, "setTimeout", ((_callback: () => void, delay?: number) => {
+		timers.delays.push(delay);
 		return 99 as unknown as NodeJS.Timeout;
-	}) as unknown as typeof setInterval);
-	t.mock.method(globalThis, "clearInterval", ((handle: unknown) => {
+	}) as unknown as typeof setTimeout);
+	t.mock.method(globalThis, "clearTimeout", ((handle: unknown) => {
 		timers.cleared.push(handle);
-	}) as typeof clearInterval);
+	}) as typeof clearTimeout);
 
 	const fakeTui = { requestRender: () => {} } as unknown as TUI;
 	const menu = makeMenu(() => {}, { preview: () => ["x"] }, fakeTui);
 
-	assert.equal(timers.started, 1);
+	assert.deepEqual(timers.delays, [50]);
 	menu.dispose();
 	assert.deepEqual(timers.cleared, [99]);
 
 	// Calling dispose() again is a safe no-op.
 	menu.dispose();
 	assert.deepEqual(timers.cleared, [99]);
+});
+
+test("static PreviewResult previews do not schedule a refresh timer", (t) => {
+	let timeouts = 0;
+	t.mock.method(globalThis, "setTimeout", ((..._args: unknown[]) => {
+		timeouts++;
+		return 99 as unknown as NodeJS.Timeout;
+	}) as unknown as typeof setTimeout);
+
+	const fakeTui = { requestRender: () => {} } as unknown as TUI;
+	const menu = makeMenu(() => {}, { preview: () => ({ lines: ["static"] }) }, fakeTui);
+	menu.render(64);
+
+	assert.equal(timeouts, 0);
+	menu.dispose();
+});
+
+test("PreviewResult schedules its declared refresh delay", (t) => {
+	const timers: { delays: (number | undefined)[]; cleared: unknown[] } = { delays: [], cleared: [] };
+	t.mock.method(globalThis, "setTimeout", ((_callback: () => void, delay?: number) => {
+		timers.delays.push(delay);
+		return 99 as unknown as NodeJS.Timeout;
+	}) as unknown as typeof setTimeout);
+	t.mock.method(globalThis, "clearTimeout", ((handle: unknown) => {
+		timers.cleared.push(handle);
+	}) as typeof clearTimeout);
+
+	const fakeTui = { requestRender: () => {} } as unknown as TUI;
+	const menu = makeMenu(() => {}, { preview: () => ({ lines: ["animated"], nextRefreshInMs: 100 }) }, fakeTui);
+
+	assert.deepEqual(timers.delays, [100]);
+	menu.dispose();
+	assert.deepEqual(timers.cleared, [99]);
+});
+
+test("switching from a static preview to an animated one starts and stops its timer", (t) => {
+	const timers: { delays: (number | undefined)[]; cleared: unknown[] } = { delays: [], cleared: [] };
+	t.mock.method(globalThis, "setTimeout", ((_callback: () => void, delay?: number) => {
+		timers.delays.push(delay);
+		return 99 as unknown as NodeJS.Timeout;
+	}) as unknown as typeof setTimeout);
+	t.mock.method(globalThis, "clearTimeout", ((handle: unknown) => {
+		timers.cleared.push(handle);
+	}) as typeof clearTimeout);
+
+	const fakeTui = { requestRender: () => {} } as unknown as TUI;
+	const menu = makeMenu(() => {}, {
+		preview: (_values, _elapsedMs, activeItemId) =>
+			activeItemId === "a"
+				? { lines: ["static"] }
+				: { lines: ["animated"], nextRefreshInMs: 80 },
+	}, fakeTui);
+
+	menu.handleInput(KEY.down);
+	menu.render(64);
+	assert.deepEqual(timers.delays, [80]);
+
+	menu.handleInput(KEY.up);
+	menu.render(64);
+	assert.deepEqual(timers.cleared, [99]);
+	menu.dispose();
 });
 
 test("dispose() is a safe no-op when there is no preview or no TUI", () => {

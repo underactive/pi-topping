@@ -117,12 +117,19 @@ export class ActivityMeter {
 		this.#levels.fill(0);
 	}
 
-	/** Colorize a meter cell using the default theme mapping (dim at IDLE, accent otherwise). */
+	/** Colorize a meter cell using the default theme mapping (dim at IDLE, `color` otherwise). */
 	static colorizeCell(
 		level: ActivityMeterLevel,
 		char: string,
 		theme: { fg: (style: ThemeColor, s: string) => string },
+		color: ThemeColor = "accent",
+		dimmed?: boolean,
 	): string {
-		return level === ActivityMeterLevel.IDLE ? theme.fg("dim", char) : theme.fg("accent", char);
+		if (level === ActivityMeterLevel.IDLE) return theme.fg("dim", char);
+		const colored = theme.fg(color, char);
+		// ANSI dim (SGR 2) reduces color brightness; SGR 22 resets dim/bold.
+		// This is necessary because theme.fg("dim", ...) sets a gray color instead
+		// of applying the ANSI dim attribute, so nesting would overwrite the accent color.
+		return dimmed ? `\x1b[2m${colored}\x1b[22m` : colored;
 	}
 }

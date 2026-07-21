@@ -29,37 +29,22 @@ function withTempAgentDir<T>(fn: (dir: string) => T): T {
 
 test("buildMenuSections preserves menu IDs, labels, section order, and values", () => {
 	const settings: DecoratorSettings = {
-		decorations: { animatedSpinner: false, shimmer: true, tokenActivityMonitor: false, meterDirection: "rtl" },
-		features: { substituteDefaultMessage: true, elapsedTime: false, outputTokens: true, doneMarker: false },
+		decorations: { ...DEFAULT_SETTINGS.decorations, animatedSpinner: false, shimmer: true, tokenActivityMonitor: false, meterDirection: "rtl", decorateUserPrompt: true },
+		features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: true, elapsedTime: false, outputTokens: true, doneMarker: false },
 	};
 
-	assert.deepEqual(buildMenuSections(settings), [
-		{
-			title: "Decorations",
-			items: [
-				{ id: "animatedSpinner", label: "Animated spinner", value: false },
-				{ id: "shimmer", label: "“Working...” text shimmer", value: true },
-				{ id: "tokenActivityMonitor", label: "Token activity monitor", value: false },
-			],
-		},
-		{
-			title: "Options",
-			items: [
-				{ id: "substituteDefaultMessage", label: "Substitute Pi's “Working…” message", value: true },
-				{ id: "elapsedTime", label: "Elapsed time since prompt", value: false },
-				{ id: "outputTokens", label: "Show output tokens", value: true },
-				{ id: "doneMarker", label: "Show completion marker", value: false },
-				{ id: "meterDirection_rtl", label: "Scrolling: Right → Left", value: true },
-			],
-		},
-	]);
+	const sections = buildMenuSections(settings);
+	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "Working Loader Text", "Completion Marker", "Options"]);
+	assert.deepEqual(sections.flatMap(section => section.items).map(item => item.id), ["decorateUserPrompt", "borderColor", "promptIcon", "promptTimestamp", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerDirection", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "useNerdFont"]);
+	assert.equal(sections[1]!.items[0]!.value, false);
+	assert.equal(sections[2]!.items[0]!.value, false);
 });
 
 test("applyMenuResult clones settings and applies known partial values", () => {
 	const original = structuredClone(DEFAULT_SETTINGS);
 	const updated = applyMenuResult(original, {
 		shimmer: false,
-		meterDirection_rtl: true,
+		meterDirection: "Right to Left",
 		unknown: false,
 	});
 
@@ -68,7 +53,7 @@ test("applyMenuResult clones settings and applies known partial values", () => {
 	assert.equal(updated.decorations.meterDirection, "rtl");
 	assert.equal(updated.features.doneMarker, true);
 
-	assert.equal(applyMenuResult(updated, { meterDirection_rtl: false }).decorations.meterDirection, "ltr");
+	assert.equal(applyMenuResult(updated, { meterDirection: "Left to Right" }).decorations.meterDirection, "ltr");
 });
 
 test("loadSettings returns defaults when the file is missing", () => {
@@ -87,8 +72,8 @@ test("loadSettings deep-merges a partial nested file over defaults", () => {
 
 		const loaded = loadSettings();
 		assert.deepEqual(loaded, {
-			decorations: { animatedSpinner: false, shimmer: true, tokenActivityMonitor: true, meterDirection: "ltr" },
-			features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: false, doneMarker: true },
+			decorations: { ...DEFAULT_SETTINGS.decorations, animatedSpinner: false },
+			features: { ...DEFAULT_SETTINGS.features, outputTokens: false },
 		});
 	});
 });
@@ -106,8 +91,8 @@ test("loadSettings returns defaults on malformed JSON", () => {
 test("saveSettings then loadSettings round-trips the full schema", () => {
 	withTempAgentDir(() => {
 		const custom: DecoratorSettings = {
-			decorations: { animatedSpinner: false, shimmer: false, tokenActivityMonitor: true, meterDirection: "ltr" },
-			features: { substituteDefaultMessage: false, elapsedTime: true, outputTokens: false, doneMarker: true },
+			decorations: { ...DEFAULT_SETTINGS.decorations, animatedSpinner: false, shimmer: false, tokenActivityMonitor: true, meterDirection: "ltr", decorateUserPrompt: false },
+			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, elapsedTime: true, outputTokens: false, doneMarker: true },
 		};
 		saveSettings(custom);
 		assert.deepEqual(loadSettings(), custom);

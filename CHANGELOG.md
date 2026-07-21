@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-07-21
+
+### Added
+- High-vis prompt box wraps each normal user prompt with a `π` title bar and submission timestamp, toggleable via `/topping-settings`.
+- Cycle-value menu items for color (`accent`/`border`/`borderAccent`) and scroll direction (left-to-right/right-to-left) settings, navigable with left/right arrow keys.
+- Context-aware live preview that follows the active setting section — prompt box, loader configuration, or completion marker — so each setting shows its own preview without scrolling away.
+- Configurable spinner color, activity-meter color, shimmer sweep direction, and meter scroll direction via `/topping-settings`.
+- Nerd Font icon (``) toggleable alongside the classic `π` symbol for both the prompt box and completion marker.
+- Token consumption tracking appended to the completion marker, e.g. `(↓ 949 tokens)`.
+- “Token activity monitor dimmed” toggle that applies the ANSI dim attribute to reduce meter brightness by roughly 50%.
+- Settings menu scrolls automatically when there are more items than the terminal height can fit.
+
+### Changed
+- Completion marker format to `π Whisked for 2s (↓ 55 tokens)` — parentheses replace the `·` separator, icon stays in text color, the rest dimmed.
+- Shimmer sweep supports left-to-right and right-to-left directions, matching the meter scroll direction.
+- Menu border brackets changed from `[`/`]` to `┥`/`┝` for a cleaner look.
+- Settings menu preview now schedules its own refresh per render instead of animating on a fixed interval — static previews render once, animated ones (loader, prompt-box timestamp) declare their own delay. The reusable `menu.ts` preview callback may now return a `PreviewResult` in addition to a plain `string[]`.
+- The session's internal ticker now runs only as fast as the enabled decorations require, instead of always ticking at the 50ms shimmer interval.
+- Prompt box preview rendering is memoized per terminal width.
+
+### Fixed
+- Preview no longer jumps in height when scrolling between the tall prompt-box preview and the single-line loader/completion previews — blank padding rows keep the layout stable.
+
 ## [0.2.1] - 2026-07-17
 
 ### Changed

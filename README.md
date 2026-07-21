@@ -7,46 +7,74 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 ## What it does
 
 - Picks a random activity word (`Cerebrating…`, `Noodling…`, `Zigzagging…`, etc.) when you submit a prompt, and a new one each time a tool call starts.
-- Sweeps a theme-aware shimmer across the word while it's showing.
+- Sweeps a theme-aware shimmer across the word while it's showing (configurable left-to-right or right-to-left).
+- Shows an animated spinner (`⠋⠙⠹…`) and an eight-column braille activity meter that reacts to token throughput, all in your chosen theme color (`accent`, `border`, or `borderAccent`).
 - Shows an elapsed timer (`Xm YYs`) that counts up from when you submitted the prompt.
 - Shows a live output-token estimate (`↓ N tokens`), reconciled against the real usage total once each assistant message finishes.
 - Resets everything — word, timer, token count — on each new prompt, and restores Pi's normal loader between turns.
-- Leaves a durable completion marker in the transcript after each finished turn, e.g. `π Baked for 6m 41s` — a fresh random word and the total time for that turn, rendered with `π` in the theme's primary text color and the rest dimmed. It's TUI-only display content and never enters LLM context.
+- Leaves a durable completion marker in the transcript after each finished turn, e.g. `π Whisked for 2s (↓ 55 tokens)` — a fresh random word, the elapsed time, and the confirmed token count, all dimmed with the icon in text color. TUI-only — never enters LLM context.
+- Decorates normal user prompts in a bordered box with a `π` title and submission timestamp, making them easy to spot in transcript history.
 
 ## Activity meter
 
-Next to Pi's spinner there's an eight-column scrolling meter that reflects how fast tokens are streaming in. It updates every 100ms and uses your theme's accent color, so it should blend in with whatever theme you're running.
+Next to Pi's spinner there's an eight-column scrolling meter that reflects how fast tokens are streaming in. It updates every 100ms and uses your chosen theme color (`accent`, `border`, or `borderAccent`) with an optional dim toggle. You can also flip the scroll direction so the meter flows left-to-right or right-to-left.
 
 ## Settings
 
-Run `/topping-settings` (TUI only) to toggle things on or off:
+Run `/topping-settings` (TUI only) to toggle things on or off — the menu adapts to your terminal height and scrolls when needed:
 
 ```
-╔═[ Pi Topping: Settings ]══════════════════════════╗
-╟─ Preview ─────────────────────────────────────────╢
-║                                                   ║
-║  ⠋ Crafting ⣤⣤⣤⣤ (0m 03s · ↓ 84 tokens)          ║
-║                                                   ║
-╟─ Decorations ─────────────────────────────────────╢
-║  ▸ [■] Animated spinner                       ON  ║
-║    [■] "Working..." text shimmer              ON  ║
+╔═┥ Pi Topping: Settings ┝═══════════════════════════╗
+╟─ Preview ──────────────────────────────────────────╢
+║                                                    ║
+║  ⠋ Crafting ⣤⣤⣤⣤ (0m 03s · ↓ 84 tokens)           ║
+║                                                    ║
+╟─ User Prompt ──────────────────────────────────────╢
+║  ▸ [■] High-vis prompt                        ON  ║
+║    [■] Border color                   ‹ accent ›  ║
+║    [■] Pi icon                              ON  ║
+║    [■] Timestamp                            ON  ║
+║                                                    ║
+╟─ Working Loader Text ──────────────────────────────╢
+║    [■] Animated spinner                       ON  ║
+║    [■] Animated spinner color       ‹ accent ›  ║
+║    [■] Randomize "Working" text              ON  ║
+║    [■] Text shimmer                          ON  ║
+║    [■] Text shimmer direction    ‹ Left to Right ›║
 ║    [■] Token activity monitor                 ON  ║
-╟─ Options ─────────────────────────────────────────╢
-║    [■] Substitute Pi's "Working..." message   ON  ║
+║    [■] Token activity monitor color ‹ accent ›  ║
+║    [■] Token activity monitor direction         ║
+║        ‹ Left to Right ›                        ║
+║    [■] Token activity monitor dimmed          OFF ║
 ║    [■] Elapsed time since prompt              ON  ║
 ║    [■] Show output tokens                     ON  ║
-║    [■] Show completion marker                 ON  ║
-║    [ ] Scrolling: Right → Left               OFF  ║
-╟───────────────────────────────────────────────────╢
-║  ↑↓ move  ␣ toggle  ⏎ apply  esc cancel           ║
-╚═══════════════════════════════════════════════════╝
+║                                                    ║
+╟─ Completion Marker ────────────────────────────────╢
+║    [■] Show completion marker                  ON  ║
+║    [■] Pi icon                                ON  ║
+║    [■] Randomize "Worked" text                ON  ║
+║    [■] Tokens spent                           ON  ║
+║                                                    ║
+╟─ Options ──────────────────────────────────────────╢
+║    [■] Use NerdFont icons                      ON  ║
+╟────────────────────────────────────────────────────╢
+║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel║
+╚══════════════════════════════════════════════[ 1/9 ]╝
 ```
 
-**Decorations** — animated spinner, word shimmer, activity meter.
+**User Prompt** — high-vis bordered prompt box with configurable border color, pi icon toggle, and timestamp.
 
-**Options** — whether to substitute the random word at all, the elapsed timer, the token count, the completion marker, and the meter scrolling direction.
+**Working Loader Text** — animated spinner (with color choice), randomized activity word, shimmer (with direction), token activity meter (with color, direction, and dim toggle), elapsed timer, and output token display.
 
-The menu has a live preview so you can see changes as you make them. Everything is on by default, so nothing changes unless you open the menu. Use `↑↓` to move, `␣` to toggle, `⏎` to save, `esc` to cancel. Settings are saved to `~/.pi/agent/pi-topping/settings.json`.
+**Completion Marker** — end-of-turn marker with icon, randomized verb, and token consumption display.
+
+**Options** — Nerd Font icon support (`` vs `π`).
+
+### Prompt decoration
+
+Decorated prompts use only standard Pi theme keys, so they work with any theme. Commands, bash, skills, special-prefix inputs (`/`, `!`, `?`, `:`), and image-bearing prompts pass through unchanged.
+
+The menu has a context-aware live preview that shows the relevant preview for whichever setting section you're browsing — the prompt box when adjusting prompt settings, the loader when configuring animation, or the completion marker when adjusting the end-of-turn display. Everything is on by default, so nothing changes unless you open the menu. Use `↑↓` to move, `←→` to cycle values, `␣` to toggle, `⏎` to save, `esc` to cancel. Settings are saved to `~/.pi/agent/pi-topping/settings.json`.
 
 The toggle-menu component itself lives in `menu.ts` and is reusable by other extensions if you want a similar settings UI.
 

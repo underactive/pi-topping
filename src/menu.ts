@@ -6,7 +6,7 @@
  * contract and `ctx.ui.custom()` overlay API.
  *
  * Renders a titled box containing one or more sections of boolean toggle
- * items, plus an optional live-updating preview section driven by a
+ * or multi-value cycle items, plus an optional live-updating preview section driven by a
  * caller-supplied render callback, e.g.:
  *
  *   ╔═[ Pi Topping: Settings ]════════════════════════╗
@@ -29,10 +29,26 @@
 import type { ExtensionCommandContext, Theme } from "@earendil-works/pi-coding-agent";
 import { type Component, Key, matchesKey, truncateToWidth, type TUI, visibleWidth } from "@earendil-works/pi-tui";
 
+export type MenuValue = boolean | string;
+
+/** Lines to display and an optional delay before the preview should refresh. */
+export interface PreviewResult {
+	lines: string[];
+	nextRefreshInMs?: number;
+}
+
 export interface MenuItem {
 	id: string;
 	label: string;
-	value: boolean;
+	value: MenuValue;
+	/** Values cycled with left/right arrows. Omit for a boolean space-toggle. */
+	cycleValues?: readonly string[];
+	/** ID of the boolean value that gates cycling; space toggles it. */
+	cycleEnabledBy?: string;
+	/** Initial enabled state when `cycleEnabledBy` is set (default true). */
+	cycleEnabled?: boolean;
+	/** Value snapped to when the gating checkbox is unchecked. */
+	cycleDisabledValue?: string;
 }
 
 export interface MenuSection {
@@ -45,20 +61,18 @@ export interface MenuConfig {
 	sections: MenuSection[];
 	hints?: string[];
 	/**
-	 * Optional live preview renderer, shown in its own "Preview" section above
-	 * the toggle sections. Called on every render with the menu's current
-	 * (possibly toggled but not-yet-applied) values and the number of
-	 * milliseconds elapsed since the menu opened, so callers can drive
-	 * animation (e.g. a shimmer sweep or a scrolling meter). Return one string
-	 * per preview line; lines may contain ANSI styling and are truncated/
+	 * Optional preview renderer, shown in its own "Preview" section above the
+	 * toggle sections. Called on every render with the menu's current (possibly
+	 * toggled but not-yet-applied) values and the number of milliseconds elapsed
+	 * since the menu opened. Lines may contain ANSI styling and are truncated/
 	 * padded to fit automatically.
 	 *
-	 * When set, the menu re-renders itself on an interval (see
-	 * `previewIntervalMs`) so the preview animates even without keyboard
-	 * input.
+	 * Return `string[]` for legacy interval-based animation (see
+	 * `previewIntervalMs`), or a `PreviewResult` to declare the next refresh.
+	 * Omitting `nextRefreshInMs` from a `PreviewResult` makes the preview static.
 	 */
-	preview?: (values: Record<string, boolean>, elapsedMs: number) => string[];
-	/** Interval in ms between preview re-renders when `preview` is set. Default 50. */
+	preview?: (values: Record<string, MenuValue>, elapsedMs: number, activeItemId: string | undefined) => string[] | PreviewResult;
+	/** Fallback delay in ms for legacy `string[]` previews. Default 50. */
 	previewIntervalMs?: number;
 }
 
@@ -68,35 +82,56 @@ export interface MenuResult<T> {
 }
 
 const DEFAULT_HINTS = ["\u2191\u2193 move", "\u2423 toggle", "\u23ce apply", "esc cancel"];
-const MIN_WIDTH = 36;
 const MAX_WIDTH = 76;
 
 interface FlatItem {
 	id: string;
 	label: string;
+	cycleValues?: readonly string[];
+	cycleEnabledBy?: string;
+	cycleDisabledValue?: string;
+	item: MenuItem;
+	sectionIndex: number;
+}
+
+function buildInitialValues(config: MenuConfig): Record<string, MenuValue> {
+	const values: Record<string, MenuValue> = {};
+	for (const section of config.sections) {
+		for (const item of section.items) {
+			values[item.id] = item.value;
+			if (item.cycleEnabledBy) values[item.cycleEnabledBy] = item.cycleEnabled ?? true;
+		}
+	}
+	return values;
 }
 
 /** Internal Component implementing the box-drawing toggle menu. */
 export class MenuComponent implements Component {
 	private readonly theme: Theme;
-	private readonly done: (result: MenuResult<Record<string, boolean>>) => void;
+	private readonly done: (result: MenuResult<Record<string, MenuValue>>) => void;
 	private readonly title: string;
 	private readonly sections: MenuSection[];
 	private readonly hints: string[];
-	private readonly initialValues: Record<string, boolean>;
-	private readonly values: Record<string, boolean>;
+	private readonly initialValues: Record<string, MenuValue>;
+	private readonly values: Record<string, MenuValue>;
 	private readonly flat: FlatItem[];
 	private readonly previewFn: MenuConfig["preview"];
+	private readonly previewIntervalMs: number | undefined;
 	private readonly previewOrigin: number | undefined;
-	private previewTimer: ReturnType<typeof setInterval> | undefined;
+	private readonly tui: TUI | undefined;
+	private previewTimer: ReturnType<typeof setTimeout> | undefined;
+	private previewNextRefreshMs: number | undefined;
+	private disposed = false;
 	private cursor = 0;
+	private scrollStart = 0;
 	private cachedWidth: number | undefined;
+	private cachedRows: number | undefined;
 	private cachedLines: string[] | undefined;
 
 	constructor(
 		config: MenuConfig,
 		theme: Theme,
-		done: (result: MenuResult<Record<string, boolean>>) => void,
+		done: (result: MenuResult<Record<string, MenuValue>>) => void,
 		tui?: TUI,
 	) {
 		this.theme = theme;
@@ -104,33 +139,32 @@ export class MenuComponent implements Component {
 		this.title = config.title;
 		this.sections = config.sections;
 		this.hints = config.hints ?? DEFAULT_HINTS;
-		this.values = {};
+		this.tui = tui;
+		this.values = buildInitialValues(config);
 		this.flat = [];
-		for (const section of config.sections) {
+		for (const [sectionIndex, section] of config.sections.entries()) {
 			for (const item of section.items) {
-				this.values[item.id] = item.value;
-				this.flat.push({ id: item.id, label: item.label });
+				this.flat.push({ id: item.id, label: item.label, cycleValues: item.cycleValues, cycleEnabledBy: item.cycleEnabledBy, cycleDisabledValue: item.cycleDisabledValue, item, sectionIndex });
 			}
 		}
 		this.initialValues = { ...this.values };
 
 		this.previewFn = config.preview;
+		this.previewIntervalMs = config.previewIntervalMs;
 		if (this.previewFn) {
 			this.previewOrigin = Date.now();
 			if (tui) {
-				const intervalMs = config.previewIntervalMs ?? 50;
-				this.previewTimer = setInterval(() => {
-					this.invalidate();
-					tui.requestRender();
-				}, intervalMs);
+				this.samplePreview();
+				this.schedulePreview();
 			}
 		}
 	}
 
 	/** Stops the preview animation timer, if any. Called automatically when the overlay closes. */
 	dispose(): void {
-		if (this.previewTimer) {
-			clearInterval(this.previewTimer);
+		this.disposed = true;
+		if (this.previewTimer !== undefined) {
+			clearTimeout(this.previewTimer);
 			this.previewTimer = undefined;
 		}
 	}
@@ -147,7 +181,7 @@ export class MenuComponent implements Component {
 
 		// Map input to a normalized key name.
 		let mappedKey: string | undefined;
-		for (const k of [Key.up, Key.down, Key.space, Key.enter, Key.escape]) {
+		for (const k of [Key.up, Key.down, Key.left, Key.right, Key.space, Key.enter, Key.escape]) {
 			if (matchesKey(data, k)) {
 				mappedKey = k;
 				break;
@@ -164,9 +198,14 @@ export class MenuComponent implements Component {
 				this.cursor = (this.cursor + 1) % this.flat.length;
 				this.invalidate();
 			},
+			[Key.left]: () => this.cycleCurrentValue(-1),
+			[Key.right]: () => this.cycleCurrentValue(1),
 			[Key.space]: () => {
 				const item = this.flat[this.cursor]!;
-				this.values[item.id] = !this.values[item.id];
+				if (item.cycleValues && item.cycleEnabledBy) {
+					this.values[item.cycleEnabledBy] = !this.values[item.cycleEnabledBy] as boolean;
+					if (!this.values[item.cycleEnabledBy] && item.cycleDisabledValue !== undefined) this.values[item.id] = item.cycleDisabledValue;
+				} else if (!item.cycleValues) this.values[item.id] = !this.values[item.id] as boolean;
 				this.invalidate();
 			},
 			[Key.enter]: () => this.done({ applied: true, values: { ...this.values } }),
@@ -179,37 +218,60 @@ export class MenuComponent implements Component {
 
 	invalidate(): void {
 		this.cachedWidth = undefined;
+		this.cachedRows = undefined;
 		this.cachedLines = undefined;
 	}
 
 	render(width: number): string[] {
-		if (this.cachedWidth === width && this.cachedLines) return this.cachedLines;
-		const lines = this.buildLines(width);
+		const rows = this.availableRows();
+		if (this.cachedWidth === width && this.cachedRows === rows && this.cachedLines) return this.cachedLines;
+		const lines = this.buildLines(width, rows);
 		this.cachedWidth = width;
+		this.cachedRows = rows;
 		this.cachedLines = lines;
+		this.schedulePreview();
 		return lines;
 	}
 
-	private preferredWidth(previewLines: string[] | undefined): number {
-		const candidates: number[] = [MIN_WIDTH - 2, 5 + this.title.length];
-		if (previewLines && previewLines.length > 0) {
-			candidates.push(3 + "Preview".length);
-			// +1 for the leading space rendered in front of each preview line.
-			for (const line of previewLines) candidates.push(visibleWidth(line) + 1);
-		}
-		for (const section of this.sections) {
-			candidates.push(3 + section.title.length);
-			for (const item of section.items) {
-				// 8 fixed left columns + label + 2-space default gap + "OFF" (3) + 2 trailing.
-				candidates.push(8 + item.label.length + 2 + 3 + 2);
-			}
-		}
-		candidates.push(2 + this.hints.join("  ").length);
-		return 2 + Math.max(...candidates);
+	private cycleCurrentValue(delta: number): void {
+		const item = this.flat[this.cursor]!;
+		if (!item.cycleValues?.length || (item.cycleEnabledBy && !this.values[item.cycleEnabledBy])) return;
+		const current = item.cycleValues.indexOf(this.values[item.id] as string);
+		const index = (current + delta + item.cycleValues.length) % item.cycleValues.length;
+		this.values[item.id] = item.cycleValues[index]!;
+		this.invalidate();
 	}
 
 	private samplePreview(): string[] | undefined {
-		return this.previewFn ? this.previewFn(this.values, this.previewOrigin !== undefined ? Date.now() - this.previewOrigin : 0) : undefined;
+		if (!this.previewFn) return undefined;
+
+		const result = this.previewFn(
+			this.values,
+			this.previewOrigin !== undefined ? Date.now() - this.previewOrigin : 0,
+			this.flat[this.cursor]?.id,
+		);
+		if (Array.isArray(result)) {
+			this.previewNextRefreshMs = this.previewIntervalMs ?? 50;
+			return result;
+		}
+
+		this.previewNextRefreshMs = result.nextRefreshInMs;
+		return result.lines;
+	}
+
+	private schedulePreview(): void {
+		if (this.previewTimer !== undefined) {
+			clearTimeout(this.previewTimer);
+			this.previewTimer = undefined;
+		}
+
+		const nextRefreshInMs = this.previewNextRefreshMs;
+		if (this.disposed || !this.tui || nextRefreshInMs === undefined || nextRefreshInMs <= 0) return;
+
+		this.previewTimer = setTimeout(() => {
+			this.invalidate();
+			this.tui?.requestRender();
+		}, nextRefreshInMs);
 	}
 
 	private buildPreviewBlock(previewLines: string[] | undefined, innerWidth: number): string[] {
@@ -226,20 +288,89 @@ export class MenuComponent implements Component {
 		]);
 	}
 
+	/** Build a section-aware item window, keeping a divider above each visible section. */
+	private buildToggleWindow(innerWidth: number, start: number, maxRows: number): { lines: string[]; end: number } {
+		const lines: string[] = [];
+		let currentSection = -1;
+		let end = start - 1;
+		for (let index = start; index < this.flat.length && lines.length < maxRows; index++) {
+			const flat = this.flat[index]!;
+			if (flat.sectionIndex !== currentSection) {
+				const remaining = maxRows - lines.length;
+				if (lines.length > 0 && remaining >= 3) lines.push(this.renderBlankRow(innerWidth));
+				if (maxRows - lines.length >= 2) lines.push(this.renderSectionDivider(this.sections[flat.sectionIndex]!.title, innerWidth));
+				currentSection = flat.sectionIndex;
+			}
+			if (lines.length >= maxRows) break;
+			lines.push(this.renderItemRow(flat.item, index === this.cursor, innerWidth));
+			end = index;
+		}
+		if (end === this.flat.length - 1 && lines.length < maxRows) lines.push(this.renderBlankRow(innerWidth));
+		return { lines, end };
+	}
+
+	/** Render the scrolling settings body while keeping the selected item in view. */
+	private buildResponsiveToggleSections(innerWidth: number, maxRows: number): string[] {
+		const allLines = this.buildToggleSections(innerWidth);
+		if (allLines.length <= maxRows) {
+			this.scrollStart = 0;
+			return allLines;
+		}
+		if (maxRows <= 0) return [];
+		if (maxRows === 1) return this.buildToggleWindow(innerWidth, this.cursor, 1).lines;
+
+		const contentRows = maxRows - 1; // Reserve one fixed row for scroll status.
+		if (this.cursor < this.scrollStart) this.scrollStart = this.cursor;
+		this.scrollStart = Math.max(0, Math.min(this.scrollStart, this.flat.length - 1));
+
+		let window = this.buildToggleWindow(innerWidth, this.scrollStart, contentRows);
+		while (window.end < this.cursor && this.scrollStart < this.cursor) {
+			this.scrollStart++;
+			window = this.buildToggleWindow(innerWidth, this.scrollStart, contentRows);
+		}
+		// Backfill from above whenever more context fits without hiding the cursor.
+		while (this.scrollStart > 0) {
+			const candidate = this.buildToggleWindow(innerWidth, this.scrollStart - 1, contentRows);
+			if (candidate.end < this.cursor) break;
+			this.scrollStart--;
+			window = candidate;
+		}
+
+		const rows = [...window.lines];
+		while (rows.length < contentRows) rows.push(this.renderBlankRow(innerWidth));
+		rows.push(this.renderScrollStatus(this.scrollStart > 0, window.end < this.flat.length - 1, innerWidth));
+		return rows;
+	}
+
 	private buildFooter(innerWidth: number): string[] {
 		return [this.renderSeparator(innerWidth), this.renderHintsRow(innerWidth), this.renderBottomBorder(innerWidth)];
 	}
 
-	private buildLines(maxWidth: number): string[] {
+	private availableRows(): number | undefined {
+		const rows = (this.tui as (TUI & { terminal?: { rows?: number } }) | undefined)?.terminal?.rows;
+		return typeof rows === "number" && Number.isFinite(rows) && rows > 0 ? Math.floor(rows) : undefined;
+	}
+
+	private buildLines(maxWidth: number, maxRows?: number): string[] {
 		const previewLines = this.samplePreview();
-		const boxWidth = Math.max(0, Math.min(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, this.preferredWidth(previewLines))), maxWidth));
+		const boxWidth = Math.max(0, Math.min(MAX_WIDTH, maxWidth));
 		const innerWidth = Math.max(0, boxWidth - 2);
-		return [this.renderTopBorder(innerWidth), ...this.buildPreviewBlock(previewLines, innerWidth), ...this.buildToggleSections(innerWidth), ...this.buildFooter(innerWidth)].map(line => truncateToWidth(line, boxWidth, ""));
+		const header = [this.renderTopBorder(innerWidth), ...this.buildPreviewBlock(previewLines, innerWidth)];
+		const footer = this.buildFooter(innerWidth);
+		const naturalBody = this.buildToggleSections(innerWidth);
+		const naturalHeight = header.length + naturalBody.length + footer.length;
+		if (maxRows === undefined || naturalHeight <= maxRows) {
+			return [...header, ...naturalBody, ...footer].map(line => truncateToWidth(line, boxWidth, ""));
+		}
+
+		const bodyRows = Math.max(0, maxRows - header.length - footer.length);
+		const body = this.buildResponsiveToggleSections(innerWidth, bodyRows);
+		return [...header, ...body, ...footer].slice(0, maxRows).map(line => truncateToWidth(line, boxWidth, ""));
 	}
 
 	private wrap(left: string, content: string, right: string): string {
 		const th = this.theme;
-		return th.fg("accent", left) + content + th.fg("accent", right);
+		return th.fg("border", left) + content + th.fg("border", right);
 	}
 
 	/** Render a filled horizontal line with optional title. */
@@ -255,7 +386,7 @@ export class MenuComponent implements Component {
 	): string {
 		const th = this.theme;
 		if (!title) {
-			const content = th.fg("accent", fillChar.repeat(innerWidth));
+			const content = th.fg("border", fillChar.repeat(innerWidth));
 			return this.wrap(left, content, right);
 		}
 		const prefix = titlePrefix ?? "";
@@ -264,7 +395,8 @@ export class MenuComponent implements Component {
 		const shownTitle = title.length > maxTitleLen ? truncateToWidth(title, maxTitleLen) : title;
 		const styledTitle = boldTitle ? th.bold(shownTitle) : shownTitle;
 		const fillCount = Math.max(0, innerWidth - visibleWidth(prefix + shownTitle + suffix));
-		const content = th.fg("accent", `${prefix}${styledTitle}${suffix}${fillChar.repeat(fillCount)}`);
+		const titleContent = th.fg("text", styledTitle);
+		const content = `${th.fg("border", prefix)}${titleContent}${th.fg("border", suffix + fillChar.repeat(fillCount))}`;
 		return this.wrap(left, content, right);
 	}
 
@@ -276,7 +408,7 @@ export class MenuComponent implements Component {
 		const counter = `[ ${this.cursor + 1}/${this.flat.length} ]`;
 		const fillCount = Math.max(0, innerWidth - counter.length);
 		const content = `${"\u2550".repeat(fillCount)}${counter}`;
-		return this.wrap("\u255a", this.theme.fg("accent", content), "\u255d");
+		return this.wrap("\u255a", this.theme.fg("border", content), "\u255d");
 	}
 
 	private renderSectionDivider(title: string, innerWidth: number): string {
@@ -303,27 +435,39 @@ export class MenuComponent implements Component {
 		return this.renderContentRow(this.theme.fg("dim", plain), innerWidth);
 	}
 
+	private renderScrollStatus(hasAbove: boolean, hasBelow: boolean, innerWidth: number): string {
+		const parts = [hasAbove ? "↑ more above" : "", hasBelow ? "↓ more below" : ""].filter(Boolean);
+		return this.renderContentRow(this.theme.fg("dim", `  ${parts.join("    ")}`), innerWidth);
+	}
+
 	private renderItemRow(item: MenuItem, selected: boolean, innerWidth: number): string {
 		const th = this.theme;
 		const value = this.values[item.id]!;
 		const marker = selected ? "\u25b8" : " ";
-		const box = value ? "\u25a0" : " ";
-		const stateWord = value ? "ON" : "OFF";
+		const markerColored = selected ? th.fg("accent", marker) : marker;
+
+		if (item.cycleValues) {
+			const enabled = item.cycleEnabledBy ? this.values[item.cycleEnabledBy] as boolean : true;
+			const stateWord = `‹ ${value} ›`;
+			const fixedLeftLen = 8;
+			const maxLabelLen = Math.max(0, innerWidth - fixedLeftLen - visibleWidth(stateWord) - 1);
+			const label = item.label.length > maxLabelLen ? truncateToWidth(item.label, maxLabelLen) : item.label;
+			const leftPlain = `  ${marker} [${enabled ? "■" : " "}] ${label}`;
+			const gap = Math.max(1, innerWidth - visibleWidth(leftPlain) - visibleWidth(stateWord) - 2);
+			const content = `  ${markerColored} [${enabled ? th.fg("success", "■") : th.fg("muted", " ")}] ${th.fg("text", label)}${" ".repeat(gap)}${enabled ? th.fg("accent", stateWord) : th.fg("muted", stateWord)}  `;
+			return this.wrap("\u2551", content, "\u2551");
+		}
+
+		const enabled = value as boolean;
+		const box = enabled ? "\u25a0" : " ";
+		const stateWord = enabled ? "ON" : "OFF";
 		const rightPlain = `${stateWord}  `;
 		const fixedLeftLen = 8; // "  " + marker(1) + " " + "[" + box(1) + "]" + " "
-		const minGap = 1;
-		const maxLabelLen = Math.max(0, innerWidth - fixedLeftLen - rightPlain.length - minGap);
+		const maxLabelLen = Math.max(0, innerWidth - fixedLeftLen - rightPlain.length - 1);
 		const label = item.label.length > maxLabelLen ? truncateToWidth(item.label, maxLabelLen) : item.label;
-
 		const leftPlain = `  ${marker} [${box}] ${label}`;
 		const gap = Math.max(1, innerWidth - visibleWidth(leftPlain) - visibleWidth(rightPlain));
-
-		const markerColored = selected ? th.fg("accent", marker) : marker;
-		const boxColored = value ? th.fg("success", box) : th.fg("muted", box);
-		const labelColored = th.fg("text", label);
-		const stateColored = value ? th.fg("success", stateWord) : th.fg("muted", stateWord);
-
-		const content = `  ${markerColored} [${boxColored}] ${labelColored}${" ".repeat(gap)}${stateColored}  `;
+		const content = `  ${markerColored} [${enabled ? th.fg("success", box) : th.fg("muted", box)}] ${th.fg("text", label)}${" ".repeat(gap)}${enabled ? th.fg("success", stateWord) : th.fg("muted", stateWord)}  `;
 		return this.wrap("\u2551", content, "\u2551");
 	}
 }
@@ -335,13 +479,11 @@ export class MenuComponent implements Component {
  * Requires TUI mode; in any other mode this resolves immediately with
  * `applied: false` and the menu's initial values, doing nothing visible.
  */
-export async function showMenu<T extends Record<string, boolean>>(
+export async function showMenu<T extends Record<string, MenuValue>>(
 	ctx: ExtensionCommandContext,
 	config: MenuConfig,
 ): Promise<MenuResult<T>> {
-	const initialValues = Object.fromEntries(
-		config.sections.flatMap((section) => section.items.map((item) => [item.id, item.value])),
-	) as T;
+	const initialValues = buildInitialValues(config) as T;
 
 	if (ctx.mode !== "tui") {
 		return { applied: false, values: initialValues };
@@ -349,7 +491,7 @@ export async function showMenu<T extends Record<string, boolean>>(
 
 	return ctx.ui.custom<MenuResult<T>>(
 		(tui, theme, _keybindings, done) =>
-			new MenuComponent(config, theme, done as (result: MenuResult<Record<string, boolean>>) => void, tui),
-		{ overlay: true },
+			new MenuComponent(config, theme, done as (result: MenuResult<Record<string, MenuValue>>) => void, tui),
+		{ overlay: true, overlayOptions: { width: MAX_WIDTH, maxHeight: "100%" } },
 	);
 }

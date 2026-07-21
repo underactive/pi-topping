@@ -1,12 +1,3 @@
-/**
- * settings.ts
- *
- * Persistent, per-user settings for pi-topping, stored at
- * `~/.pi/agent/pi-topping/settings.json`. All seven toggles
- * default to enabled so behavior is unchanged for users who never open
- * `/topping-settings`.
- */
-
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -16,200 +7,168 @@ export interface DecoratorSettings {
 	decorations: {
 		animatedSpinner: boolean;
 		shimmer: boolean;
+		shimmerDirection: "ltr" | "rtl";
+		shimmerDirectionEnabled: boolean;
 		tokenActivityMonitor: boolean;
 		meterDirection: "ltr" | "rtl";
+		meterDirectionEnabled: boolean;
+		decorateUserPrompt: boolean;
+		borderColor: "accent" | "border" | "borderAccent";
+		borderColorEnabled: boolean;
+		spinnerColor: "accent" | "border" | "borderAccent";
+		spinnerColorEnabled: boolean;
+		meterColor: "accent" | "border" | "borderAccent";
+		meterColorEnabled: boolean;
+		meterDimmed: boolean;
+		promptIcon: boolean;
+		promptTimestamp: boolean;
+		useNerdFont: boolean;
 	};
 	features: {
 		substituteDefaultMessage: boolean;
 		elapsedTime: boolean;
 		outputTokens: boolean;
 		doneMarker: boolean;
+		doneMarkerIcon: boolean;
+		randomizeDoneMarker: boolean;
+		doneMarkerTokens: boolean;
 	};
 }
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
-	decorations: {
-		animatedSpinner: true,
-		shimmer: true,
-		tokenActivityMonitor: true,
-		meterDirection: "ltr",
-	},
-	features: {
-		substituteDefaultMessage: true,
-		elapsedTime: true,
-		outputTokens: true,
-		doneMarker: true,
-	},
+	decorations: { animatedSpinner: true, shimmer: true, shimmerDirection: "ltr", shimmerDirectionEnabled: true, tokenActivityMonitor: true, meterDirection: "ltr", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "accent", borderColorEnabled: true, spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, promptIcon: true, promptTimestamp: true, useNerdFont: true },
+	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true },
 };
 
-/** Resolve the absolute path to this extension's settings file. */
-export function settingsPath(): string {
-	return join(getAgentDir(), "pi-topping", "settings.json");
-}
-
-/**
- * True for plain `{}`-style objects only -- excludes `null`, arrays, and
- * primitives. Used to guard against malformed/hand-edited settings.json
- * content (e.g. `"decorations": "oops"` or `"decorations": [1,2,3]`) before
- * spreading it onto the defaults, so a wrong-shaped field can't leak stray
- * properties (like numeric-string keys from spreading a string) into the
- * merged settings object.
- */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/**
- * Merge persisted JSON values onto a defaults object, accepting both boolean
- * fields and a known enum-typed string field (`meterDirection`). Any unknown
- * or wrong-typed keys are silently ignored so hand-edited settings.json can't
- * corrupt the resulting shape.
- */
-function mergeDecorations(
-	defaults: DecoratorSettings["decorations"],
-	parsed: unknown,
-): DecoratorSettings["decorations"] {
+export function settingsPath(): string { return join(getAgentDir(), "pi-topping", "settings.json"); }
+function isPlainObject(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
+function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, parsed: unknown): T {
 	const merged = { ...defaults };
 	if (!isPlainObject(parsed)) return merged;
 	for (const [key, value] of Object.entries(parsed)) {
-		if (key === "meterDirection") {
-			if (value === "ltr" || value === "rtl") {
-				merged.meterDirection = value;
-			}
-		} else if (typeof value === "boolean" && key in merged) {
-			(merged as Record<string, unknown>)[key] = value;
-		}
+		if (!(key in merged)) continue;
+		if (typeof merged[key] === "boolean" && typeof value === "boolean") (merged as Record<string, boolean | string>)[key] = value;
+		if ((key === "meterDirection" || key === "shimmerDirection") && (value === "ltr" || value === "rtl")) (merged as Record<string, boolean | string>)[key] = value;
+		if (key.endsWith("Color") && (value === "accent" || value === "border" || value === "borderAccent")) (merged as Record<string, boolean | string>)[key] = value;
 	}
 	return merged;
 }
 
-function mergeBooleanGroup<T extends Record<string, boolean>>(defaults: T, parsed: unknown): T {
-	const merged = { ...defaults } as T;
-	if (!isPlainObject(parsed)) return merged;
-	for (const [key, value] of Object.entries(parsed)) {
-		if (typeof value === "boolean" && key in merged) {
-			merged[key as keyof T] = value as T[keyof T];
-		}
-	}
-	return merged;
+/** Map a persisted setting value to its menu cycle label (directions only; colors pass through). */
+function toCycleValue(stored: unknown): string {
+	if (stored === "ltr") return "Left to Right";
+	if (stored === "rtl") return "Right to Left";
+	return String(stored);
 }
 
-interface DecorationBooleanMenuEntry {
-	id: "animatedSpinner" | "shimmer" | "tokenActivityMonitor";
-	label: string;
-	section: "Decorations";
-	group: "decorations";
+/** Map a menu cycle label back to its persisted value. */
+function fromCycleValue(value: string): string {
+	if (value === "Left to Right") return "ltr";
+	if (value === "Right to Left") return "rtl";
+	return value;
 }
 
-interface FeatureBooleanMenuEntry {
-	id: "substituteDefaultMessage" | "elapsedTime" | "outputTokens" | "doneMarker";
-	label: string;
-	section: "Options";
-	group: "features";
-}
-
-interface DirectionMenuEntry {
-	id: "meterDirection_rtl";
-	label: string;
-	section: "Options";
-	group: "decorations";
-}
-
-type MenuEntry = DecorationBooleanMenuEntry | FeatureBooleanMenuEntry | DirectionMenuEntry;
-
-/** The ordered settings-menu schema and its explicit settings conversions. */
+type MenuSectionName = "User Prompt" | "Working Loader Text" | "Completion Marker" | "Options";
+type DecorationSettings = DecoratorSettings["decorations"];
+type FeatureSettings = DecoratorSettings["features"];
+type DecorationBooleanKey = { [Key in keyof DecorationSettings]: DecorationSettings[Key] extends boolean ? Key : never }[keyof DecorationSettings];
+type MenuEntryBase = { id: string; label: string; section: MenuSectionName };
+type DecorationMenuEntry = MenuEntryBase & { group: "decorations"; key: keyof DecorationSettings; cycleValues?: readonly string[]; cycleEnabledBy?: DecorationBooleanKey; cycleDisabledValue?: string };
+type FeatureMenuEntry = MenuEntryBase & { group: "features"; key: keyof FeatureSettings; cycleValues?: never; cycleEnabledBy?: never; cycleDisabledValue?: never };
+type MenuEntry = DecorationMenuEntry | FeatureMenuEntry;
 export const MENU_ENTRIES: readonly MenuEntry[] = [
-	{ id: "animatedSpinner", label: "Animated spinner", section: "Decorations", group: "decorations" },
-	{ id: "shimmer", label: "“Working...” text shimmer", section: "Decorations", group: "decorations" },
-	{ id: "tokenActivityMonitor", label: "Token activity monitor", section: "Decorations", group: "decorations" },
-	{ id: "substituteDefaultMessage", label: "Substitute Pi's “Working…” message", section: "Options", group: "features" },
-	{ id: "elapsedTime", label: "Elapsed time since prompt", section: "Options", group: "features" },
-	{ id: "outputTokens", label: "Show output tokens", section: "Options", group: "features" },
-	{ id: "doneMarker", label: "Show completion marker", section: "Options", group: "features" },
-	{ id: "meterDirection_rtl", label: "Scrolling: Right → Left", section: "Options", group: "decorations" },
+	{ id: "decorateUserPrompt", label: "High-vis prompt", section: "User Prompt", group: "decorations", key: "decorateUserPrompt" },
+	{ id: "borderColor", label: "Border color", section: "User Prompt", group: "decorations", key: "borderColor", cycleValues: ["accent", "border", "borderAccent"], cycleEnabledBy: "borderColorEnabled", cycleDisabledValue: "border" },
+	{ id: "promptIcon", label: "Pi icon", section: "User Prompt", group: "decorations", key: "promptIcon" },
+	{ id: "promptTimestamp", label: "Timestamp", section: "User Prompt", group: "decorations", key: "promptTimestamp" },
+	{ id: "animatedSpinner", label: "Animated spinner", section: "Working Loader Text", group: "decorations", key: "animatedSpinner" },
+	{ id: "spinnerColor", label: "Animated spinner color", section: "Working Loader Text", group: "decorations", key: "spinnerColor", cycleValues: ["accent", "border", "borderAccent"], cycleEnabledBy: "spinnerColorEnabled", cycleDisabledValue: "accent" },
+	{ id: "substituteDefaultMessage", label: "Randomize “Working” text", section: "Working Loader Text", group: "features", key: "substituteDefaultMessage" },
+	{ id: "shimmer", label: "Text shimmer", section: "Working Loader Text", group: "decorations", key: "shimmer" },
+	{ id: "shimmerDirection", label: "Text shimmer direction", section: "Working Loader Text", group: "decorations", key: "shimmerDirection", cycleValues: ["Left to Right", "Right to Left"], cycleEnabledBy: "shimmerDirectionEnabled", cycleDisabledValue: "Left to Right" },
+	{ id: "tokenActivityMonitor", label: "Token activity monitor", section: "Working Loader Text", group: "decorations", key: "tokenActivityMonitor" },
+	{ id: "meterColor", label: "Token activity monitor color", section: "Working Loader Text", group: "decorations", key: "meterColor", cycleValues: ["accent", "border", "borderAccent"], cycleEnabledBy: "meterColorEnabled", cycleDisabledValue: "accent" },
+	{ id: "meterDirection", label: "Token activity monitor direction", section: "Working Loader Text", group: "decorations", key: "meterDirection", cycleValues: ["Left to Right", "Right to Left"], cycleEnabledBy: "meterDirectionEnabled", cycleDisabledValue: "Left to Right" },
+	{ id: "meterDimmed", label: "Token activity monitor dimmed", section: "Working Loader Text", group: "decorations", key: "meterDimmed" },
+	{ id: "elapsedTime", label: "Elapsed time since prompt", section: "Working Loader Text", group: "features", key: "elapsedTime" },
+	{ id: "outputTokens", label: "Show output tokens", section: "Working Loader Text", group: "features", key: "outputTokens" },
+	{ id: "doneMarker", label: "Show completion marker", section: "Completion Marker", group: "features", key: "doneMarker" },
+	{ id: "doneMarkerIcon", label: "Pi icon", section: "Completion Marker", group: "features", key: "doneMarkerIcon" },
+	{ id: "randomizeDoneMarker", label: "Randomize “Worked” text", section: "Completion Marker", group: "features", key: "randomizeDoneMarker" },
+	{ id: "doneMarkerTokens", label: "Tokens spent", section: "Completion Marker", group: "features", key: "doneMarkerTokens" },
+	{ id: "useNerdFont", label: "Use NerdFont icons", section: "Options", group: "decorations", key: "useNerdFont" },
 ];
 
-/** Build the ordered toggle-menu sections from persisted settings. */
-export function buildMenuSections(settings: DecoratorSettings): MenuSection[] {
-	return ["Decorations", "Options"].map((title) => ({
-		title,
-		items: MENU_ENTRIES.filter((entry) => entry.section === title).map((entry) => ({
-			id: entry.id,
-			label: entry.label,
-			value:
-				entry.id === "meterDirection_rtl"
-					? settings.decorations.meterDirection === "rtl"
-					: entry.group === "decorations"
-						? settings.decorations[entry.id]
-						: settings.features[entry.id],
-		})),
-	}));
+function menuItem(entry: MenuEntry, settings: DecoratorSettings): MenuSection["items"][number] {
+	const value = entry.group === "decorations" ? settings.decorations[entry.key] : settings.features[entry.key];
+	const cycleEnabled = entry.group === "decorations" && entry.cycleEnabledBy
+		? settings.decorations[entry.cycleEnabledBy]
+		: undefined;
+	return { id: entry.id, label: entry.label, cycleValues: entry.cycleValues, cycleEnabledBy: entry.cycleEnabledBy, cycleDisabledValue: entry.cycleDisabledValue, cycleEnabled, value: entry.cycleValues ? toCycleValue(value) : value };
 }
 
-/** Clone settings and apply recognized menu values, including direction conversion. */
-export function applyMenuResult(
-	settings: DecoratorSettings,
-	values: Record<string, boolean>,
-): DecoratorSettings {
+function isDecorationBooleanKey(key: keyof DecorationSettings): key is DecorationBooleanKey {
+	return typeof DEFAULT_SETTINGS.decorations[key] === "boolean";
+}
+
+function setDecorationCycleValue(decorations: DecorationSettings, key: keyof DecorationSettings, value: string): void {
+	const stored = fromCycleValue(value);
+	switch (key) {
+		case "borderColor":
+		case "spinnerColor":
+		case "meterColor":
+			if (stored === "accent" || stored === "border" || stored === "borderAccent") decorations[key] = stored;
+			return;
+		case "shimmerDirection":
+		case "meterDirection":
+			if (stored === "ltr" || stored === "rtl") decorations[key] = stored;
+			return;
+		default:
+			// Fail loudly if a MENU_ENTRIES cycle entry is added without a handler here.
+			throw new Error(`Unhandled cycle setting: ${String(key)}`);
+	}
+}
+
+export function buildMenuSections(settings: DecoratorSettings): MenuSection[] {
+	return ["User Prompt", "Working Loader Text", "Completion Marker", "Options"].map(title => ({ title, items: MENU_ENTRIES.filter(entry => entry.section === title).map(entry => menuItem(entry, settings)) }));
+}
+
+export function applyMenuResult(settings: DecoratorSettings, values: Record<string, boolean | string>): DecoratorSettings {
 	const next = structuredClone(settings);
 	for (const entry of MENU_ENTRIES) {
 		const value = values[entry.id];
 		if (value === undefined) continue;
-		if (entry.id === "meterDirection_rtl") {
-			next.decorations.meterDirection = value ? "rtl" : "ltr";
-		} else if (entry.group === "decorations") {
-			next.decorations[entry.id] = value;
-		} else {
-			next.features[entry.id] = value;
+		if (entry.group === "decorations" && entry.cycleValues && typeof value === "string" && entry.cycleValues.includes(value)) {
+			setDecorationCycleValue(next.decorations, entry.key, value);
+			if (entry.cycleEnabledBy) next.decorations[entry.cycleEnabledBy] = values[entry.cycleEnabledBy] !== false;
+		} else if (entry.group === "decorations" && typeof value === "boolean" && isDecorationBooleanKey(entry.key)) {
+			next.decorations[entry.key] = value;
+		} else if (entry.group === "features" && typeof value === "boolean") {
+			next.features[entry.key] = value;
 		}
 	}
 	return next;
 }
 
-function cloneDefaults(): DecoratorSettings {
-	return structuredClone(DEFAULT_SETTINGS);
-}
-
-/**
- * Load settings from disk, deep-merging any persisted values onto the
- * defaults. Returns a fresh clone of `DEFAULT_SETTINGS` if the file is
- * missing or contains malformed JSON -- this function never throws.
- */
 export function loadSettings(): DecoratorSettings {
-	const defaults = cloneDefaults();
-	let raw: string;
 	try {
-		raw = readFileSync(settingsPath(), "utf8");
-	} catch {
-		return defaults;
-	}
-
-	try {
-		const parsed = JSON.parse(raw) as Partial<DecoratorSettings> | null;
-		if (!isPlainObject(parsed)) return defaults;
-		return {
-			decorations: mergeDecorations(defaults.decorations, parsed.decorations),
-			features: mergeBooleanGroup(defaults.features, parsed.features),
-		};
-	} catch {
-		return defaults;
-	}
+		const parsed = JSON.parse(readFileSync(settingsPath(), "utf8"));
+		if (!isPlainObject(parsed)) return structuredClone(DEFAULT_SETTINGS);
+		const settings = { decorations: mergeGroup(DEFAULT_SETTINGS.decorations, parsed.decorations), features: mergeGroup(DEFAULT_SETTINGS.features, parsed.features) };
+		const gated: readonly (readonly ["borderColor" | "spinnerColor" | "meterColor" | "shimmerDirection" | "meterDirection", "borderColorEnabled" | "spinnerColorEnabled" | "meterColorEnabled" | "shimmerDirectionEnabled" | "meterDirectionEnabled", string])[] = [
+			["borderColor", "borderColorEnabled", "border"],
+			["spinnerColor", "spinnerColorEnabled", "accent"],
+			["meterColor", "meterColorEnabled", "accent"],
+			["shimmerDirection", "shimmerDirectionEnabled", "ltr"],
+			["meterDirection", "meterDirectionEnabled", "ltr"],
+		];
+		for (const [key, enabledKey, resetValue] of gated) {
+			if (!settings.decorations[enabledKey]) (settings.decorations as unknown as Record<string, string>)[key] = resetValue;
+		}
+		return settings;
+	} catch { return structuredClone(DEFAULT_SETTINGS); }
 }
-
-/**
- * Persist settings to disk, creating the parent directory if needed.
- * Writes to a temp file and renames it into place so a crash mid-write
- * (kill -9, OOM, disk full) can never leave `settings.json` truncated or
- * corrupt -- `renameSync` is atomic on POSIX filesystems when source and
- * destination are on the same directory/filesystem, which they always are
- * here. A stale `.tmp` file left behind by a crash is harmless: the next
- * successful `saveSettings()` call overwrites it, and `loadSettings()`
- * never reads it.
- */
 export function saveSettings(settings: DecoratorSettings): void {
-	const path = settingsPath();
-	mkdirSync(dirname(path), { recursive: true });
-	const tmpPath = `${path}.tmp`;
-	writeFileSync(tmpPath, `${JSON.stringify(settings, null, 2)}\n`);
-	renameSync(tmpPath, path);
+	const path = settingsPath(); mkdirSync(dirname(path), { recursive: true });
+	writeFileSync(`${path}.tmp`, `${JSON.stringify(settings, null, 2)}\n`); renameSync(`${path}.tmp`, path);
 }

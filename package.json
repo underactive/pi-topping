@@ -1,7 +1,7 @@
 {
   "name": "@underactive/pi-topping",
-  "version": "0.2.1",
-  "description": "A Pi extension that replaces the default \"Working...\" loader with a shimmering, randomized activity word, live elapsed timer, and output-token activity meter",
+  "version": "0.3.0",
+  "description": "A Pi extension that decorates user prompts and replaces the default \"Working...\" loader with a shimmering, randomized activity word, live elapsed timer, and output-token activity meter",
   "keywords": ["pi-package", "pi-extension"],
   "license": "MIT",
   "author": "Eric Sison",

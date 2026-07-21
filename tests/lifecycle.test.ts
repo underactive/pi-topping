@@ -32,7 +32,8 @@ type MessageUpdateEvent = {
 };
 type MessageEndEvent = { type: "message_end"; message: AssistantMessage };
 type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown };
-import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/settings.ts";
+import { PROMPT_BOX_TYPE } from "../src/prompt-decorator.ts";
+import { DEFAULT_SETTINGS, loadSettings, MENU_ENTRIES, saveSettings } from "../src/settings.ts";
 import workingDecorator from "../index.ts";
 
 type TestedEvents = {
@@ -46,7 +47,7 @@ type TestedEvents = {
 	tool_execution_start: ToolExecutionStartEvent;
 };
 type TestedEventName = keyof TestedEvents;
-type Handler<K extends TestedEventName> = (event: TestedEvents[K], ctx: ExtensionContext) => Promise<void> | void;
+type Handler<K extends TestedEventName> = (event: TestedEvents[K], ctx: ExtensionContext) => Promise<unknown> | unknown;
 type CommandHandler = (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 type RegisteredCommandLike = { description?: string; handler: CommandHandler };
 
@@ -55,6 +56,8 @@ class MockExtension {
 	readonly commands: Record<string, RegisteredCommandLike> = {};
 	readonly appendedEntries: { customType: string; data: unknown }[] = [];
 	readonly entryRenderers: Record<string, (entry: unknown, options: unknown, theme: unknown) => unknown> = {};
+	readonly messageRenderers: Record<string, (message: unknown, options: unknown, theme: unknown) => unknown> = {};
+	readonly sentMessages: { message: unknown; options: unknown }[] = [];
 
 	on<K extends TestedEventName>(name: K, handler: Handler<K>): void {
 		this.handlers[name] = handler as never;
@@ -72,10 +75,18 @@ class MockExtension {
 		this.entryRenderers[customType] = renderer;
 	}
 
-	async emit<K extends TestedEventName>(name: K, event: TestedEvents[K], ctx: ExtensionContext): Promise<void> {
+	registerMessageRenderer(customType: string, renderer: (message: unknown, options: unknown, theme: unknown) => unknown): void {
+		this.messageRenderers[customType] = renderer;
+	}
+
+	sendMessage(message: unknown, options: unknown): void {
+		this.sentMessages.push({ message, options });
+	}
+
+	async emit<K extends TestedEventName>(name: K, event: TestedEvents[K], ctx: ExtensionContext): Promise<unknown> {
 		const handler = this.handlers[name] as Handler<K> | undefined;
 		if (!handler) throw new Error(`No handler registered for ${name}`);
-		await handler(event, ctx);
+		return await handler(event, ctx);
 	}
 
 	asAPI(): ExtensionAPI {
@@ -189,6 +200,11 @@ function mockTimers(t: test.TestContext, onTick: (tick: () => void) => void): vo
 		return 1;
 	}) as unknown as typeof setInterval);
 	t.mock.method(globalThis, "clearInterval", (() => {}) as typeof clearInterval);
+	t.mock.method(globalThis, "setTimeout", ((tick: () => void) => {
+		onTick(tick);
+		return 1;
+	}) as unknown as typeof setTimeout);
+	t.mock.method(globalThis, "clearTimeout", (() => {}) as typeof clearTimeout);
 }
 
 test("an input-less run resets the token count after settling", async (t) => {
@@ -514,13 +530,12 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 
 		const initial = capturedComponent!.render(72).map(stripAnsi);
 		assert.ok(initial.some((l) => l.includes("Preview")));
-		// Math.random mocked to 0, so the simulated preview word is WORDS[0].present_tense.
-		assert.ok(initial.some((l) => l.includes("Accomplishing\u2026")));
-		// Default settings: animatedSpinner is on, so the simulated spinner glyph shows.
-		assert.ok(initial.some((l) => l.includes("\u280b")));
+		// The initial selection is in User Prompt, so only its contextual preview is shown.
+		assert.ok(initial.some((l) => l.includes("ping")));
+		assert.ok(initial.some((l) => l.includes("")));
 
-		// Advance the simulated clock and drive one preview animation tick; the
-		// preview should keep reflecting the same simulated word.
+		// Moving to Working Loader Text swaps the preview to its animated example.
+		for (let i = 0; i < 4; i++) capturedComponent!.handleInput!("\x1b[B");
 		now += 200;
 		previewTick?.();
 		const animated = capturedComponent!.render(72).map(stripAnsi);
@@ -556,9 +571,12 @@ test("/topping-settings persists toggled values to settings.json on apply", asyn
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
-		// Cursor starts on "animatedSpinner" (first item, first section). Toggle
-		// it off, then move down to "shimmer" and toggle it off too.
+		// Move from User Prompt to the Working Loader Text controls, then toggle
+		// animated spinner and text shimmer off.
+		for (let i = 0; i < 4; i++) capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!(" ");
+		capturedComponent!.handleInput!("\x1b[B");
+		capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!(" ");
 
@@ -577,7 +595,7 @@ test("/topping-settings persists toggled values to settings.json on apply", asyn
 	});
 });
 
-test("/topping-settings persists all seven toggles flipped in one pass", async (t) => {
+test("/topping-settings persists every menu control flipped in one pass", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		let capturedComponent: { render(width: number): string[]; handleInput?(data: string): void } | undefined;
@@ -600,13 +618,11 @@ test("/topping-settings persists all seven toggles flipped in one pass", async (
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
-		// Cursor order (flattened across both sections): animatedSpinner,
-		// shimmer, tokenActivityMonitor, substituteDefaultMessage, elapsedTime,
-		// outputTokens, doneMarker, meterDirection_rtl.
-		// Toggle every item, moving down between each.
-		capturedComponent!.handleInput!(" ");
-		for (let i = 0; i < 7; i++) {
-			capturedComponent!.handleInput!("\x1b[B");
+		// Toggle every current menu item, moving down between each. Deriving the
+		// count from the source menu prevents this integration test from silently
+		// skipping a newly added control.
+		for (let index = 0; index < MENU_ENTRIES.length; index++) {
+			if (index > 0) capturedComponent!.handleInput!("\x1b[B");
 			capturedComponent!.handleInput!(" ");
 		}
 
@@ -615,17 +631,34 @@ test("/topping-settings persists all seven toggles flipped in one pass", async (
 		await handlerPromise;
 
 		const persisted = loadSettings();
+		assert.equal(persisted.decorations.decorateUserPrompt, !DEFAULT_SETTINGS.decorations.decorateUserPrompt);
+		assert.equal(persisted.decorations.borderColorEnabled, false);
+		assert.equal(persisted.decorations.borderColor, "border");
+		assert.equal(persisted.decorations.promptIcon, !DEFAULT_SETTINGS.decorations.promptIcon);
+		assert.equal(persisted.decorations.promptTimestamp, !DEFAULT_SETTINGS.decorations.promptTimestamp);
 		assert.equal(persisted.decorations.animatedSpinner, !DEFAULT_SETTINGS.decorations.animatedSpinner);
-		assert.equal(persisted.decorations.shimmer, !DEFAULT_SETTINGS.decorations.shimmer);
-		assert.equal(persisted.decorations.tokenActivityMonitor, !DEFAULT_SETTINGS.decorations.tokenActivityMonitor);
-		assert.equal(persisted.decorations.meterDirection, "rtl");
+		assert.equal(persisted.decorations.spinnerColorEnabled, false);
+		assert.equal(persisted.decorations.spinnerColor, "accent");
 		assert.equal(
 			persisted.features.substituteDefaultMessage,
 			!DEFAULT_SETTINGS.features.substituteDefaultMessage,
 		);
+		assert.equal(persisted.decorations.shimmer, !DEFAULT_SETTINGS.decorations.shimmer);
+		assert.equal(persisted.decorations.shimmerDirectionEnabled, false);
+		assert.equal(persisted.decorations.shimmerDirection, "ltr");
+		assert.equal(persisted.decorations.tokenActivityMonitor, !DEFAULT_SETTINGS.decorations.tokenActivityMonitor);
+		assert.equal(persisted.decorations.meterColorEnabled, false);
+		assert.equal(persisted.decorations.meterColor, "accent");
+		assert.equal(persisted.decorations.meterDirectionEnabled, false);
+		assert.equal(persisted.decorations.meterDirection, "ltr");
+		assert.equal(persisted.decorations.meterDimmed, !DEFAULT_SETTINGS.decorations.meterDimmed);
 		assert.equal(persisted.features.elapsedTime, !DEFAULT_SETTINGS.features.elapsedTime);
 		assert.equal(persisted.features.outputTokens, !DEFAULT_SETTINGS.features.outputTokens);
 		assert.equal(persisted.features.doneMarker, !DEFAULT_SETTINGS.features.doneMarker);
+		assert.equal(persisted.features.doneMarkerIcon, !DEFAULT_SETTINGS.features.doneMarkerIcon);
+		assert.equal(persisted.features.randomizeDoneMarker, !DEFAULT_SETTINGS.features.randomizeDoneMarker);
+		assert.equal(persisted.features.doneMarkerTokens, !DEFAULT_SETTINGS.features.doneMarkerTokens);
+		assert.equal(persisted.decorations.useNerdFont, !DEFAULT_SETTINGS.decorations.useNerdFont);
 	});
 });
 
@@ -654,8 +687,12 @@ test("preview reflects the substituteDefaultMessage fix: toggling it off keeps e
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
 		// Flat cursor order: [0] animatedSpinner, [1] shimmer, [2] tokenActivityMonitor,
-		// [3] substituteDefaultMessage, [4] elapsedTime, [5] outputTokens, [6] doneMarker, [7] meterDirection_rtl.
-		capturedComponent!.handleInput!("\x1b[B"); // down x3 -> substituteDefaultMessage
+		// [3] decorateUserPrompt, [4] substituteDefaultMessage, [5] elapsedTime,
+		// [6] outputTokens, [7] doneMarker, [8] meterDirection_rtl.
+		capturedComponent!.handleInput!("\x1b[B"); // down x6 -> substituteDefaultMessage
+		capturedComponent!.handleInput!("\x1b[B");
+		capturedComponent!.handleInput!("\x1b[B");
+		capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!(" "); // space: toggle substituteDefaultMessage off
@@ -699,6 +736,8 @@ test("preview's simulated activity meter visibly animates (oscillates) rather th
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
+		// Switch from the User Prompt preview to Working Loader Text.
+		for (let i = 0; i < 4; i++) capturedComponent!.handleInput!("\x1b[B");
 		const meterRegex = /[\u2880\u28c0\u28e0\u28e4\u28f4\u28f6\u28fe\u28ff]{8}/;
 		function meterAt(elapsedMs: number): string {
 			now = elapsedMs;
@@ -722,6 +761,59 @@ test("preview's simulated activity meter visibly animates (oscillates) rather th
 
 		capturedComponent!.handleInput!("\x1b"); // escape: cancel
 		await handlerPromise;
+	});
+});
+
+test("normal interactive input is re-sent as a decorated custom message", async () => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		workingDecorator(extension.asAPI());
+
+		const result = await extension.emit("input", { type: "input", text: "decorate this", source: "interactive" }, ctx);
+
+		assert.deepEqual(result, { action: "handled" });
+		assert.equal(extension.sentMessages.length, 1);
+		const sent = extension.sentMessages[0] as { message: { customType: string; content: string; display: boolean; details: { submittedAt: number } }; options: { triggerTurn: boolean } };
+		assert.equal(sent.message.customType, PROMPT_BOX_TYPE);
+		assert.equal(sent.message.content, "decorate this");
+		assert.equal(sent.message.display, true);
+		assert.equal(typeof sent.message.details.submittedAt, "number");
+		assert.deepEqual(sent.options, { triggerTurn: true });
+	});
+});
+
+test("command, extension, empty, and image input pass through undecorated", async () => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		workingDecorator(extension.asAPI());
+
+		for (const event of [
+			{ type: "input", text: "/foo", source: "interactive" },
+			{ type: "input", text: "!ls", source: "interactive" },
+			{ type: "input", text: "?q", source: "interactive" },
+			{ type: "input", text: ":x", source: "interactive" },
+			{ type: "input", text: "extension", source: "extension" },
+			{ type: "input", text: "   ", source: "interactive" },
+			{ type: "input", text: "image", source: "interactive", images: [{}] },
+		] as InputEvent[]) {
+			await extension.emit("input", event, ctx);
+		}
+
+		assert.equal(extension.sentMessages.length, 0);
+	});
+});
+
+test("prompt decoration can be disabled", async () => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, decorations: { ...DEFAULT_SETTINGS.decorations, decorateUserPrompt: false } });
+		const extension = new MockExtension();
+		workingDecorator(extension.asAPI());
+
+		await extension.emit("input", { type: "input", text: "plain prompt", source: "interactive" }, createContext([], []));
+
+		assert.equal(extension.sentMessages.length, 0);
 	});
 });
 
@@ -786,7 +878,7 @@ test("agent_settled without a preceding prompt start does not append a completio
 	});
 });
 
-test("the pi-topping-done entry renderer renders the word/time in dim text and π in the text color", async (t) => {
+test("the pi-topping-done entry renderer renders the word/time in dim text and the Nerd Font icon in the text color", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
@@ -805,7 +897,7 @@ test("the pi-topping-done entry renderer renders the word/time in dim text and �
 
 		const lines = component.render(80);
 		const text = lines.join("\n");
-		assert.match(text, /<text>\u03c0<\/text>/);
+		assert.match(text, /<text><\/text>/);
 		assert.match(text, /<dim> Baked for 6m 41s<\/dim>/);
 	});
 });

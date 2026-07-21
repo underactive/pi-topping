@@ -35,6 +35,15 @@ test("ActivityMeter renders and scrolls activity levels", () => {
 	assert.equal(meter.render(), "⣴⣴⣴⢀⢀⢀⢀⢀");
 });
 
+test("colorizeCell dims idle cells and uses the chosen color for active cells", () => {
+	const theme = { fg: (color: string, text: string) => `<${color}>${text}</${color}>` };
+	assert.equal(ActivityMeter.colorizeCell(0, "⢀", theme as never), "<dim>⢀</dim>");
+	assert.equal(ActivityMeter.colorizeCell(3, "⣤", theme as never), "<accent>⣤</accent>");
+	assert.equal(ActivityMeter.colorizeCell(3, "⣤", theme as never, "border"), "<border>⣤</border>");
+	assert.equal(ActivityMeter.colorizeCell(7, "⣿", theme as never, "borderAccent"), "<borderAccent>⣿</borderAccent>");
+	assert.equal(ActivityMeter.colorizeCell(3, "⣤", theme as never, "accent", true), "\x1b[2m<accent>⣤</accent>\x1b[22m");
+});
+
 test("TokRateTracker avoids first-sample spikes and smooths subsequent samples", () => {
 	const tracker = new TokRateTracker();
 

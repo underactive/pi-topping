@@ -1,5 +1,8 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 
+/** Pi's default working-indicator frames (same braille spinner as pi-tui's Loader). */
+export const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
 /** Format an output-token count for the working indicator. */
 export function formatTokens(count: number): string {
 	if (count < 1000) return count.toString();
@@ -68,6 +71,7 @@ export function shimmerString(
 	text: string,
 	elapsedMs: number,
 	theme: Pick<Theme, "getFgAnsi">,
+	direction: "ltr" | "rtl" = "ltr",
 ): string {
 	const chars = [...text];
 	if (chars.length === 0) return "";
@@ -78,7 +82,8 @@ export function shimmerString(
 	const SHIMMER_HIGHLIGHT = ansiToRgb(theme.getFgAnsi("text"));
 	const period = chars.length + SHIMMER_PADDING * 2;
 	const elapsedS = elapsedMs / 1000;
-	const pos = ((elapsedS % SHIMMER_SWEEP_S) / SHIMMER_SWEEP_S) * period;
+	const sweep = ((elapsedS % SHIMMER_SWEEP_S) / SHIMMER_SWEEP_S) * period;
+	const pos = direction === "rtl" ? period - sweep : sweep;
 
 	return chars
 		.map((ch, i) => {
