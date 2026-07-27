@@ -783,6 +783,32 @@ test("normal interactive input is re-sent as a decorated custom message", async 
 	});
 });
 
+test("decorated streaming input preserves its delivery behavior", async () => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		workingDecorator(extension.asAPI());
+
+		for (const streamingBehavior of ["steer", "followUp"] as const) {
+			const result = await extension.emit(
+				"input",
+				{ type: "input", text: streamingBehavior, source: "interactive", streamingBehavior },
+				ctx,
+			);
+
+			assert.deepEqual(result, { action: "handled" });
+		}
+
+		assert.deepEqual(
+			extension.sentMessages.map((sent) => sent.options),
+			[
+				{ triggerTurn: true, deliverAs: "steer" },
+				{ triggerTurn: true, deliverAs: "followUp" },
+			],
+		);
+	});
+});
+
 test("command, extension, empty, and image input pass through undecorated", async () => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();

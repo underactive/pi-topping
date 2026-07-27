@@ -114,7 +114,10 @@ export class SessionManager {
 						borderColor: this.#settings.decorations.borderColor,
 					},
 				},
-				{ triggerTurn: true },
+				{
+					triggerTurn: true,
+					...(event.streamingBehavior ? { deliverAs: event.streamingBehavior } : {}),
+				},
 			);
 			return { action: "handled" };
 		}
