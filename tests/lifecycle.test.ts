@@ -33,7 +33,7 @@ type MessageUpdateEvent = {
 type MessageEndEvent = { type: "message_end"; message: AssistantMessage };
 type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown };
 import { PROMPT_BOX_TYPE } from "../src/prompt-decorator.ts";
-import { DEFAULT_SETTINGS, loadSettings, MENU_ENTRIES, saveSettings } from "../src/settings.ts";
+import { buildMenuSections, DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/settings.ts";
 import workingDecorator from "../index.ts";
 
 type TestedEvents = {
@@ -378,6 +378,7 @@ test("fully-default settings (nothing customized) restore pi's untouched default
 				elapsedTime: false,
 				outputTokens: false,
 			},
+			loaderOrder: [...DEFAULT_SETTINGS.loaderOrder],
 		});
 
 		const extension = new MockExtension();
@@ -391,6 +392,76 @@ test("fully-default settings (nothing customized) restore pi's untouched default
 
 		assert.equal(messages.length, 1);
 		assert.equal(messages[0], undefined);
+	});
+});
+
+test("loaderOrder reorders the message and moves the spinner inline when it is not first", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			decorations: { ...DEFAULT_SETTINGS.decorations, shimmer: false, tokenActivityMonitor: false },
+			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false },
+			loaderOrder: ["elapsed", "text", "spinner", "tokens"],
+		});
+
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const indicators: unknown[] = [];
+		const ctx = createContext(messages, indicators);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
+		// Pi's Loader would otherwise force the spinner back to the front.
+		assert.deepEqual(indicators.at(-1), { frames: [] });
+
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+
+		// "meter" was missing from the persisted order and is appended at the end,
+		// but the monitor is off so it contributes nothing.
+		assert.match(
+			stripAnsi(messages.at(-1)!),
+			/^\(0s\) Working\u2026 [\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f] \(\u2193 0 tokens\)$/,
+		);
+	});
+});
+
+test("a reordered spinner still animates when nothing else is customized", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			decorations: { ...DEFAULT_SETTINGS.decorations, shimmer: false, tokenActivityMonitor: false },
+			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, elapsedTime: false, outputTokens: false },
+			loaderOrder: ["text", "spinner", "meter", "elapsed", "tokens"],
+		});
+
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, []);
+		let now = 1_000;
+		let tick: (() => void) | undefined;
+		const intervals: number[] = [];
+		t.mock.method(Date, "now", () => now);
+		t.mock.method(globalThis, "setInterval", ((callback: () => void, delay: number) => {
+			tick = callback;
+			intervals.push(delay);
+			return 1;
+		}) as unknown as typeof setInterval);
+		t.mock.method(globalThis, "clearInterval", (() => {}) as typeof clearInterval);
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+
+		// Every appearance toggle is off, but the message can no longer be handed
+		// back to pi: it has to carry the spinner, so it ticks at frame rate.
+		assert.deepEqual(intervals, [80]);
+		const first = stripAnsi(messages.at(-1)!);
+		assert.match(first, /^Working\u2026 [\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f]$/);
+
+		now += 80;
+		tick!();
+		assert.notEqual(stripAnsi(messages.at(-1)!), first);
 	});
 });
 
@@ -534,7 +605,7 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 		assert.ok(initial.some((l) => l.includes("ping")));
 		assert.ok(initial.some((l) => l.includes("")));
 
-		// Moving to Working Loader Text swaps the preview to its animated example.
+		// Moving to “Working” Loader swaps the preview to its animated example.
 		for (let i = 0; i < 4; i++) capturedComponent!.handleInput!("\x1b[B");
 		now += 200;
 		previewTick?.();
@@ -571,7 +642,7 @@ test("/topping-settings persists toggled values to settings.json on apply", asyn
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
-		// Move from User Prompt to the Working Loader Text controls, then toggle
+		// Move from User Prompt to the “Working” Loader controls, then toggle
 		// animated spinner and text shimmer off.
 		for (let i = 0; i < 4; i++) capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!(" ");
@@ -618,12 +689,15 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
-		// Toggle every current menu item, moving down between each. Deriving the
-		// count from the source menu prevents this integration test from silently
-		// skipping a newly added control.
-		for (let index = 0; index < MENU_ENTRIES.length; index++) {
+		// Toggle every current menu item, moving down between each. Walking the
+		// real menu rows prevents this integration test from silently skipping a
+		// newly added control. Reorder rows are stepped over rather than pressed:
+		// space would grab one, and the following downs would sort it instead of
+		// advancing the cursor.
+		const rows = buildMenuSections(DEFAULT_SETTINGS).flatMap((section) => section.items);
+		for (const [index, row] of rows.entries()) {
 			if (index > 0) capturedComponent!.handleInput!("\x1b[B");
-			capturedComponent!.handleInput!(" ");
+			if (!row.reorderGroup) capturedComponent!.handleInput!(" ");
 		}
 
 		// Apply.
@@ -646,6 +720,8 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.decorations.shimmer, !DEFAULT_SETTINGS.decorations.shimmer);
 		assert.equal(persisted.decorations.shimmerDirectionEnabled, false);
 		assert.equal(persisted.decorations.shimmerDirection, "ltr");
+		assert.equal(persisted.decorations.shimmerSpeedEnabled, false);
+		assert.equal(persisted.decorations.shimmerSpeed, "normal");
 		assert.equal(persisted.decorations.tokenActivityMonitor, !DEFAULT_SETTINGS.decorations.tokenActivityMonitor);
 		assert.equal(persisted.decorations.meterColorEnabled, false);
 		assert.equal(persisted.decorations.meterColor, "accent");
@@ -658,7 +734,51 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.features.doneMarkerIcon, !DEFAULT_SETTINGS.features.doneMarkerIcon);
 		assert.equal(persisted.features.randomizeDoneMarker, !DEFAULT_SETTINGS.features.randomizeDoneMarker);
 		assert.equal(persisted.features.doneMarkerTokens, !DEFAULT_SETTINGS.features.doneMarkerTokens);
+		assert.equal(persisted.features.doneMarkerInputs, !DEFAULT_SETTINGS.features.doneMarkerInputs);
 		assert.equal(persisted.decorations.useNerdFont, !DEFAULT_SETTINGS.decorations.useNerdFont);
+	});
+});
+
+test("grabbing an Elements Order row reorders the preview and persists the new order", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		let capturedComponent: { render(width: number): string[]; handleInput?(data: string): void } | undefined;
+		t.mock.method(Date, "now", () => 1_000);
+		t.mock.method(Math, "random", () => 0);
+		mockTimers(t, () => {});
+
+		const ctx = createContext([], [], (_color, text) => text, {
+			mode: "tui",
+			onCustomComponent: (c) => {
+				capturedComponent = c;
+			},
+		}) as unknown as ExtensionCommandContext;
+
+		workingDecorator(extension.asAPI());
+		const handlerPromise = extension.commands["topping-settings"]!.handler("", ctx);
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.ok(capturedComponent, "expected the menu component to be captured");
+
+		const rows = buildMenuSections(DEFAULT_SETTINGS).flatMap((section) => section.items);
+		const firstReorderRow = rows.findIndex((row) => row.reorderGroup);
+		for (let i = 0; i < firstReorderRow; i++) capturedComponent!.handleInput!("\x1b[B");
+
+		function previewLine(): string {
+			return capturedComponent!.render(72).map(stripAnsi).find((l) => l.includes("Accomplishing\u2026"))!;
+		}
+
+		const before = previewLine();
+		assert.ok(before.indexOf("\u280b") < before.indexOf("Accomplishing\u2026"), `expected a leading spinner: ${JSON.stringify(before)}`);
+
+		capturedComponent!.handleInput!(" "); // grab the spinner row
+		capturedComponent!.handleInput!("\x1b[B"); // slide it past the working text
+		const after = previewLine();
+		assert.ok(after.indexOf("\u280b") > after.indexOf("Accomplishing\u2026"), `expected the spinner to follow the word: ${JSON.stringify(after)}`);
+
+		capturedComponent!.handleInput!("\r");
+		await handlerPromise;
+
+		assert.deepEqual(loadSettings().loaderOrder, ["text", "spinner", "meter", "elapsed", "tokens"]);
 	});
 });
 
@@ -736,7 +856,7 @@ test("preview's simulated activity meter visibly animates (oscillates) rather th
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
-		// Switch from the User Prompt preview to Working Loader Text.
+		// Switch from the User Prompt preview to “Working” Loader.
 		for (let i = 0; i < 4; i++) capturedComponent!.handleInput!("\x1b[B");
 		const meterRegex = /[\u2880\u28c0\u28e0\u28e4\u28f4\u28f6\u28fe\u28ff]{8}/;
 		function meterAt(elapsedMs: number): string {
@@ -925,5 +1045,136 @@ test("the pi-topping-done entry renderer renders the word/time in dim text and t
 		const text = lines.join("\n");
 		assert.match(text, /<text><\/text>/);
 		assert.match(text, /<dim> Baked for 6m 41s<\/dim>/);
+	});
+});
+
+test("mid-stream steer input preserves the elapsed timer and token count and is counted", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		t.mock.method(Math, "random", () => 0.999);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(500) }, ctx);
+
+		now = 20_000;
+		await extension.emit("input", { type: "input", text: "change of plans", source: "interactive", streamingBehavior: "steer" }, ctx);
+
+		now = 38_000;
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		assert.equal(extension.appendedEntries.length, 1);
+		const data = extension.appendedEntries[0]!.data as { elapsedMs: number; tokens?: number; midTurnInputs?: number };
+		assert.equal(data.elapsedMs, 37_000);
+		assert.equal(data.tokens, 500);
+		assert.equal(data.midTurnInputs, 1);
+	});
+});
+
+test("mid-turn inputs accumulate across the working span and reset on the next idle turn", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		t.mock.method(Math, "random", () => 0.999);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		for (const streamingBehavior of ["steer", "steer", "followUp", "followUp"] as const) {
+			await extension.emit("input", { type: "input", text: "more", source: "interactive", streamingBehavior }, ctx);
+		}
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		now = 50_000;
+		await extension.emit("input", { type: "input", text: "fresh", source: "interactive" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		now = 51_000;
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		const entries = extension.appendedEntries.map((entry) => entry.data as { elapsedMs: number; midTurnInputs?: number });
+		assert.equal(entries.length, 2);
+		assert.equal(entries[0]!.midTurnInputs, 4);
+		assert.equal(entries[1]!.midTurnInputs, 0);
+		assert.equal(entries[1]!.elapsedMs, 1_000);
+	});
+});
+
+test("mid-stream commands don't reset the turn and only queued user input is counted", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		t.mock.method(Math, "random", () => 0.999);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+
+		now = 5_000;
+		// Commands run immediately mid-stream, so the SDK gives them no streamingBehavior.
+		await extension.emit("input", { type: "input", text: "/topping-settings", source: "interactive" }, ctx);
+		await extension.emit("input", { type: "input", text: "from-extension", source: "extension", streamingBehavior: "steer" }, ctx);
+		// A /skill: expansion is queued for the model like any other steer.
+		await extension.emit("input", { type: "input", text: "/skill:review", source: "interactive", streamingBehavior: "steer" }, ctx);
+
+		now = 10_000;
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		const data = extension.appendedEntries[0]!.data as { elapsedMs: number; midTurnInputs?: number };
+		assert.equal(data.elapsedMs, 9_000);
+		assert.equal(data.midTurnInputs, 1);
+	});
+});
+
+test("the done entry renderer appends the mid-turn input count inside the parenthetical", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		const renderer = extension.entryRenderers["pi-topping-done"]!;
+		const render = (data: unknown): string =>
+			(renderer({ type: "custom", customType: "pi-topping-done", data }, { expanded: false }, ctx.ui.theme) as { render(width: number): string[] })
+				.render(80)
+				.join("\n");
+
+		assert.match(render({ word: "Galloped", elapsedMs: 37_000, tokens: 2_700, midTurnInputs: 4 }), /<dim> Galloped for 37s \(↓ 2\.7k tokens · 4 mid-turn inputs\)<\/dim>/);
+		assert.match(render({ word: "Whisked", elapsedMs: 2_000, midTurnInputs: 1 }), /<dim> Whisked for 2s \(1 mid-turn input\)<\/dim>/);
+		assert.match(render({ word: "Baked", elapsedMs: 5_000, tokens: 10, midTurnInputs: 0 }), /<dim> Baked for 5s \(↓ 10 tokens\)<\/dim>/);
+	});
+});
+
+test("doneMarkerInputs=false hides the mid-turn input count", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			features: { ...DEFAULT_SETTINGS.features, doneMarkerInputs: false },
+		});
+
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		const renderer = extension.entryRenderers["pi-topping-done"]!;
+		const component = renderer(
+			{ type: "custom", customType: "pi-topping-done", data: { word: "Baked", elapsedMs: 5_000, tokens: 10, midTurnInputs: 4 } },
+			{ expanded: false },
+			ctx.ui.theme,
+		) as { render(width: number): string[] };
+		const text = component.render(80).join("\n");
+		assert.match(text, /\(↓ 10 tokens\)/);
+		assert.ok(!text.includes("mid-turn"));
 	});
 });

@@ -1,7 +1,7 @@
 {
   "name": "@underactive/pi-topping",
   "version": "0.3.1",
-  "description": "A Pi extension that decorates user prompts and replaces the default \"Working...\" loader with a shimmering, randomized activity word, live elapsed timer, and output-token activity meter",
+    "description": "A Pi extension that adds quality of life improvements to Pi's UX: a high-vis user prompt, a shimmering working loader with token activity meter and elapsed timer, and an end-of-turn completion marker",
   "keywords": ["pi-package", "pi-extension"],
   "license": "MIT",
   "author": "Eric Sison",
@@ -30,13 +30,13 @@
     "@earendil-works/pi-tui": "*"
   },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "0.80.6",
-    "@earendil-works/pi-tui": "0.80.6",
+    "@earendil-works/pi-coding-agent": "0.82.1",
+    "@earendil-works/pi-tui": "0.82.1",
     "@types/node": "^24.0.0",
     "typescript": "^5.9.3"
   },
   "pi": {
     "extensions": ["./index.ts"],
-    "video": "https://cdn.jsdelivr.net/gh/underactive/pi-topping@main/demo.mp4"
+    "image": "https://raw.githubusercontent.com/underactive/pi-topping/main/media/working.png"
   }
 }

@@ -3,6 +3,18 @@ import type { Theme } from "@earendil-works/pi-coding-agent";
 /** Pi's default working-indicator frames (same braille spinner as pi-tui's Loader). */
 export const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
+/** Milliseconds per spinner frame, matching pi-tui's Loader cadence. */
+export const SPINNER_FRAME_MS = 80;
+
+/** A user-orderable piece of the working indicator. */
+export type LoaderElement = "spinner" | "text" | "meter" | "elapsed" | "tokens";
+
+/** Left-to-right element order matching pi's stock working indicator. */
+export const DEFAULT_LOADER_ORDER: readonly LoaderElement[] = ["spinner", "text", "meter", "elapsed", "tokens"];
+
+/** Elements rendered inside the dim parenthetical rather than as standalone segments. */
+const DETAIL_ELEMENTS: ReadonlySet<LoaderElement> = new Set(["elapsed", "tokens"]);
+
 /** Format an output-token count for the working indicator. */
 export function formatTokens(count: number): string {
 	if (count < 1000) return count.toString();
@@ -52,19 +64,37 @@ export function isFullyDefaultAppearance(features: {
 	return !features.substituteDefaultMessage && !decorations.shimmer && !decorations.tokenActivityMonitor && !features.elapsedTime && !features.outputTokens;
 }
 
-/** Assemble the styled word, meter, and optional detail fields. */
+/**
+ * Assemble the working indicator from already-styled pieces, laid out in `order`.
+ *
+ * Empty/omitted pieces are dropped, and any run of detail elements left adjacent
+ * after that collapses into a single dim parenthetical.
+ */
 export function buildWorkingMessage(
 	theme: Pick<Theme, "fg">,
-	word: string,
-	frame: string,
-	elapsed: string,
-	tokens: string,
-	features: { elapsedTime: boolean; outputTokens: boolean },
+	parts: Partial<Record<LoaderElement, string>>,
+	order: readonly LoaderElement[] = DEFAULT_LOADER_ORDER,
 ): string {
-	const parts = [word, frame].filter(Boolean);
-	const details = [features.elapsedTime ? elapsed : "", features.outputTokens ? `↓ ${tokens} tokens` : ""].filter(Boolean);
-	if (details.length) parts.push(theme.fg("dim", `(${details.join(" · ")})`));
-	return parts.join(" ");
+	const segments: string[] = [];
+	let details: string[] = [];
+	const flushDetails = (): void => {
+		if (details.length) segments.push(theme.fg("dim", `(${details.join(" · ")})`));
+		details = [];
+	};
+
+	for (const element of order) {
+		const value = parts[element];
+		if (!value) continue;
+		if (DETAIL_ELEMENTS.has(element)) {
+			details.push(value);
+			continue;
+		}
+		flushDetails();
+		segments.push(value);
+	}
+	flushDetails();
+
+	return segments.join(" ");
 }
 
 export function shimmerString(
@@ -72,6 +102,7 @@ export function shimmerString(
 	elapsedMs: number,
 	theme: Pick<Theme, "getFgAnsi">,
 	direction: "ltr" | "rtl" = "ltr",
+	speed: "slow" | "normal" | "fast" = "normal",
 ): string {
 	const chars = [...text];
 	if (chars.length === 0) return "";
@@ -81,9 +112,21 @@ export function shimmerString(
 	const SHIMMER_BASE = ansiToRgb(theme.getFgAnsi("dim"));
 	const SHIMMER_HIGHLIGHT = ansiToRgb(theme.getFgAnsi("text"));
 	const period = chars.length + SHIMMER_PADDING * 2;
-	const elapsedS = elapsedMs / 1000;
-	const sweep = ((elapsedS % SHIMMER_SWEEP_S) / SHIMMER_SWEEP_S) * period;
-	const pos = direction === "rtl" ? period - sweep : sweep;
+	const unitsPerS = period / SHIMMER_SWEEP_S;
+	// The band crosses padding at either end while every character is still dim. Scaling only
+	// the stretch where it actually overlaps the text keeps that dark pause identical at every
+	// speed, so `speed` changes the sweep alone rather than the whole cycle.
+	const litEnter = SHIMMER_PADDING - SHIMMER_BAND_HALF;
+	const litExit = SHIMMER_PADDING + chars.length - 1 + SHIMMER_BAND_HALF;
+	const enterS = litEnter / unitsPerS;
+	const litS = (litExit - litEnter) / unitsPerS / (speed === "slow" ? 0.5 : speed === "fast" ? 2 : 1);
+	const phase = (elapsedMs / 1000) % (enterS + litS + (period - litExit) / unitsPerS);
+	const linear = phase < enterS
+		? phase * unitsPerS
+		: phase < enterS + litS
+			? litEnter + ((phase - enterS) / litS) * (litExit - litEnter)
+			: litExit + (phase - enterS - litS) * unitsPerS;
+	const pos = direction === "rtl" ? period - linear : linear;
 
 	return chars
 		.map((ch, i) => {

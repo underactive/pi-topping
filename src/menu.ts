@@ -5,9 +5,9 @@
  * extensions, built on top of `@earendil-works/pi-tui`'s `Component`
  * contract and `ctx.ui.custom()` overlay API.
  *
- * Renders a titled box containing one or more sections of boolean toggle
- * or multi-value cycle items, plus an optional live-updating preview section driven by a
- * caller-supplied render callback, e.g.:
+ * Renders a titled box containing one or more sections of boolean toggle,
+ * multi-value cycle, or drag-to-reorder items, plus an optional live-updating
+ * preview section driven by a caller-supplied render callback, e.g.:
  *
  *   ╔═[ Pi Topping: Settings ]════════════════════════╗
  *   ╟─ Preview ─────────────────────────────────────╢
@@ -49,6 +49,13 @@ export interface MenuItem {
 	cycleEnabled?: boolean;
 	/** Value snapped to when the gating checkbox is unchecked. */
 	cycleDisabledValue?: string;
+	/**
+	 * Marks the item as a reorderable row. Space grabs/releases it; while grabbed,
+	 * up/down move it among the other rows sharing this group instead of moving the
+	 * cursor. The group's current order is published as a comma-joined list of item
+	 * ids under this key in the result values.
+	 */
+	reorderGroup?: string;
 }
 
 export interface MenuSection {
@@ -90,18 +97,26 @@ interface FlatItem {
 	cycleValues?: readonly string[];
 	cycleEnabledBy?: string;
 	cycleDisabledValue?: string;
+	reorderGroup?: string;
 	item: MenuItem;
 	sectionIndex: number;
 }
 
 function buildInitialValues(config: MenuConfig): Record<string, MenuValue> {
 	const values: Record<string, MenuValue> = {};
+	const reorderGroups = new Map<string, string[]>();
 	for (const section of config.sections) {
 		for (const item of section.items) {
 			values[item.id] = item.value;
 			if (item.cycleEnabledBy) values[item.cycleEnabledBy] = item.cycleEnabled ?? true;
+			if (item.reorderGroup) {
+				const ids = reorderGroups.get(item.reorderGroup) ?? [];
+				ids.push(item.id);
+				reorderGroups.set(item.reorderGroup, ids);
+			}
 		}
 	}
+	for (const [group, ids] of reorderGroups) values[group] = ids.join(",");
 	return values;
 }
 
@@ -144,7 +159,7 @@ export class MenuComponent implements Component {
 		this.flat = [];
 		for (const [sectionIndex, section] of config.sections.entries()) {
 			for (const item of section.items) {
-				this.flat.push({ id: item.id, label: item.label, cycleValues: item.cycleValues, cycleEnabledBy: item.cycleEnabledBy, cycleDisabledValue: item.cycleDisabledValue, item, sectionIndex });
+				this.flat.push({ id: item.id, label: item.label, cycleValues: item.cycleValues, cycleEnabledBy: item.cycleEnabledBy, cycleDisabledValue: item.cycleDisabledValue, reorderGroup: item.reorderGroup, item, sectionIndex });
 			}
 		}
 		this.initialValues = { ...this.values };
@@ -191,10 +206,12 @@ export class MenuComponent implements Component {
 
 		const keyActions: Record<string, () => void> = {
 			[Key.up]: () => {
+				if (this.moveGrabbedItem(-1)) return;
 				this.cursor = (this.cursor - 1 + this.flat.length) % this.flat.length;
 				this.invalidate();
 			},
 			[Key.down]: () => {
+				if (this.moveGrabbedItem(1)) return;
 				this.cursor = (this.cursor + 1) % this.flat.length;
 				this.invalidate();
 			},
@@ -231,6 +248,32 @@ export class MenuComponent implements Component {
 		this.cachedLines = lines;
 		this.schedulePreview();
 		return lines;
+	}
+
+	/**
+	 * Move the grabbed reorder row one slot within its group, clamped at the group
+	 * edges. Returns true when the key belongs to the mover and must not also move
+	 * the cursor — which is what keeps a grab from escaping its group.
+	 */
+	private moveGrabbedItem(delta: number): boolean {
+		const grabbed = this.flat[this.cursor]!;
+		const group = grabbed.reorderGroup;
+		if (group === undefined || this.values[grabbed.id] !== true) return false;
+
+		let start = this.cursor;
+		while (start > 0 && this.flat[start - 1]!.reorderGroup === group) start--;
+		let end = this.cursor;
+		while (end < this.flat.length - 1 && this.flat[end + 1]!.reorderGroup === group) end++;
+
+		const target = this.cursor + delta;
+		if (target >= start && target <= end) {
+			this.flat[this.cursor] = this.flat[target]!;
+			this.flat[target] = grabbed;
+			this.cursor = target;
+			this.values[group] = this.flat.slice(start, end + 1).map(flat => flat.id).join(",");
+			this.invalidate();
+		}
+		return true;
 	}
 
 	private cycleCurrentValue(delta: number): void {
@@ -279,13 +322,20 @@ export class MenuComponent implements Component {
 		return [this.renderSectionDivider("Preview", innerWidth), this.renderBlankRow(innerWidth), ...previewLines.map(line => this.renderContentRow(` ${line}`, innerWidth)), this.renderBlankRow(innerWidth)];
 	}
 
+	/** Render every section from `this.flat`, the single source of truth for row order. */
 	private buildToggleSections(innerWidth: number): string[] {
-		let flatIndex = 0;
-		return this.sections.flatMap(section => [
-			this.renderSectionDivider(section.title, innerWidth),
-			...section.items.map(item => this.renderItemRow(item, flatIndex++ === this.cursor, innerWidth)),
-			this.renderBlankRow(innerWidth),
-		]);
+		const lines: string[] = [];
+		let currentSection = -1;
+		for (const [index, flat] of this.flat.entries()) {
+			if (flat.sectionIndex !== currentSection) {
+				if (currentSection !== -1) lines.push(this.renderBlankRow(innerWidth));
+				lines.push(this.renderSectionDivider(this.sections[flat.sectionIndex]!.title, innerWidth));
+				currentSection = flat.sectionIndex;
+			}
+			lines.push(this.renderItemRow(flat.item, index === this.cursor, innerWidth));
+		}
+		if (lines.length) lines.push(this.renderBlankRow(innerWidth));
+		return lines;
 	}
 
 	/** Build a section-aware item window, keeping a divider above each visible section. */
@@ -445,6 +495,19 @@ export class MenuComponent implements Component {
 		const value = this.values[item.id]!;
 		const marker = selected ? "\u25b8" : " ";
 		const markerColored = selected ? th.fg("accent", marker) : marker;
+
+		if (item.reorderGroup) {
+			const held = value as boolean;
+			const stateWord = held ? "\u2191 \u2193" : "";
+			const rightPlain = `${stateWord}  `;
+			const fixedLeftLen = 8;
+			const maxLabelLen = Math.max(0, innerWidth - fixedLeftLen - rightPlain.length - 1);
+			const label = item.label.length > maxLabelLen ? truncateToWidth(item.label, maxLabelLen) : item.label;
+			const leftPlain = `  ${marker} [${held ? "\u25a0" : " "}] ${label}`;
+			const gap = Math.max(1, innerWidth - visibleWidth(leftPlain) - visibleWidth(rightPlain));
+			const content = `  ${markerColored} [${held ? th.fg("accent", "\u25a0") : th.fg("muted", " ")}] ${th.fg("text", label)}${" ".repeat(gap)}${held ? th.fg("accent", stateWord) : ""}  `;
+			return this.wrap("\u2551", content, "\u2551");
+		}
 
 		if (item.cycleValues) {
 			const enabled = item.cycleEnabledBy ? this.values[item.cycleEnabledBy] as boolean : true;

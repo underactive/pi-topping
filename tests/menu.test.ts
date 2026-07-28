@@ -231,6 +231,93 @@ test("gated cycle item: checkbox resets to disabled value and blocks arrows unti
 	assert.equal(result!.values.colorEnabled, true);
 });
 
+function reorderConfig(): MenuConfig {
+	return {
+		title: "TEST",
+		sections: [
+			{ title: "S1", items: [{ id: "before", label: "Before", value: true }] },
+			{
+				title: "Order",
+				items: ["one", "two", "three"].map((id) => ({ id, label: `Row ${id}`, value: false, reorderGroup: "order" })),
+			},
+			{ title: "S2", items: [{ id: "after", label: "After", value: true }] },
+		],
+	};
+}
+
+function rowOrder(menu: MenuComponent): string[] {
+	return menu
+		.render(64)
+		.map(stripTags)
+		.flatMap((line) => {
+			const match = line.match(/Row (one|two|three)/);
+			return match ? [match[1]!] : [];
+		});
+}
+
+test("reorder rows publish their group order and show the arrow affordance only while grabbed", () => {
+	let result: MenuResult<Record<string, MenuValue>> | undefined;
+	const menu = new MenuComponent(reorderConfig(), fakeTheme(), (r) => { result = r; });
+
+	assert.ok(!menu.render(64).map(stripTags).some((l) => l.includes("↑ ↓")));
+
+	menu.handleInput(KEY.down); // onto "one"
+	menu.handleInput(KEY.space); // grab it
+	const grabbed = menu.render(64).map(stripTags);
+	const arrowRows = grabbed.filter((l) => l.includes("↑ ↓"));
+	assert.equal(arrowRows.length, 1);
+	assert.ok(arrowRows[0]!.includes("Row one") && arrowRows[0]!.includes("[■]"));
+
+	menu.handleInput(KEY.down);
+	assert.deepEqual(rowOrder(menu), ["two", "one", "three"]);
+
+	menu.handleInput(KEY.space); // release
+	assert.ok(!menu.render(64).map(stripTags).some((l) => l.includes("↑ ↓")));
+
+	menu.handleInput(KEY.enter);
+	assert.equal(result!.values.order, "two,one,three");
+});
+
+test("a grabbed row clamps at its group edges and cannot escape into neighboring sections", () => {
+	const menu = new MenuComponent(reorderConfig(), fakeTheme(), () => {});
+
+	menu.handleInput(KEY.down); // onto "one"
+	menu.handleInput(KEY.space); // grab
+	for (let i = 0; i < 5; i++) menu.handleInput(KEY.up);
+	assert.deepEqual(rowOrder(menu), ["one", "two", "three"]);
+
+	for (let i = 0; i < 5; i++) menu.handleInput(KEY.down);
+	assert.deepEqual(rowOrder(menu), ["two", "three", "one"]);
+
+	// The cursor stayed on the grabbed row the whole time, so releasing and
+	// stepping down lands on the next section rather than somewhere upstream.
+	menu.handleInput(KEY.space);
+	menu.handleInput(KEY.down);
+	const selected = menu.render(64).map(stripTags).find((l) => l.includes("▸"))!;
+	assert.ok(selected.includes("After"), `expected the cursor on "After": ${JSON.stringify(selected)}`);
+});
+
+test("reordering keeps the scrolling window and the natural-height body in sync", () => {
+	const terminal = { rows: 40 };
+	const tui = { terminal, requestRender: () => {} } as unknown as TUI;
+	const menu = new MenuComponent(reorderConfig(), fakeTheme(), () => {}, tui);
+
+	menu.handleInput(KEY.down);
+	menu.handleInput(KEY.space);
+	menu.handleInput(KEY.down);
+	const natural = rowOrder(menu);
+
+	terminal.rows = 9; // forces the scrolling window path
+	menu.invalidate();
+	const scrolled = menu.render(64).map(stripTags).flatMap((line) => {
+		const match = line.match(/Row (one|two|three)/);
+		return match ? [match[1]!] : [];
+	});
+
+	assert.deepEqual(natural, ["two", "one", "three"]);
+	assert.deepEqual(scrolled, natural.slice(0, scrolled.length));
+});
+
 test("enter applies the current (possibly toggled) values", () => {
 	let result: MenuResult<Record<string, MenuValue>> | undefined;
 	const menu = makeMenu((r) => {

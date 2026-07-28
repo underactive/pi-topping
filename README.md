@@ -4,15 +4,15 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 **User Prompt** — high-vis bordered prompt box with configurable border color, pi icon toggle, and timestamp.
 
-![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/demo_user_prompt.png)
+![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
-**Working Loader Text** — animated spinner (with color choice), randomized activity word, shimmer (with direction), token activity meter (with color, direction, and dim toggle), elapsed timer, and output token display.
+**“Working” Loader** — animated spinner (with color choice), randomized activity word, shimmer (with direction and speed), token activity meter (with color, direction, and dim toggle), elapsed timer, and output token display — all arrangeable left to right.
 
-![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, and token count](https://raw.githubusercontent.com/underactive/pi-topping/main/demo.gif)
+![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, and token count](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
-**Completion Marker** — end-of-turn marker with icon, randomized verb, and token consumption display. Hooks into Pi's `agent_settled` event.
+**Completion Marker** — end-of-turn marker with icon, randomized verb, and token consumption display. If you steered or followed up (`Alt+Enter`) while Pi was working, the marker also tallies those, e.g. `π Whisked for 2s (↓ 55 tokens · 2 mid-turn inputs)`. Hooks into Pi's `agent_settled` event.
 
-![Example of pi-topping's completion marker](https://raw.githubusercontent.com/underactive/pi-topping/main/demo_completion_marker.png)
+![Example of pi-topping's completion marker](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_completion_marker.png)
 
 ## Settings
 
@@ -30,12 +30,13 @@ Run `/topping-settings` (TUI only) to customize your toppings:
 ║    [■] Pi icon                                        ON   ║
 ║    [■] Timestamp                                      ON   ║
 ║                                                            ║
-╟─ Working Loader Text ──────────────────────────────────────╢
+╟─ “Working” Loader ─────────────────────────────────────────╢
 ║    [■] Animated spinner                               ON   ║
 ║  ▸ [■] Animated spinner color                   ‹ accent › ║
 ║    [■] Randomize "Working" text                       ON   ║
 ║    [■] Text shimmer                                   ON   ║
 ║    [■] Text shimmer direction            ‹ Left to Right › ║
+║    [■] Text shimmer speed                       ‹ Normal › ║
 ║    [■] Token activity monitor                         ON   ║
 ║    [■] Token activity monitor color             ‹ accent › ║
 ║    [■] Token activity monitor direction  ‹ Left to Right › ║
@@ -43,18 +44,31 @@ Run `/topping-settings` (TUI only) to customize your toppings:
 ║    [■] Elapsed time since prompt                      ON   ║
 ║    [■] Show output tokens                             ON   ║
 ║                                                            ║
+╟─ Elements Order ───────────────────────────────────────────╢
+║    [ ] Animated spinner                                    ║
+║    [■] “Working” text                                ↑ ↓   ║
+║    [ ] Token activity monitor                              ║
+║    [ ] Elapsed time                                        ║
+║    [ ] Output tokens                                       ║
+║                                                            ║
 ╟─ Completion Marker ────────────────────────────────────────╢
 ║    [■] Show completion marker                         ON   ║
 ║    [■] Pi icon                                        ON   ║
 ║    [■] Randomize "Worked" text                        ON   ║
 ║    [■] Tokens spent                                   ON   ║
+║    [■] Mid-turn inputs                                ON   ║
 ║                                                            ║
 ╟─ Options ──────────────────────────────────────────────────╢
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
-╚═════════════════════════════════════════════════════┥ 1/9 ┝╝
+╚════════════════════════════════════════════════════┥ 1/26 ┝╝
 ```
+
+Under **Elements Order**, press `␣` to grab a row, then `↑`/`↓` to slide that element
+left or right within the loader. Elapsed time and output tokens share a single
+`(3s · ↓ 84 tokens)` parenthetical whenever they end up next to each other, and split
+into `(3s)` and `(↓ 84 tokens)` when they do not.
 
 ## Install
 

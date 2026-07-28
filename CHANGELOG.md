@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- “Elements Order” section in `/topping-settings` that reorders the working loader's spinner, activity word, token activity monitor, elapsed time, and output tokens. Press `␣` to grab a row and `↑`/`↓` to move it; the live preview follows along and the order persists as `loaderOrder` in `settings.json`.
+- “Text shimmer speed” setting in `/topping-settings` offering `Slow`, `Normal`, and `Fast`, where slow halves and fast doubles the sweep velocity. Only the sweep scales: the band keeps its default pace across the padding on either side of the word, so the pause between one shimmer and the next stays the same at every speed.
+- Reusable `reorderGroup` rows in `menu.ts`: grabbed rows consume up/down so they cannot escape their group, and the group's order is published as a comma-joined id list in the menu result.
+- Mid-turn input count in the completion marker: steers and `Alt+Enter` follow-ups submitted while Pi is working are tallied and shown as e.g. `π Galloped for 37s (↓ 2.7k tokens · 4 mid-turn inputs)`, with a “Mid-turn inputs” toggle in `/topping-settings`.
+- CI workflow running the test suite and typecheck on pushes to `main` and pull requests.
+
+### Changed
+- The spinner is drawn inside the working message (with pi's own indicator hidden) whenever it is not the first element, since pi's `Loader` always prepends its indicator. The session ticker clamps to the 80ms frame interval in that case so the spinner keeps animating.
+- Elapsed time and output tokens now collapse into a single `(3s · ↓ 84 tokens)` parenthetical only while adjacent, and render as separate `(3s)` / `(↓ 84 tokens)` groups once another element is placed between them.
+
+### Fixed
+- Steering or following up while Pi is working no longer resets the elapsed timer and token count mid-turn; the working loader and completion marker now report the whole working span.
+
 ## [0.3.1] - 2026-07-28
 
 ### Fixed

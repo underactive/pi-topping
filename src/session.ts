@@ -18,6 +18,7 @@ import {
 	formatTokens,
 	isFullyDefaultAppearance,
 	shimmerString,
+	SPINNER_FRAME_MS,
 	SPINNER_FRAMES,
 	StreamingWordCounter,
 } from "./format.ts";
@@ -41,7 +42,8 @@ const ELAPSED_INTERVAL_MS = 1_000;
 export interface DoneEntryData {
 	word: string;
 	elapsedMs: number;
-	tokens: number;
+	tokens?: number;
+	midTurnInputs?: number;
 }
 
 export interface SessionState {
@@ -55,6 +57,7 @@ export interface SessionState {
 	lastActivityMeterUpdate: number;
 	timer: ReturnType<typeof setInterval> | null;
 	busy: boolean;
+	midTurnInputs: number;
 }
 
 export function makeFreshState(): SessionState {
@@ -69,6 +72,7 @@ export function makeFreshState(): SessionState {
 		lastActivityMeterUpdate: 0,
 		timer: null,
 		busy: false,
+		midTurnInputs: 0,
 	};
 }
 
@@ -99,7 +103,8 @@ export class SessionManager {
 		this.#currentCtx = ctx;
 		if (!this.usable(ctx)) return;
 
-		this.resetTurn(Date.now());
+		if (!event.streamingBehavior && !this.#state.busy) this.resetTurn(Date.now());
+		else if (event.streamingBehavior && event.source !== "extension") this.#state.midTurnInputs++;
 		if (this.#settings.decorations.decorateUserPrompt && this.shouldDecorate(event)) {
 			this.#pi.sendMessage<PromptBoxDetails>(
 				{
@@ -195,6 +200,7 @@ export class SessionManager {
 				word: this.#settings.features.randomizeDoneMarker ? pickRawWord().past_tense : "Worked",
 				elapsedMs,
 				tokens: this.#state.confirmTokens,
+				midTurnInputs: this.#state.midTurnInputs,
 			});
 		}
 		this.#currentCtx = null;
@@ -214,13 +220,19 @@ export class SessionManager {
 		this.#pi.on("tool_execution_start", this.#onToolExecutionStart);
 		this.#pi.on("agent_settled", this.#onAgentSettled);
 		this.#pi.on("session_shutdown", this.#onSessionShutdown);
-		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) =>
-			entry.data
-				? new Text(
-					`${this.#settings.features.doneMarkerIcon ? theme.fg("text", this.#settings.decorations.useNerdFont ? "" : "π") : ""}${theme.fg("dim", `${this.#settings.features.doneMarkerIcon ? " " : ""}${entry.data.word} for ${formatElapsed(entry.data.elapsedMs)}${this.#settings.features.doneMarkerTokens && entry.data.tokens !== undefined ? ` (↓ ${formatTokens(entry.data.tokens)} tokens)` : ""}`)}`,
-				)
-				: undefined,
-		);
+		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) => {
+			if (!entry.data) return undefined;
+			const features = this.#settings.features;
+			const details: string[] = [];
+			if (features.doneMarkerTokens && entry.data.tokens !== undefined) details.push(`↓ ${formatTokens(entry.data.tokens)} tokens`);
+			if (features.doneMarkerInputs && entry.data.midTurnInputs) {
+				details.push(`${entry.data.midTurnInputs} mid-turn input${entry.data.midTurnInputs === 1 ? "" : "s"}`);
+			}
+			const tail = details.length ? ` (${details.join(" · ")})` : "";
+			return new Text(
+				`${features.doneMarkerIcon ? theme.fg("text", this.#settings.decorations.useNerdFont ? "" : "π") : ""}${theme.fg("dim", `${features.doneMarkerIcon ? " " : ""}${entry.data.word} for ${formatElapsed(entry.data.elapsedMs)}${tail}`)}`,
+			);
+		});
 		this.#pi.registerMessageRenderer<PromptBoxDetails>(PROMPT_BOX_TYPE, promptBoxRenderer);
 		this.#pi.registerCommand("topping-settings", {
 			description: "Configure pi-topping's spinner, shimmer, activity meter, and message details.",
@@ -236,14 +248,31 @@ export class SessionManager {
 		return event.source !== "extension" && !!event.text.trim() && !event.images?.length && !/^[\/!?:]/.test(event.text);
 	}
 
-	private applyIndicator(ctx: ExtensionContext): void {
+	/**
+	 * Pi's Loader always prepends its indicator to the working message, so a spinner
+	 * that is not the leading element has to be drawn inside the message instead.
+	 */
+	private spinnerInMessage(): boolean {
+		return this.#settings.decorations.animatedSpinner && this.#settings.loaderOrder[0] !== "spinner";
+	}
+
+	private spinnerColor(): "accent" | "border" | "borderAccent" {
 		const decorations = this.#settings.decorations;
-		if (!decorations.animatedSpinner) {
+		return decorations.spinnerColorEnabled ? decorations.spinnerColor : "accent";
+	}
+
+	private indicatorFingerprint(): string {
+		const decorations = this.#settings.decorations;
+		return `${decorations.animatedSpinner}:${decorations.spinnerColor}:${decorations.spinnerColorEnabled}:${this.#settings.loaderOrder[0]}`;
+	}
+
+	private applyIndicator(ctx: ExtensionContext): void {
+		if (!this.#settings.decorations.animatedSpinner || this.spinnerInMessage()) {
 			ctx.ui.setWorkingIndicator({ frames: [] });
 			return;
 		}
 
-		const color = decorations.spinnerColorEnabled ? decorations.spinnerColor : "accent";
+		const color = this.spinnerColor();
 		if (color === "accent") {
 			ctx.ui.setWorkingIndicator(undefined);
 			return;
@@ -263,13 +292,14 @@ export class SessionManager {
 
 		const features = this.#settings.features;
 		const decorations = this.#settings.decorations;
-		const interval = decorations.shimmer
+		let interval = decorations.shimmer
 			? SHIMMER_INTERVAL
 			: (decorations.tokenActivityMonitor || features.outputTokens)
 				? METER_INTERVAL_MS
 				: features.elapsedTime
 					? ELAPSED_INTERVAL_MS
 					: undefined;
+		if (this.spinnerInMessage()) interval = Math.min(interval ?? SPINNER_FRAME_MS, SPINNER_FRAME_MS);
 		if (interval) this.#state.timer = setInterval(() => this.tick(), interval);
 	}
 
@@ -283,6 +313,7 @@ export class SessionManager {
 		state.activityMeter.reset();
 		state.rateTracker.reset();
 		state.lastActivityMeterUpdate = 0;
+		state.midTurnInputs = 0;
 		this.#counter.reset();
 	}
 
@@ -299,14 +330,21 @@ export class SessionManager {
 			state.activityMeter.push(rateToLevel(state.rateTracker.sample(total, now)));
 			state.lastActivityMeterUpdate = now;
 		}
+		const spinner = this.spinnerInMessage()
+			? ctx.ui.theme.fg(this.spinnerColor(), SPINNER_FRAMES[Math.floor(now / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!)
+			: "";
 		if (isFullyDefaultAppearance(features, decorations)) {
-			ctx.ui.setWorkingMessage();
+			ctx.ui.setWorkingMessage(
+				spinner
+					? buildWorkingMessage(ctx.ui.theme, { spinner, text: ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD) }, this.#settings.loaderOrder)
+					: undefined,
+			);
 			return;
 		}
 
 		const word = features.substituteDefaultMessage ? state.currentWord : DEFAULT_WORKING_WORD;
 		const styled = decorations.shimmer
-			? shimmerString(word, now - state.shimmerOrigin, ctx.ui.theme, decorations.shimmerDirection)
+			? shimmerString(word, now - state.shimmerOrigin, ctx.ui.theme, decorations.shimmerDirection, decorations.shimmerSpeed)
 			: ctx.ui.theme.fg("text", word);
 		const meter = decorations.tokenActivityMonitor
 			? state.activityMeter.render((level, char) =>
@@ -322,11 +360,14 @@ export class SessionManager {
 		ctx.ui.setWorkingMessage(
 			buildWorkingMessage(
 				ctx.ui.theme,
-				styled,
-				meter,
-				formatElapsed(now - state.startTime),
-				formatTokens(total),
-				features,
+				{
+					spinner,
+					text: styled,
+					meter,
+					elapsed: features.elapsedTime ? formatElapsed(now - state.startTime) : "",
+					tokens: features.outputTokens ? `↓ ${formatTokens(total)} tokens` : "",
+				},
+				this.#settings.loaderOrder,
 			),
 		);
 	}
@@ -337,7 +378,7 @@ export class SessionManager {
 			return;
 		}
 
-		const before = `${this.#settings.decorations.animatedSpinner}:${this.#settings.decorations.spinnerColor}:${this.#settings.decorations.spinnerColorEnabled}`;
+		const before = this.indicatorFingerprint();
 		const preview = new PreviewRenderer(ctx);
 		const result = await showMenu<Record<string, boolean | string>>(ctx, {
 			title: "Pi Topping: Settings",
@@ -356,12 +397,7 @@ export class SessionManager {
 		}
 
 		this.#settings = updatedSettings;
-		if (
-			before !==
-			`${this.#settings.decorations.animatedSpinner}:${this.#settings.decorations.spinnerColor}:${this.#settings.decorations.spinnerColorEnabled}`
-		) {
-			this.applyIndicator(ctx);
-		}
+		if (before !== this.indicatorFingerprint()) this.applyIndicator(ctx);
 		this.#state.activityMeter.setDirection(this.#settings.decorations.meterDirection);
 		if (this.#state.busy) {
 			this.stopTimer();
