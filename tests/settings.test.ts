@@ -38,7 +38,7 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 
 	const sections = buildMenuSections(settings);
 	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Options"]);
-	assert.deepEqual(sections.flatMap(section => section.items).map(item => item.id), ["decorateUserPrompt", "borderColor", "promptIcon", "promptTimestamp", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "spinner", "text", "meter", "elapsed", "tokens", "doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
+	assert.deepEqual(sections.flatMap(section => section.items).map(item => item.id), ["decorateUserPrompt", "borderColor", "borderStyle", "promptIcon", "promptTimestamp", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "spinner", "text", "meter", "elapsed", "tokens", "doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
 	assert.equal(sections[3]!.items[0]!.value, false);
 });

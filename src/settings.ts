@@ -18,6 +18,8 @@ export interface DecoratorSettings {
 		decorateUserPrompt: boolean;
 		borderColor: "accent" | "border" | "borderAccent";
 		borderColorEnabled: boolean;
+		borderStyle: "double" | "single" | "rounded" | "heavy";
+		borderStyleEnabled: boolean;
 		spinnerColor: "accent" | "border" | "borderAccent";
 		spinnerColorEnabled: boolean;
 		meterColor: "accent" | "border" | "borderAccent";
@@ -41,7 +43,7 @@ export interface DecoratorSettings {
 }
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
-	decorations: { animatedSpinner: true, shimmer: true, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "ltr", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "accent", borderColorEnabled: true, spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, promptIcon: true, promptTimestamp: true, useNerdFont: true },
+	decorations: { animatedSpinner: true, shimmer: true, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "ltr", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "accent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, promptIcon: true, promptTimestamp: true, useNerdFont: true },
 	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 };
@@ -83,6 +85,7 @@ function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, par
 		if ((key === "meterDirection" || key === "shimmerDirection") && (value === "ltr" || value === "rtl")) (merged as Record<string, boolean | string>)[key] = value;
 		if (key === "shimmerSpeed" && (value === "slow" || value === "normal" || value === "fast")) (merged as Record<string, boolean | string>)[key] = value;
 		if (key.endsWith("Color") && (value === "accent" || value === "border" || value === "borderAccent")) (merged as Record<string, boolean | string>)[key] = value;
+		if (key === "borderStyle" && (value === "double" || value === "single" || value === "rounded" || value === "heavy")) (merged as Record<string, boolean | string>)[key] = value;
 	}
 	return merged;
 }
@@ -118,6 +121,7 @@ type MenuEntry = DecorationMenuEntry | FeatureMenuEntry;
 export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "decorateUserPrompt", label: "High-vis prompt", section: "User Prompt", group: "decorations", key: "decorateUserPrompt" },
 	{ id: "borderColor", label: "Border color", section: "User Prompt", group: "decorations", key: "borderColor", cycleValues: ["accent", "border", "borderAccent"], cycleEnabledBy: "borderColorEnabled", cycleDisabledValue: "border" },
+	{ id: "borderStyle", label: "Border style", section: "User Prompt", group: "decorations", key: "borderStyle", cycleValues: ["double", "single", "rounded", "heavy"], cycleEnabledBy: "borderStyleEnabled", cycleDisabledValue: "double" },
 	{ id: "promptIcon", label: "Pi icon", section: "User Prompt", group: "decorations", key: "promptIcon" },
 	{ id: "promptTimestamp", label: "Timestamp", section: "User Prompt", group: "decorations", key: "promptTimestamp" },
 	{ id: "animatedSpinner", label: "Animated spinner", section: "“Working” Loader", group: "decorations", key: "animatedSpinner" },
@@ -159,6 +163,9 @@ function setDecorationCycleValue(decorations: DecorationSettings, key: keyof Dec
 		case "spinnerColor":
 		case "meterColor":
 			if (stored === "accent" || stored === "border" || stored === "borderAccent") decorations[key] = stored;
+			return;
+		case "borderStyle":
+			if (stored === "double" || stored === "single" || stored === "rounded" || stored === "heavy") decorations[key] = stored;
 			return;
 		case "shimmerDirection":
 		case "meterDirection":
@@ -210,8 +217,9 @@ export function loadSettings(): DecoratorSettings {
 		const parsed = JSON.parse(readFileSync(settingsPath(), "utf8"));
 		if (!isPlainObject(parsed)) return structuredClone(DEFAULT_SETTINGS);
 		const settings = { decorations: mergeGroup(DEFAULT_SETTINGS.decorations, parsed.decorations), features: mergeGroup(DEFAULT_SETTINGS.features, parsed.features), loaderOrder: parseLoaderOrder(parsed.loaderOrder) };
-		const gated: readonly (readonly ["borderColor" | "spinnerColor" | "meterColor" | "shimmerDirection" | "meterDirection" | "shimmerSpeed", "borderColorEnabled" | "spinnerColorEnabled" | "meterColorEnabled" | "shimmerDirectionEnabled" | "meterDirectionEnabled" | "shimmerSpeedEnabled", string])[] = [
+		const gated: readonly (readonly ["borderColor" | "borderStyle" | "spinnerColor" | "meterColor" | "shimmerDirection" | "meterDirection" | "shimmerSpeed", "borderColorEnabled" | "borderStyleEnabled" | "spinnerColorEnabled" | "meterColorEnabled" | "shimmerDirectionEnabled" | "meterDirectionEnabled" | "shimmerSpeedEnabled", string])[] = [
 			["borderColor", "borderColorEnabled", "border"],
+			["borderStyle", "borderStyleEnabled", "double"],
 			["spinnerColor", "spinnerColorEnabled", "accent"],
 			["meterColor", "meterColorEnabled", "accent"],
 			["shimmerDirection", "shimmerDirectionEnabled", "ltr"],

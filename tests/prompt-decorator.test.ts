@@ -34,3 +34,15 @@ test("prompt box wraps long content without exceeding its width", () => {
 test("prompt box returns no lines when the display is too narrow", () => {
 	assert.deepEqual(buildPromptBoxLines("hello", undefined, 9, theme), []);
 });
+
+test("prompt box swaps its box-drawing glyphs per borderStyle", () => {
+	const [rounded] = buildPromptBoxLines("", undefined, 20, theme, { showIcon: false, borderStyle: "rounded" });
+	const [heavy] = buildPromptBoxLines("", undefined, 20, theme, { showIcon: false, borderStyle: "heavy" });
+	const [single] = buildPromptBoxLines("", undefined, 20, theme, { showIcon: false, borderStyle: "single" });
+	const [double] = buildPromptBoxLines("", undefined, 20, theme, { showIcon: false });
+
+	assert.equal(rounded, `╭${"─".repeat(18)}╮`);
+	assert.equal(heavy, `┏${"━".repeat(18)}┓`);
+	assert.equal(single, `┌${"─".repeat(18)}┐`);
+	assert.equal(double, `╔${"═".repeat(18)}╗`);
+});

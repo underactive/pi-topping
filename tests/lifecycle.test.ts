@@ -606,7 +606,7 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 		assert.ok(initial.some((l) => l.includes("")));
 
 		// Moving to “Working” Loader swaps the preview to its animated example.
-		for (let i = 0; i < 4; i++) capturedComponent!.handleInput!("\x1b[B");
+		for (let i = 0; i < 5; i++) capturedComponent!.handleInput!("\x1b[B");
 		now += 200;
 		previewTick?.();
 		const animated = capturedComponent!.render(72).map(stripAnsi);
@@ -644,7 +644,7 @@ test("/topping-settings persists toggled values to settings.json on apply", asyn
 
 		// Move from User Prompt to the “Working” Loader controls, then toggle
 		// animated spinner and text shimmer off.
-		for (let i = 0; i < 4; i++) capturedComponent!.handleInput!("\x1b[B");
+		for (let i = 0; i < 5; i++) capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!(" ");
 		capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!("\x1b[B");
@@ -708,6 +708,8 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.decorations.decorateUserPrompt, !DEFAULT_SETTINGS.decorations.decorateUserPrompt);
 		assert.equal(persisted.decorations.borderColorEnabled, false);
 		assert.equal(persisted.decorations.borderColor, "border");
+		assert.equal(persisted.decorations.borderStyleEnabled, false);
+		assert.equal(persisted.decorations.borderStyle, "double");
 		assert.equal(persisted.decorations.promptIcon, !DEFAULT_SETTINGS.decorations.promptIcon);
 		assert.equal(persisted.decorations.promptTimestamp, !DEFAULT_SETTINGS.decorations.promptTimestamp);
 		assert.equal(persisted.decorations.animatedSpinner, !DEFAULT_SETTINGS.decorations.animatedSpinner);
@@ -809,7 +811,8 @@ test("preview reflects the substituteDefaultMessage fix: toggling it off keeps e
 		// Flat cursor order: [0] animatedSpinner, [1] shimmer, [2] tokenActivityMonitor,
 		// [3] decorateUserPrompt, [4] substituteDefaultMessage, [5] elapsedTime,
 		// [6] outputTokens, [7] doneMarker, [8] meterDirection_rtl.
-		capturedComponent!.handleInput!("\x1b[B"); // down x6 -> substituteDefaultMessage
+		capturedComponent!.handleInput!("\x1b[B"); // down x7 -> substituteDefaultMessage
+		capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!("\x1b[B");
@@ -857,7 +860,7 @@ test("preview's simulated activity meter visibly animates (oscillates) rather th
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
 		// Switch from the User Prompt preview to “Working” Loader.
-		for (let i = 0; i < 4; i++) capturedComponent!.handleInput!("\x1b[B");
+		for (let i = 0; i < 5; i++) capturedComponent!.handleInput!("\x1b[B");
 		const meterRegex = /[\u2880\u28c0\u28e0\u28e4\u28f4\u28f6\u28fe\u28ff]{8}/;
 		function meterAt(elapsedMs: number): string {
 			now = elapsedMs;

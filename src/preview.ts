@@ -7,7 +7,7 @@ import { LOADER_ORDER_ID, parseLoaderOrder } from "./settings.ts";
 import { pickRandomWord } from "./words.ts";
 const METER_INTERVAL_MS = 100, METER_PERIOD_MS = 2400, METER_PEAK_RATE = 46, TOKEN_RATE_PER_SEC = 28;
 const DEFAULT_WORKING_WORD = "Working…";
-const PROMPT_IDS = new Set(["decorateUserPrompt", "borderColor", "promptIcon", "promptTimestamp"]);
+const PROMPT_IDS = new Set(["decorateUserPrompt", "borderColor", "borderStyle", "promptIcon", "promptTimestamp"]);
 const MARKER_IDS = new Set(["doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs"]);
 function meterRate(elapsedMs: number): number { return ((1 - Math.cos((2 * Math.PI * elapsedMs) / METER_PERIOD_MS)) / 2) * METER_PEAK_RATE; }
 
@@ -47,12 +47,14 @@ export class PreviewRenderer {
 		if (!values.decorateUserPrompt) return { lines: ["User prompt decoration is disabled."] };
 
 		const borderColor = values.borderColor;
+		const borderStyle = values.borderStyle;
 		const timestamp = values.promptTimestamp ? Date.now() : undefined;
 		const lines = buildPromptBoxLines("ping", timestamp, 70, this.#ctx.ui.theme, {
 			showIcon: values.promptIcon as boolean,
 			showTimestamp: values.promptTimestamp as boolean,
 			icon: values.useNerdFont ? "" : "π",
 			borderColor: borderColor === "accent" || borderColor === "border" || borderColor === "borderAccent" ? borderColor : "accent",
+			borderStyle: borderStyle === "double" || borderStyle === "single" || borderStyle === "rounded" || borderStyle === "heavy" ? borderStyle : "double",
 		});
 		return timestamp === undefined
 			? { lines }

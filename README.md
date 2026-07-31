@@ -2,7 +2,7 @@
 
 We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is a [Pi](https://github.com/earendil-works/pi-coding-agent) extension that adds some quality of life improvements to Pi's UX, while looking good in the process:
 
-**User Prompt** — high-vis bordered prompt box with configurable border color, pi icon toggle, and timestamp.
+**User Prompt** — high-vis bordered prompt box with configurable border color and style, pi icon toggle, and timestamp.
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
@@ -27,6 +27,7 @@ Run `/topping-settings` (TUI only) to customize your toppings:
 ╟─ User Prompt ──────────────────────────────────────────────╢
 ║    [■] High-vis prompt                                ON   ║
 ║    [■] Border color                             ‹ accent › ║
+║    [■] Border style                             ‹ double › ║
 ║    [■] Pi icon                                        ON   ║
 ║    [■] Timestamp                                      ON   ║
 ║                                                            ║
@@ -62,7 +63,7 @@ Run `/topping-settings` (TUI only) to customize your toppings:
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
-╚════════════════════════════════════════════════════┥ 1/26 ┝╝
+╚════════════════════════════════════════════════════┥ 1/28 ┝╝
 ```
 
 Under **Elements Order**, press `␣` to grab a row, then `↑`/`↓` to slide that element

@@ -117,6 +117,7 @@ export class SessionManager {
 						showTimestamp: this.#settings.decorations.promptTimestamp,
 						icon: this.#settings.decorations.useNerdFont ? "" : "π",
 						borderColor: this.#settings.decorations.borderColor,
+						borderStyle: this.#settings.decorations.borderStyle,
 					},
 				},
 				{

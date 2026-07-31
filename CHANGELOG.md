@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- “Border style” setting in `/topping-settings` cycling the high-vis prompt box between `double` (default), `single`, `rounded`, and `heavy` box-drawing character sets.
 - “Elements Order” section in `/topping-settings` that reorders the working loader's spinner, activity word, token activity monitor, elapsed time, and output tokens. Press `␣` to grab a row and `↑`/`↓` to move it; the live preview follows along and the order persists as `loaderOrder` in `settings.json`.
 - “Text shimmer speed” setting in `/topping-settings` offering `Slow`, `Normal`, and `Fast`, where slow halves and fast doubles the sweep velocity. Only the sweep scales: the band keeps its default pace across the padding on either side of the word, so the pause between one shimmer and the next stays the same at every speed.
 - Reusable `reorderGroup` rows in `menu.ts`: grabbed rows consume up/down so they cannot escape their group, and the group's order is published as a comma-joined id list in the menu result.
