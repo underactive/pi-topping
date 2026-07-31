@@ -1,6 +1,6 @@
 {
   "name": "@underactive/pi-topping",
-  "version": "0.3.1",
+  "version": "0.4.0",
     "description": "A Pi extension that adds quality of life improvements to Pi's UX: a high-vis user prompt, a shimmering working loader with token activity meter and elapsed timer, and an end-of-turn completion marker",
   "keywords": ["pi-package", "pi-extension"],
   "license": "MIT",
