@@ -14,12 +14,15 @@ import { Text } from "@earendil-works/pi-tui";
 import { ActivityMeter, rateToLevel, TokRateTracker } from "./activity-meter.ts";
 import {
 	buildWorkingMessage,
+	fadeWarningString,
 	formatElapsed,
+	formatTokenRate,
 	formatTokens,
 	isFullyDefaultAppearance,
 	shimmerString,
 	SPINNER_FRAME_MS,
 	SPINNER_FRAMES,
+	TOKEN_RATE_FADE_SHADE_COUNT,
 	StreamingWordCounter,
 } from "./format.ts";
 import { showMenu } from "./menu.ts";
@@ -38,6 +41,9 @@ const DEFAULT_WORKING_WORD = "Working…";
 const SHIMMER_INTERVAL = 50;
 const METER_INTERVAL_MS = 100;
 const ELAPSED_INTERVAL_MS = 1_000;
+// Reconciliation resets the EMA at message boundaries, so retain and then fade the last rate to avoid flicker.
+const TOKEN_RATE_HOLD_MS = 1_500;
+const TOKEN_RATE_FADE_MS = 250;
 
 export interface DoneEntryData {
 	word: string;
@@ -54,7 +60,10 @@ export interface SessionState {
 	shimmerOrigin: number;
 	activityMeter: ActivityMeter;
 	rateTracker: TokRateTracker;
-	lastActivityMeterUpdate: number;
+	lastTokenRateSampledAt: number;
+	lastTokenRateTotal: number;
+	tokenRateText: string;
+	tokenRateFadeStartsAt: number;
 	timer: ReturnType<typeof setInterval> | null;
 	busy: boolean;
 	midTurnInputs: number;
@@ -69,7 +78,10 @@ export function makeFreshState(): SessionState {
 		shimmerOrigin: 0,
 		activityMeter: new ActivityMeter(),
 		rateTracker: new TokRateTracker(),
-		lastActivityMeterUpdate: 0,
+		lastTokenRateSampledAt: 0,
+		lastTokenRateTotal: 0,
+		tokenRateText: "",
+		tokenRateFadeStartsAt: 0,
 		timer: null,
 		busy: false,
 		midTurnInputs: 0,
@@ -166,7 +178,8 @@ export class SessionManager {
 		this.#state.confirmTokens += exactTokens ?? this.#state.liveTokens;
 		if (exactTokens !== undefined) {
 			this.#state.rateTracker.reset();
-			this.#state.lastActivityMeterUpdate = 0;
+			this.#state.lastTokenRateSampledAt = 0;
+			this.#state.lastTokenRateTotal = this.#state.confirmTokens;
 		}
 		this.#state.liveTokens = 0;
 		this.#counter.reset();
@@ -195,7 +208,10 @@ export class SessionManager {
 		this.applyIndicator(ctx);
 		this.#state.activityMeter.reset();
 		this.#state.rateTracker.reset();
-		this.#state.lastActivityMeterUpdate = 0;
+		this.#state.lastTokenRateSampledAt = 0;
+		this.#state.lastTokenRateTotal = 0;
+		this.#state.tokenRateText = "";
+		this.#state.tokenRateFadeStartsAt = 0;
 		if (this.#settings.features.doneMarker && hadPrompt) {
 			this.#pi.appendEntry<DoneEntryData>(DONE_ENTRY_TYPE, {
 				word: this.#settings.features.randomizeDoneMarker ? pickRawWord().past_tense : "Worked",
@@ -295,7 +311,7 @@ export class SessionManager {
 		const decorations = this.#settings.decorations;
 		let interval = decorations.shimmer
 			? SHIMMER_INTERVAL
-			: (decorations.tokenActivityMonitor || features.outputTokens)
+			: (decorations.tokenActivityMonitor || features.outputTokens || features.tokenRate)
 				? METER_INTERVAL_MS
 				: features.elapsedTime
 					? ELAPSED_INTERVAL_MS
@@ -313,7 +329,10 @@ export class SessionManager {
 		state.liveTokens = 0;
 		state.activityMeter.reset();
 		state.rateTracker.reset();
-		state.lastActivityMeterUpdate = 0;
+		state.lastTokenRateSampledAt = 0;
+		state.lastTokenRateTotal = 0;
+		state.tokenRateText = "";
+		state.tokenRateFadeStartsAt = 0;
 		state.midTurnInputs = 0;
 		this.#counter.reset();
 	}
@@ -327,9 +346,14 @@ export class SessionManager {
 		const total = state.confirmTokens + state.liveTokens;
 		const features = this.#settings.features;
 		const decorations = this.#settings.decorations;
-		if (decorations.tokenActivityMonitor && now - state.lastActivityMeterUpdate >= METER_INTERVAL_MS) {
-			state.activityMeter.push(rateToLevel(state.rateTracker.sample(total, now)));
-			state.lastActivityMeterUpdate = now;
+		let hasNewTokenCount = false;
+		if ((decorations.tokenActivityMonitor || features.tokenRate) && now - state.lastTokenRateSampledAt >= METER_INTERVAL_MS) {
+			// Do not reset the fade for an EMA-only decay while output is quiet.
+			hasNewTokenCount = total > state.lastTokenRateTotal;
+			state.lastTokenRateTotal = total;
+			const tokenRate = state.rateTracker.sample(total, now);
+			if (decorations.tokenActivityMonitor) state.activityMeter.push(rateToLevel(tokenRate));
+			state.lastTokenRateSampledAt = now;
 		}
 		const spinner = this.spinnerInMessage()
 			? ctx.ui.theme.fg(this.spinnerColor(), SPINNER_FRAMES[Math.floor(now / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!)
@@ -358,6 +382,26 @@ export class SessionManager {
 				),
 			)
 			: "";
+		let tokenRateText = "";
+		if (features.tokenRate) {
+			const latestTokenRate = formatTokenRate(state.rateTracker.tokenRate);
+			if (latestTokenRate && hasNewTokenCount) {
+				state.tokenRateText = latestTokenRate;
+				state.tokenRateFadeStartsAt = now + TOKEN_RATE_HOLD_MS;
+			} else if (now >= state.tokenRateFadeStartsAt + TOKEN_RATE_FADE_MS) {
+				state.tokenRateText = "";
+			}
+			tokenRateText = state.tokenRateText;
+		}
+		const tokenRate = !tokenRateText
+			? ""
+			: now < state.tokenRateFadeStartsAt
+				? ctx.ui.theme.fg("warning", tokenRateText)
+				: fadeWarningString(
+					tokenRateText,
+					Math.floor((now - state.tokenRateFadeStartsAt) / (TOKEN_RATE_FADE_MS / TOKEN_RATE_FADE_SHADE_COUNT)),
+					ctx.ui.theme,
+				);
 		ctx.ui.setWorkingMessage(
 			buildWorkingMessage(
 				ctx.ui.theme,
@@ -367,6 +411,7 @@ export class SessionManager {
 					meter,
 					elapsed: features.elapsedTime ? formatElapsed(now - state.startTime) : "",
 					tokens: features.outputTokens ? `↓ ${formatTokens(total)} tokens` : "",
+					tokenRate,
 				},
 				this.#settings.loaderOrder,
 			),

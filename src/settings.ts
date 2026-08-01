@@ -33,6 +33,7 @@ export interface DecoratorSettings {
 		substituteDefaultMessage: boolean;
 		elapsedTime: boolean;
 		outputTokens: boolean;
+		tokenRate: boolean;
 		doneMarker: boolean;
 		doneMarkerIcon: boolean;
 		randomizeDoneMarker: boolean;
@@ -44,7 +45,7 @@ export interface DecoratorSettings {
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
 	decorations: { animatedSpinner: true, shimmer: true, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "ltr", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "accent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, promptIcon: true, promptTimestamp: true, useNerdFont: true },
-	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
+	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 };
 
@@ -56,6 +57,7 @@ const LOADER_ELEMENT_LABELS: Record<LoaderElement, string> = {
 	meter: "Token activity monitor",
 	elapsed: "Elapsed time",
 	tokens: "Output tokens",
+	tokenRate: "Token rate",
 };
 
 /**
@@ -136,6 +138,8 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "meterDimmed", label: "Token activity monitor dimmed", section: "“Working” Loader", group: "decorations", key: "meterDimmed" },
 	{ id: "elapsedTime", label: "Elapsed time since prompt", section: "“Working” Loader", group: "features", key: "elapsedTime" },
 	{ id: "outputTokens", label: "Show output tokens", section: "“Working” Loader", group: "features", key: "outputTokens" },
+	// id differs from key: the Elements Order row already owns "tokenRate" in the menu's shared value namespace.
+	{ id: "showTokenRate", label: "Token rate", section: "“Working” Loader", group: "features", key: "tokenRate" },
 	{ id: "doneMarker", label: "Show completion marker", section: "Completion Marker", group: "features", key: "doneMarker" },
 	{ id: "doneMarkerIcon", label: "Pi icon", section: "Completion Marker", group: "features", key: "doneMarkerIcon" },
 	{ id: "randomizeDoneMarker", label: "Randomize “Worked” text", section: "Completion Marker", group: "features", key: "randomizeDoneMarker" },

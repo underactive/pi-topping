@@ -38,29 +38,32 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 
 	const sections = buildMenuSections(settings);
 	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Options"]);
-	assert.deepEqual(sections.flatMap(section => section.items).map(item => item.id), ["decorateUserPrompt", "borderColor", "borderStyle", "promptIcon", "promptTimestamp", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "spinner", "text", "meter", "elapsed", "tokens", "doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
+	const itemIds = sections.flatMap(section => section.items).map(item => item.id);
+	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
+	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderColor", "borderStyle", "promptIcon", "promptTimestamp", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "spinner", "text", "meter", "elapsed", "tokens", "tokenRate", "doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
+	assert.equal(sections[1]!.items.find(item => item.id === "showTokenRate")!.value, true);
 	assert.equal(sections[3]!.items[0]!.value, false);
 });
 
-test("buildMenuSections lists the Elements Order rows in the persisted order", () => {
+test("buildMenuSections appends tokenRate to legacy five-element orders", () => {
 	const sections = buildMenuSections({ ...DEFAULT_SETTINGS, loaderOrder: ["text", "tokens", "spinner", "meter", "elapsed"] });
 	const reorderSection = sections.find(section => section.title === "Elements Order")!;
-	assert.deepEqual(reorderSection.items.map(item => item.id), ["text", "tokens", "spinner", "meter", "elapsed"]);
+	assert.deepEqual(reorderSection.items.map(item => item.id), ["text", "tokens", "spinner", "meter", "elapsed", "tokenRate"]);
 	assert.ok(reorderSection.items.every(item => item.reorderGroup === LOADER_ORDER_ID && item.value === false));
 });
 
 test("parseLoaderOrder drops junk and duplicates, then appends the missing elements", () => {
-	assert.deepEqual(parseLoaderOrder("tokens,spinner"), ["tokens", "spinner", "text", "meter", "elapsed"]);
-	assert.deepEqual(parseLoaderOrder(["meter", "meter", "nope", 7]), ["meter", "spinner", "text", "elapsed", "tokens"]);
+	assert.deepEqual(parseLoaderOrder("tokens,spinner"), ["tokens", "spinner", "text", "meter", "elapsed", "tokenRate"]);
+	assert.deepEqual(parseLoaderOrder(["meter", "meter", "nope", 7]), ["meter", "spinner", "text", "elapsed", "tokens", "tokenRate"]);
 	assert.deepEqual(parseLoaderOrder(undefined), [...DEFAULT_SETTINGS.loaderOrder]);
 	assert.deepEqual(parseLoaderOrder(""), [...DEFAULT_SETTINGS.loaderOrder]);
 });
 
 test("applyMenuResult adopts the reordered element list from the menu", () => {
 	const updated = applyMenuResult(DEFAULT_SETTINGS, { [LOADER_ORDER_ID]: "text,meter,spinner,elapsed,tokens" });
-	assert.deepEqual(updated.loaderOrder, ["text", "meter", "spinner", "elapsed", "tokens"]);
-	assert.deepEqual(DEFAULT_SETTINGS.loaderOrder, ["spinner", "text", "meter", "elapsed", "tokens"]);
+	assert.deepEqual(updated.loaderOrder, ["text", "meter", "spinner", "elapsed", "tokens", "tokenRate"]);
+	assert.deepEqual(DEFAULT_SETTINGS.loaderOrder, ["spinner", "text", "meter", "elapsed", "tokens", "tokenRate"]);
 });
 
 test("applyMenuResult clones settings and applies known partial values", () => {
@@ -119,8 +122,8 @@ test("saveSettings then loadSettings round-trips the full schema", () => {
 	withTempAgentDir(() => {
 		const custom: DecoratorSettings = {
 			decorations: { ...DEFAULT_SETTINGS.decorations, animatedSpinner: false, shimmer: false, tokenActivityMonitor: true, meterDirection: "ltr", decorateUserPrompt: false },
-			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, elapsedTime: true, outputTokens: false, doneMarker: true },
-			loaderOrder: ["meter", "elapsed", "spinner", "tokens", "text"],
+			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, elapsedTime: true, outputTokens: false, tokenRate: false, doneMarker: true },
+			loaderOrder: ["meter", "elapsed", "spinner", "tokens", "text", "tokenRate"],
 		};
 		saveSettings(custom);
 		assert.deepEqual(loadSettings(), custom);

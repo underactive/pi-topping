@@ -1,13 +1,47 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { formatElapsed, formatTokens, shimmerString, StreamingWordCounter } from "../src/format.ts";
+import { buildWorkingMessage, fadeWarningString, formatElapsed, formatTokenRate, formatTokens, shimmerString, StreamingWordCounter, TOKEN_RATE_FADE_SHADE_COUNT } from "../src/format.ts";
 
 test("formatTokens uses readable thresholds", () => {
 	assert.equal(formatTokens(999), "999");
 	assert.equal(formatTokens(1_250), "1.3k");
 	assert.equal(formatTokens(17_400), "17k");
 	assert.equal(formatTokens(1_250_000), "1.3M");
+});
+
+test("formatTokenRate rounds to a whole number and hides zero", () => {
+	assert.equal(formatTokenRate(0), "");
+	assert.equal(formatTokenRate(0.49), "");
+	assert.equal(formatTokenRate(0.5), "⚡1 tok/s");
+	assert.equal(formatTokenRate(28.2), "⚡28 tok/s");
+});
+
+test("fadeWarningString uses five cosine-eased warning-to-dim shades", () => {
+	const theme = {
+		getFgAnsi: (color: string) => color === "warning" ? "\x1b[38;2;110;120;130m" : "\x1b[38;2;10;20;30m",
+	};
+	const shades = Array.from({ length: TOKEN_RATE_FADE_SHADE_COUNT }, (_, level) => fadeWarningString("⚡20 tok/s", level, theme));
+
+	assert.deepEqual(shades, [
+		"\x1b[38;2;100;110;120m⚡20 tok/s\x1b[0m",
+		"\x1b[38;2;75;85;95m⚡20 tok/s\x1b[0m",
+		"\x1b[38;2;45;55;65m⚡20 tok/s\x1b[0m",
+		"\x1b[38;2;20;30;40m⚡20 tok/s\x1b[0m",
+		"\x1b[38;2;10;20;30m⚡20 tok/s\x1b[0m",
+	]);
+});
+
+test("token rate remains a standalone trailing loader element", () => {
+	const theme = { fg: (color: string, text: string) => `<${color}>${text}</${color}>` };
+	const message = buildWorkingMessage(theme as never, {
+		text: "Working…",
+		elapsed: "3s",
+		tokens: "↓ 84 tokens",
+		tokenRate: "<warning>⚡28 tok/s</warning>",
+	});
+
+	assert.equal(message, "Working… <dim>(3s · ↓ 84 tokens)</dim> <warning>⚡28 tok/s</warning>");
 });
 
 test("formatElapsed clamps negatives and pads seconds", () => {

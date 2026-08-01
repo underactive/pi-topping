@@ -6,9 +6,9 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
-**“Working” Loader** — animated spinner (with color choice), randomized activity word, shimmer (with direction and speed), token activity meter (with color, direction, and dim toggle), elapsed timer, and output token display — all arrangeable left to right.
+**“Working” Loader** — animated spinner (with color choice), randomized activity word, shimmer (with direction and speed), token activity meter (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate — all arrangeable left to right.
 
-![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, and token count](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
+![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
 **Completion Marker** — end-of-turn marker with icon, randomized verb, and token consumption display. If you steered or followed up (`Alt+Enter`) while Pi was working, the marker also tallies those, e.g. `π Whisked for 2s (↓ 55 tokens · 2 mid-turn inputs)`. Hooks into Pi's `agent_settled` event.
 
@@ -22,7 +22,7 @@ Run `/topping-settings` (TUI only) to customize your toppings:
 ╔═┥ Pi Topping: Settings ┝═══════════════════════════════════╗
 ╟─ Preview ──────────────────────────────────────────────────╢
 ║                                                            ║
-║    Crafting (0m 03s · ↓ 84 tokens)                         ║
+║    Crafting (0m 03s · ↓ 84 tokens) ⚡28 tok/s              ║
 ║                                                            ║
 ╟─ User Prompt ──────────────────────────────────────────────╢
 ║    [■] High-vis prompt                                ON   ║
@@ -44,6 +44,7 @@ Run `/topping-settings` (TUI only) to customize your toppings:
 ║    [■] Token activity monitor dimmed                 OFF   ║
 ║    [■] Elapsed time since prompt                      ON   ║
 ║    [■] Show output tokens                             ON   ║
+║    [■] Token rate                                     ON   ║
 ║                                                            ║
 ╟─ Elements Order ───────────────────────────────────────────╢
 ║    [ ] Animated spinner                                    ║
@@ -51,6 +52,7 @@ Run `/topping-settings` (TUI only) to customize your toppings:
 ║    [ ] Token activity monitor                              ║
 ║    [ ] Elapsed time                                        ║
 ║    [ ] Output tokens                                       ║
+║    [ ] Token rate                                          ║
 ║                                                            ║
 ╟─ Completion Marker ────────────────────────────────────────╢
 ║    [■] Show completion marker                         ON   ║
@@ -63,13 +65,16 @@ Run `/topping-settings` (TUI only) to customize your toppings:
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
-╚════════════════════════════════════════════════════┥ 1/28 ┝╝
+╚════════════════════════════════════════════════════┥ 1/30 ┝╝
 ```
 
 Under **Elements Order**, press `␣` to grab a row, then `↑`/`↓` to slide that element
 left or right within the loader. Elapsed time and output tokens share a single
 `(3s · ↓ 84 tokens)` parenthetical whenever they end up next to each other, and split
-into `(3s)` and `(↓ 84 tokens)` when they do not.
+into `(3s)` and `(↓ 84 tokens)` when they do not. The warning-colored `⚡N tok/s`
+token rate is a standalone segment, last by default, and remains reorderable. After its last
+update it holds full brightness for 1.5 seconds, then fades through five theme-aware shades
+over the next 0.25 seconds; a new count restores full brightness and restarts the cycle.
 
 ## Install
 

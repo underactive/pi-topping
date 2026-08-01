@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Live output-token throughput in the working loader, displayed as a warning-colored `⚡N tok/s` segment with a “Token rate” toggle and reorder row. The rate holds full brightness for 1.5 seconds, then fades through five theme-aware shades over 0.25 seconds; a new count restores full brightness.
+
 ## [0.4.0] - 2026-07-30
 
 ### Added

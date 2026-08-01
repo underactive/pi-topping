@@ -44,11 +44,14 @@ test("colorizeCell dims idle cells and uses the chosen color for active cells", 
 	assert.equal(ActivityMeter.colorizeCell(3, "⣤", theme as never, "accent", true), "\x1b[2m<accent>⣤</accent>\x1b[22m");
 });
 
-test("TokRateTracker avoids first-sample spikes and smooths subsequent samples", () => {
+test("TokRateTracker exposes the latest EMA rate and resets it", () => {
 	const tracker = new TokRateTracker();
+	const readOnly: { readonly tokenRate: number } = tracker;
 
+	assert.equal(readOnly.tokenRate, 0);
 	assert.equal(tracker.sample(0, 0), 0);
 	assert.equal(tracker.sample(3, 200), 6);
+	assert.equal(readOnly.tokenRate, 6);
 	assert.equal(tracker.sample(9, 400), 15.6);
 	assert.equal(tracker.sample(20, 400), 15.6);
 	// The 11 pending tokens at the duplicate timestamp are included at 600 ms:
@@ -56,5 +59,6 @@ test("TokRateTracker avoids first-sample spikes and smooths subsequent samples",
 	assert.equal(tracker.sample(0, 600), 31.36);
 
 	tracker.reset();
+	assert.equal(readOnly.tokenRate, 0);
 	assert.equal(tracker.sample(100, 2_000), 0);
 });

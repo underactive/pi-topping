@@ -44,6 +44,11 @@ export class TokRateTracker {
 	#hasSample = false;
 	#pendingTokens = 0;
 
+	/** Latest EMA-smoothed output-token rate. */
+	get tokenRate(): number {
+		return this.#rate;
+	}
+
 	sample(totalTokens: number, now: number): number {
 		if (!this.#hasSample) {
 			this.#lastTotal = totalTokens;

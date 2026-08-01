@@ -319,6 +319,179 @@ test("tracks streamed tokens, usage reconciliation, tool words, and settlement",
 	});
 });
 
+test("live token rate is warning styled, rounded, and last in the loader", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`);
+		let tick: (() => void) | undefined;
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		mockTimers(t, (callback) => {
+			tick = callback;
+		});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		assert.ok(!messages.at(-1)!.includes("tok/s"), "a zero rate should be absent");
+		assert.ok(!messages.at(-1)!.includes("<warning></warning>"), "empty rates must not be styled");
+
+		const partial = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: partial }, ctx);
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: partial,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two", partial },
+		}, ctx);
+		now = 1_100;
+		tick!();
+
+		assert.match(messages.at(-1)!, /<warning>⚡8 tok\/s<\/warning>$/);
+	});
+});
+
+test("token rate holds, fades, and resets to full brightness on updates", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`);
+		let tick: (() => void) | undefined;
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		mockTimers(t, (callback) => {
+			tick = callback;
+		});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const first = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: first }, ctx);
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: first,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two", partial: first },
+		}, ctx);
+		now = 1_100;
+		tick!();
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(2) }, ctx);
+
+		now = 1_350;
+		tick!();
+		assert.match(messages.at(-1)!, /<warning>⚡8 tok\/s<\/warning>$/);
+
+		const second = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: second }, ctx);
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: second,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two three four five", partial: second },
+		}, ctx);
+		now = 1_450;
+		tick!();
+		assert.match(messages.at(-1)!, /<warning>⚡20 tok\/s<\/warning>$/);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(5) }, ctx);
+
+		now = 2_949;
+		tick!();
+		assert.match(messages.at(-1)!, /<warning>⚡20 tok\/s<\/warning>$/);
+		now = 2_950;
+		tick!();
+		assert.match(messages.at(-1)!, /\x1b\[38;2;212;212;212m⚡20 tok\/s\x1b\[0m$/);
+		now = 3_000;
+		tick!();
+		assert.match(messages.at(-1)!, /\x1b\[38;2;180;180;180m⚡20 tok\/s\x1b\[0m$/);
+
+		const third = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: third }, ctx);
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: third,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two three four five", partial: third },
+		}, ctx);
+		now = 3_049;
+		tick!();
+		assert.match(messages.at(-1)!, /<warning>⚡20 tok\/s<\/warning>$/);
+
+		now = 4_549;
+		tick!();
+		assert.match(messages.at(-1)!, /\x1b\[38;2;212;212;212m⚡20 tok\/s\x1b\[0m$/);
+		now = 4_798;
+		tick!();
+		assert.match(messages.at(-1)!, /\x1b\[38;2;96;96;96m⚡20 tok\/s\x1b\[0m$/);
+		now = 4_799;
+		tick!();
+		assert.ok(!messages.at(-1)!.includes("tok/s"));
+	});
+});
+
+test("disabled token rate omits the throughput segment", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, tokenRate: false } });
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`);
+		let tick: (() => void) | undefined;
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		mockTimers(t, (callback) => {
+			tick = callback;
+		});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const partial = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: partial }, ctx);
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: partial,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two", partial },
+		}, ctx);
+		now = 1_100;
+		tick!();
+
+		assert.ok(!messages.at(-1)!.includes("tok/s"));
+	});
+});
+
+test("token rate keeps a 100ms timer and updates without the activity meter", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			decorations: { ...DEFAULT_SETTINGS.decorations, shimmer: false, tokenActivityMonitor: false },
+			features: { ...DEFAULT_SETTINGS.features, elapsedTime: false, outputTokens: false },
+		});
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`);
+		let tick: (() => void) | undefined;
+		const intervals: number[] = [];
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		t.mock.method(globalThis, "setInterval", ((callback: () => void, delay: number) => {
+			tick = callback;
+			intervals.push(delay);
+			return 1;
+		}) as unknown as typeof setInterval);
+		t.mock.method(globalThis, "clearInterval", (() => {}) as typeof clearInterval);
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		assert.deepEqual(intervals, [100]);
+
+		const partial = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: partial }, ctx);
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: partial,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two", partial },
+		}, ctx);
+		now = 1_100;
+		tick!();
+
+		assert.match(messages.at(-1)!, /<warning>⚡8 tok\/s<\/warning>$/);
+	});
+});
+
 test("session_start clears an existing timer before resetting state", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
@@ -377,6 +550,7 @@ test("fully-default settings (nothing customized) restore pi's untouched default
 				substituteDefaultMessage: false,
 				elapsedTime: false,
 				outputTokens: false,
+				tokenRate: false,
 			},
 			loaderOrder: [...DEFAULT_SETTINGS.loaderOrder],
 		});
@@ -432,8 +606,8 @@ test("a reordered spinner still animates when nothing else is customized", async
 		saveSettings({
 			...DEFAULT_SETTINGS,
 			decorations: { ...DEFAULT_SETTINGS.decorations, shimmer: false, tokenActivityMonitor: false },
-			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, elapsedTime: false, outputTokens: false },
-			loaderOrder: ["text", "spinner", "meter", "elapsed", "tokens"],
+			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, elapsedTime: false, outputTokens: false, tokenRate: false },
+			loaderOrder: ["text", "spinner", "meter", "elapsed", "tokens", "tokenRate"],
 		});
 
 		const extension = new MockExtension();
@@ -611,6 +785,14 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 		previewTick?.();
 		const animated = capturedComponent!.render(72).map(stripAnsi);
 		assert.ok(animated.some((l) => l.includes("Accomplishing\u2026")));
+		assert.ok(animated.some((l) => l.includes("⚡28 tok/s")));
+
+		// Token rate is the final “Working” Loader row, after the twelve controls
+		// between Animated spinner and it. Toggling it updates the preview immediately.
+		for (let i = 0; i < 12; i++) capturedComponent!.handleInput!("\x1b[B");
+		capturedComponent!.handleInput!(" ");
+		const withoutTokenRate = capturedComponent!.render(72).map(stripAnsi);
+		assert.ok(!withoutTokenRate.some((l) => l.includes("⚡")));
 
 		// Close the menu (Escape = cancel) so the command handler resolves and
 		// the preview animation timer is disposed via component.dispose().
@@ -732,6 +914,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.decorations.meterDimmed, !DEFAULT_SETTINGS.decorations.meterDimmed);
 		assert.equal(persisted.features.elapsedTime, !DEFAULT_SETTINGS.features.elapsedTime);
 		assert.equal(persisted.features.outputTokens, !DEFAULT_SETTINGS.features.outputTokens);
+		assert.equal(persisted.features.tokenRate, !DEFAULT_SETTINGS.features.tokenRate);
 		assert.equal(persisted.features.doneMarker, !DEFAULT_SETTINGS.features.doneMarker);
 		assert.equal(persisted.features.doneMarkerIcon, !DEFAULT_SETTINGS.features.doneMarkerIcon);
 		assert.equal(persisted.features.randomizeDoneMarker, !DEFAULT_SETTINGS.features.randomizeDoneMarker);
@@ -780,7 +963,7 @@ test("grabbing an Elements Order row reorders the preview and persists the new o
 		capturedComponent!.handleInput!("\r");
 		await handlerPromise;
 
-		assert.deepEqual(loadSettings().loaderOrder, ["text", "spinner", "meter", "elapsed", "tokens"]);
+		assert.deepEqual(loadSettings().loaderOrder, ["text", "spinner", "meter", "elapsed", "tokens", "tokenRate"]);
 	});
 });
 

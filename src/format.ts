@@ -7,10 +7,10 @@ export const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", 
 export const SPINNER_FRAME_MS = 80;
 
 /** A user-orderable piece of the working indicator. */
-export type LoaderElement = "spinner" | "text" | "meter" | "elapsed" | "tokens";
+export type LoaderElement = "spinner" | "text" | "meter" | "elapsed" | "tokens" | "tokenRate";
 
 /** Left-to-right element order matching pi's stock working indicator. */
-export const DEFAULT_LOADER_ORDER: readonly LoaderElement[] = ["spinner", "text", "meter", "elapsed", "tokens"];
+export const DEFAULT_LOADER_ORDER: readonly LoaderElement[] = ["spinner", "text", "meter", "elapsed", "tokens", "tokenRate"];
 
 /** Elements rendered inside the dim parenthetical rather than as standalone segments. */
 const DETAIL_ELEMENTS: ReadonlySet<LoaderElement> = new Set(["elapsed", "tokens"]);
@@ -33,6 +33,31 @@ export function formatTokens(count: number): string {
 		return `${value}${unit.suffix}`;
 	}
 	return `${(count / 1_000_000_000).toFixed(1)}B`;
+}
+
+/** Format an output-token throughput estimate for the working indicator. */
+export function formatTokenRate(rate: number): string {
+	const rounded = Math.round(rate);
+	return rounded === 0 ? "" : `⚡${rounded} tok/s`;
+}
+
+/** Number of discrete, eased warning-to-dim shades used for the token-rate fade. */
+export const TOKEN_RATE_FADE_SHADE_COUNT = 5;
+
+/** Render one token-rate fade shade by blending warning toward the active theme's dim color. */
+export function fadeWarningString(
+	text: string,
+	shade: number,
+	theme: Pick<Theme, "getFgAnsi">,
+): string {
+	if (!text) return "";
+	const clampedShade = Math.max(0, Math.min(TOKEN_RATE_FADE_SHADE_COUNT - 1, Math.floor(shade)));
+	const progress = (clampedShade + 1) / TOKEN_RATE_FADE_SHADE_COUNT;
+	const eased = 0.5 * (1 - Math.cos(Math.PI * progress));
+	const warning = ansiToRgb(theme.getFgAnsi("warning"));
+	const dim = ansiToRgb(theme.getFgAnsi("dim"));
+	const color = warning.map((channel, index) => Math.round(channel * (1 - eased) + dim[index]! * eased));
+	return `\x1b[38;2;${color[0]};${color[1]};${color[2]}m${text}\x1b[0m`;
 }
 
 /** Format elapsed milliseconds as a compact human-readable duration, skipping leading zero units. */
@@ -60,8 +85,9 @@ export function isFullyDefaultAppearance(features: {
 	substituteDefaultMessage: boolean;
 	elapsedTime: boolean;
 	outputTokens: boolean;
+	tokenRate: boolean;
 }, decorations: { shimmer: boolean; tokenActivityMonitor: boolean }): boolean {
-	return !features.substituteDefaultMessage && !decorations.shimmer && !decorations.tokenActivityMonitor && !features.elapsedTime && !features.outputTokens;
+	return !features.substituteDefaultMessage && !decorations.shimmer && !decorations.tokenActivityMonitor && !features.elapsedTime && !features.outputTokens && !features.tokenRate;
 }
 
 /**

@@ -1,7 +1,7 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { PreviewResult } from "./menu.ts";
 import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
-import { buildWorkingMessage, formatElapsed, formatTokens, isFullyDefaultAppearance, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
+import { buildWorkingMessage, formatElapsed, formatTokenRate, formatTokens, isFullyDefaultAppearance, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
 import { buildPromptBoxLines } from "./prompt-decorator.ts";
 import { LOADER_ORDER_ID, parseLoaderOrder } from "./settings.ts";
 import { pickRandomWord } from "./words.ts";
@@ -25,7 +25,7 @@ export class PreviewRenderer {
 	private loaderPreview(values: Record<string, boolean | string>, elapsedMs: number): string {
 		this.#meter.setDirection(values.meterDirection === "Right to Left" ? "rtl" : "ltr");
 		if (elapsedMs - this.#lastMeterUpdate >= METER_INTERVAL_MS) { this.#meter.push(rateToLevel(meterRate(elapsedMs))); this.#lastMeterUpdate = elapsedMs; }
-		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false };
+		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false };
 		const decorations = { shimmer: values.shimmer !== false, tokenActivityMonitor: values.tokenActivityMonitor !== false };
 		const spinnerColor = (values.spinnerColorEnabled === false ? "accent" : values.spinnerColor === "border" || values.spinnerColor === "borderAccent" ? values.spinnerColor : "accent") as "accent" | "border" | "borderAccent";
 		const spinner = values.animatedSpinner ? this.#ctx.ui.theme.fg(spinnerColor, SPINNER_FRAMES[Math.floor(elapsedMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!) : "";
@@ -35,12 +35,15 @@ export class PreviewRenderer {
 		const styledWord = decorations.shimmer ? shimmerString(word, elapsedMs, this.#ctx.ui.theme, values.shimmerDirection === "Right to Left" ? "rtl" : "ltr", values.shimmerSpeed === "Slow" ? "slow" : values.shimmerSpeed === "Fast" ? "fast" : "normal") : this.#ctx.ui.theme.fg("text", word);
 		const meterColor = (values.meterColorEnabled === false ? "accent" : values.meterColor === "border" || values.meterColor === "borderAccent" ? values.meterColor : "accent") as "accent" | "border" | "borderAccent";
 		const meter = decorations.tokenActivityMonitor ? this.#meter.render((level, char) => ActivityMeter.colorizeCell(level, char, this.#ctx.ui.theme, meterColor, values.meterDimmed !== false)) : "";
+		const tokenRateText = features.tokenRate ? formatTokenRate(TOKEN_RATE_PER_SEC) : "";
+		const tokenRate = tokenRateText ? this.#ctx.ui.theme.fg("warning", tokenRateText) : "";
 		return buildWorkingMessage(this.#ctx.ui.theme, {
 			spinner,
 			text: styledWord,
 			meter,
 			elapsed: features.elapsedTime ? formatElapsed(elapsedMs) : "",
 			tokens: features.outputTokens ? `↓ ${formatTokens(Math.max(0, Math.floor(elapsedMs / 1000 * TOKEN_RATE_PER_SEC)))} tokens` : "",
+			tokenRate,
 		}, order);
 	}
 	private promptPreview(values: Record<string, boolean | string>): PreviewResult {
