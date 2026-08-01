@@ -36,7 +36,8 @@ export class PreviewRenderer {
 		const meterColor = (values.meterColorEnabled === false ? "accent" : values.meterColor === "border" || values.meterColor === "borderAccent" ? values.meterColor : "accent") as "accent" | "border" | "borderAccent";
 		const meter = decorations.tokenActivityMonitor ? this.#meter.render((level, char) => ActivityMeter.colorizeCell(level, char, this.#ctx.ui.theme, meterColor, values.meterDimmed !== false)) : "";
 		const tokenRateText = features.tokenRate ? formatTokenRate(TOKEN_RATE_PER_SEC) : "";
-		const tokenRate = tokenRateText ? this.#ctx.ui.theme.fg("warning", tokenRateText) : "";
+		const tokenRateWarning = tokenRateText ? this.#ctx.ui.theme.fg("warning", tokenRateText) : "";
+		const tokenRate = tokenRateWarning && values.tokenRateDimmed === true ? `\x1b[2m${tokenRateWarning}\x1b[22m` : tokenRateWarning;
 		return buildWorkingMessage(this.#ctx.ui.theme, {
 			spinner,
 			text: styledWord,

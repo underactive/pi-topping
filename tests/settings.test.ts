@@ -40,7 +40,7 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Options"]);
 	const itemIds = sections.flatMap(section => section.items).map(item => item.id);
 	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
-	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderColor", "borderStyle", "promptIcon", "promptTimestamp", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "spinner", "text", "meter", "elapsed", "tokens", "tokenRate", "doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
+	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderColor", "borderStyle", "promptIcon", "promptTimestamp", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateDimmed", "spinner", "text", "meter", "elapsed", "tokens", "tokenRate", "doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
 	assert.equal(sections[1]!.items.find(item => item.id === "showTokenRate")!.value, true);
 	assert.equal(sections[3]!.items[0]!.value, false);

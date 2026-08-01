@@ -402,6 +402,7 @@ export class SessionManager {
 					Math.floor((now - state.tokenRateFadeStartsAt) / (TOKEN_RATE_FADE_MS / TOKEN_RATE_FADE_SHADE_COUNT)),
 					ctx.ui.theme,
 				);
+		const tokenRateStyled = tokenRate && decorations.tokenRateDimmed ? `\x1b[2m${tokenRate}\x1b[22m` : tokenRate;
 		ctx.ui.setWorkingMessage(
 			buildWorkingMessage(
 				ctx.ui.theme,
@@ -411,7 +412,7 @@ export class SessionManager {
 					meter,
 					elapsed: features.elapsedTime ? formatElapsed(now - state.startTime) : "",
 					tokens: features.outputTokens ? `↓ ${formatTokens(total)} tokens` : "",
-					tokenRate,
+					tokenRate: tokenRateStyled,
 				},
 				this.#settings.loaderOrder,
 			),

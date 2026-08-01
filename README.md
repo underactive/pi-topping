@@ -6,7 +6,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
-**“Working” Loader** — animated spinner (with color choice), randomized activity word, shimmer (with direction and speed), token activity meter (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate — all arrangeable left to right.
+**“Working” Loader** — animated spinner (with color choice), randomized activity word, shimmer (with direction and speed), token activity meter (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate (with dim toggle) — all arrangeable left to right.
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
@@ -45,6 +45,7 @@ Run `/topping-settings` (TUI only) to customize your toppings:
 ║    [■] Elapsed time since prompt                      ON   ║
 ║    [■] Show output tokens                             ON   ║
 ║    [■] Token rate                                     ON   ║
+║    [■] Token rate dimmed                             OFF   ║
 ║                                                            ║
 ╟─ Elements Order ───────────────────────────────────────────╢
 ║    [ ] Animated spinner                                    ║
@@ -65,7 +66,7 @@ Run `/topping-settings` (TUI only) to customize your toppings:
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
-╚════════════════════════════════════════════════════┥ 1/30 ┝╝
+╚════════════════════════════════════════════════════┥ 1/31 ┝╝
 ```
 
 Under **Elements Order**, press `␣` to grab a row, then `↑`/`↓` to slide that element

@@ -350,6 +350,35 @@ test("live token rate is warning styled, rounded, and last in the loader", async
 	});
 });
 
+test("dimmed token rate wraps the warning styling in the terminal dim attribute", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, decorations: { ...DEFAULT_SETTINGS.decorations, tokenRateDimmed: true } });
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`);
+		let tick: (() => void) | undefined;
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		mockTimers(t, (callback) => {
+			tick = callback;
+		});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const partial = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: partial }, ctx);
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: partial,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two", partial },
+		}, ctx);
+		now = 1_100;
+		tick!();
+
+		assert.match(messages.at(-1)!, /\x1b\[2m<warning>⚡8 tok\/s<\/warning>\x1b\[22m$/);
+	});
+});
+
 test("token rate holds, fades, and resets to full brightness on updates", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
@@ -787,8 +816,8 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 		assert.ok(animated.some((l) => l.includes("Accomplishing\u2026")));
 		assert.ok(animated.some((l) => l.includes("⚡28 tok/s")));
 
-		// Token rate is the final “Working” Loader row, after the twelve controls
-		// between Animated spinner and it. Toggling it updates the preview immediately.
+		// The Token rate row sits twelve controls below Animated spinner.
+		// Toggling it updates the preview immediately.
 		for (let i = 0; i < 12; i++) capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!(" ");
 		const withoutTokenRate = capturedComponent!.render(72).map(stripAnsi);
@@ -915,6 +944,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.features.elapsedTime, !DEFAULT_SETTINGS.features.elapsedTime);
 		assert.equal(persisted.features.outputTokens, !DEFAULT_SETTINGS.features.outputTokens);
 		assert.equal(persisted.features.tokenRate, !DEFAULT_SETTINGS.features.tokenRate);
+		assert.equal(persisted.decorations.tokenRateDimmed, !DEFAULT_SETTINGS.decorations.tokenRateDimmed);
 		assert.equal(persisted.features.doneMarker, !DEFAULT_SETTINGS.features.doneMarker);
 		assert.equal(persisted.features.doneMarkerIcon, !DEFAULT_SETTINGS.features.doneMarkerIcon);
 		assert.equal(persisted.features.randomizeDoneMarker, !DEFAULT_SETTINGS.features.randomizeDoneMarker);
