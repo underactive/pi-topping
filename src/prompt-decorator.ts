@@ -1,4 +1,4 @@
-import type { MessageRenderer } from "@earendil-works/pi-coding-agent";
+import type { MessageRenderer, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 
 export const PROMPT_BOX_TYPE = "pi-topping-prompt";
@@ -17,7 +17,7 @@ export interface PromptBoxDetails {
 	showIcon?: boolean;
 	showTimestamp?: boolean;
 	icon?: string;
-	borderColor?: "accent" | "border" | "borderAccent";
+	borderColor?: ThemeColor;
 	borderStyle?: BorderStyle;
 }
 

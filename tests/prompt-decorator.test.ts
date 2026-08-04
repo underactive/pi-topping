@@ -35,6 +35,14 @@ test("prompt box returns no lines when the display is too narrow", () => {
 	assert.deepEqual(buildPromptBoxLines("hello", undefined, 9, theme), []);
 });
 
+test("prompt box accepts every setting border color", () => {
+	const taggedTheme = { fg: (color: string, text: string) => `<${color}>${text}</${color}>` };
+	for (const color of ["accent", "border", "borderAccent", "success", "error", "warning"] as const) {
+		const lines = buildPromptBoxLines("ping", undefined, 40, taggedTheme, { borderColor: color });
+		assert.ok(lines[0]!.includes(`<${color}>`));
+	}
+});
+
 test("prompt box swaps its box-drawing glyphs per borderStyle", () => {
 	const [rounded] = buildPromptBoxLines("", undefined, 20, theme, { showIcon: false, borderStyle: "rounded" });
 	const [heavy] = buildPromptBoxLines("", undefined, 20, theme, { showIcon: false, borderStyle: "heavy" });

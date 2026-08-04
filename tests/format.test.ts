@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildWorkingMessage, fadeWarningString, formatElapsed, formatTokenRate, formatTokens, shimmerString, StreamingWordCounter, TOKEN_RATE_FADE_SHADE_COUNT } from "../src/format.ts";
+import { buildWorkingMessage, fadeThemeColorString, fadeWarningString, formatElapsed, formatTokenRate, formatTokens, shimmerString, StreamingWordCounter, TOKEN_RATE_FADE_SHADE_COUNT } from "../src/format.ts";
 
 test("formatTokens uses readable thresholds", () => {
 	assert.equal(formatTokens(999), "999");
@@ -30,6 +30,17 @@ test("fadeWarningString uses five cosine-eased warning-to-dim shades", () => {
 		"\x1b[38;2;20;30;40m⚡20 tok/s\x1b[0m",
 		"\x1b[38;2;10;20;30m⚡20 tok/s\x1b[0m",
 	]);
+});
+
+test("fadeThemeColorString blends the selected color toward dim", () => {
+	const theme = {
+		getFgAnsi: (color: string) => color === "success" ? "\x1b[38;2;110;120;130m" : "\x1b[38;2;10;20;30m",
+	};
+
+	assert.equal(
+		fadeThemeColorString("⚡20 tok/s", 0, theme, "success"),
+		"\x1b[38;2;100;110;120m⚡20 tok/s\x1b[0m",
+	);
 });
 
 test("token rate remains a standalone trailing loader element", () => {

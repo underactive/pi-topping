@@ -1,4 +1,4 @@
-import type { Theme } from "@earendil-works/pi-coding-agent";
+import type { Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
 
 /** Pi's default working-indicator frames (same braille spinner as pi-tui's Loader). */
 export const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -44,20 +44,30 @@ export function formatTokenRate(rate: number): string {
 /** Number of discrete, eased warning-to-dim shades used for the token-rate fade. */
 export const TOKEN_RATE_FADE_SHADE_COUNT = 5;
 
-/** Render one token-rate fade shade by blending warning toward the active theme's dim color. */
-export function fadeWarningString(
+/** Render one token-rate fade shade by blending the selected color toward the active theme's dim color. */
+export function fadeThemeColorString(
 	text: string,
 	shade: number,
 	theme: Pick<Theme, "getFgAnsi">,
+	color: ThemeColor,
 ): string {
 	if (!text) return "";
 	const clampedShade = Math.max(0, Math.min(TOKEN_RATE_FADE_SHADE_COUNT - 1, Math.floor(shade)));
 	const progress = (clampedShade + 1) / TOKEN_RATE_FADE_SHADE_COUNT;
 	const eased = 0.5 * (1 - Math.cos(Math.PI * progress));
-	const warning = ansiToRgb(theme.getFgAnsi("warning"));
+	const source = ansiToRgb(theme.getFgAnsi(color));
 	const dim = ansiToRgb(theme.getFgAnsi("dim"));
-	const color = warning.map((channel, index) => Math.round(channel * (1 - eased) + dim[index]! * eased));
-	return `\x1b[38;2;${color[0]};${color[1]};${color[2]}m${text}\x1b[0m`;
+	const blended = source.map((channel, index) => Math.round(channel * (1 - eased) + dim[index]! * eased));
+	return `\x1b[38;2;${blended[0]};${blended[1]};${blended[2]}m${text}\x1b[0m`;
+}
+
+/** Preserve the default warning-colored token-rate fade. */
+export function fadeWarningString(
+	text: string,
+	shade: number,
+	theme: Pick<Theme, "getFgAnsi">,
+): string {
+	return fadeThemeColorString(text, shade, theme, "warning");
 }
 
 /** Format elapsed milliseconds as a compact human-readable duration, skipping leading zero units. */

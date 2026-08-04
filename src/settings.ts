@@ -4,6 +4,13 @@ import { dirname, join } from "node:path";
 import { DEFAULT_LOADER_ORDER, type LoaderElement } from "./format.ts";
 import type { MenuSection } from "./menu.ts";
 
+export const SETTING_COLOR_VALUES = ["accent", "border", "borderAccent", "success", "error", "warning"] as const;
+export type SettingColor = (typeof SETTING_COLOR_VALUES)[number];
+
+export function isSettingColor(value: unknown): value is SettingColor {
+	return typeof value === "string" && SETTING_COLOR_VALUES.some(color => color === value);
+}
+
 export interface DecoratorSettings {
 	decorations: {
 		animatedSpinner: boolean;
@@ -16,15 +23,16 @@ export interface DecoratorSettings {
 		meterDirection: "ltr" | "rtl";
 		meterDirectionEnabled: boolean;
 		decorateUserPrompt: boolean;
-		borderColor: "accent" | "border" | "borderAccent";
+		borderColor: SettingColor;
 		borderColorEnabled: boolean;
 		borderStyle: "double" | "single" | "rounded" | "heavy";
 		borderStyleEnabled: boolean;
-		spinnerColor: "accent" | "border" | "borderAccent";
+		spinnerColor: SettingColor;
 		spinnerColorEnabled: boolean;
-		meterColor: "accent" | "border" | "borderAccent";
+		meterColor: SettingColor;
 		meterColorEnabled: boolean;
 		meterDimmed: boolean;
+		tokenRateColor: SettingColor;
 		tokenRateDimmed: boolean;
 		promptIcon: boolean;
 		promptTimestamp: boolean;
@@ -45,7 +53,7 @@ export interface DecoratorSettings {
 }
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
-	decorations: { animatedSpinner: true, shimmer: true, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "ltr", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "accent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateDimmed: false, promptIcon: true, promptTimestamp: true, useNerdFont: true },
+	decorations: { animatedSpinner: true, shimmer: true, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "ltr", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "accent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, promptIcon: true, promptTimestamp: true, useNerdFont: true },
 	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 };
@@ -87,7 +95,7 @@ function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, par
 		if (typeof merged[key] === "boolean" && typeof value === "boolean") (merged as Record<string, boolean | string>)[key] = value;
 		if ((key === "meterDirection" || key === "shimmerDirection") && (value === "ltr" || value === "rtl")) (merged as Record<string, boolean | string>)[key] = value;
 		if (key === "shimmerSpeed" && (value === "slow" || value === "normal" || value === "fast")) (merged as Record<string, boolean | string>)[key] = value;
-		if (key.endsWith("Color") && (value === "accent" || value === "border" || value === "borderAccent")) (merged as Record<string, boolean | string>)[key] = value;
+		if (key.endsWith("Color") && isSettingColor(value)) (merged as Record<string, boolean | string>)[key] = value;
 		if (key === "borderStyle" && (value === "double" || value === "single" || value === "rounded" || value === "heavy")) (merged as Record<string, boolean | string>)[key] = value;
 	}
 	return merged;
@@ -123,24 +131,25 @@ type FeatureMenuEntry = MenuEntryBase & { group: "features"; key: keyof FeatureS
 type MenuEntry = DecorationMenuEntry | FeatureMenuEntry;
 export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "decorateUserPrompt", label: "High-vis prompt", section: "User Prompt", group: "decorations", key: "decorateUserPrompt" },
-	{ id: "borderColor", label: "Border color", section: "User Prompt", group: "decorations", key: "borderColor", cycleValues: ["accent", "border", "borderAccent"], cycleEnabledBy: "borderColorEnabled", cycleDisabledValue: "border" },
+	{ id: "borderColor", label: "Border color", section: "User Prompt", group: "decorations", key: "borderColor", cycleValues: SETTING_COLOR_VALUES, cycleEnabledBy: "borderColorEnabled", cycleDisabledValue: "border" },
 	{ id: "borderStyle", label: "Border style", section: "User Prompt", group: "decorations", key: "borderStyle", cycleValues: ["double", "single", "rounded", "heavy"], cycleEnabledBy: "borderStyleEnabled", cycleDisabledValue: "double" },
 	{ id: "promptIcon", label: "Pi icon", section: "User Prompt", group: "decorations", key: "promptIcon" },
 	{ id: "promptTimestamp", label: "Timestamp", section: "User Prompt", group: "decorations", key: "promptTimestamp" },
 	{ id: "animatedSpinner", label: "Animated spinner", section: "“Working” Loader", group: "decorations", key: "animatedSpinner" },
-	{ id: "spinnerColor", label: "Animated spinner color", section: "“Working” Loader", group: "decorations", key: "spinnerColor", cycleValues: ["accent", "border", "borderAccent"], cycleEnabledBy: "spinnerColorEnabled", cycleDisabledValue: "accent" },
+	{ id: "spinnerColor", label: "Animated spinner color", section: "“Working” Loader", group: "decorations", key: "spinnerColor", cycleValues: SETTING_COLOR_VALUES, cycleEnabledBy: "spinnerColorEnabled", cycleDisabledValue: "accent" },
 	{ id: "substituteDefaultMessage", label: "Randomize “Working” text", section: "“Working” Loader", group: "features", key: "substituteDefaultMessage" },
 	{ id: "shimmer", label: "Text shimmer", section: "“Working” Loader", group: "decorations", key: "shimmer" },
 	{ id: "shimmerDirection", label: "Text shimmer direction", section: "“Working” Loader", group: "decorations", key: "shimmerDirection", cycleValues: ["Left to Right", "Right to Left"], cycleEnabledBy: "shimmerDirectionEnabled", cycleDisabledValue: "Left to Right" },
 	{ id: "shimmerSpeed", label: "Text shimmer speed", section: "“Working” Loader", group: "decorations", key: "shimmerSpeed", cycleValues: ["Slow", "Normal", "Fast"], cycleEnabledBy: "shimmerSpeedEnabled", cycleDisabledValue: "Normal" },
 	{ id: "tokenActivityMonitor", label: "Token activity monitor", section: "“Working” Loader", group: "decorations", key: "tokenActivityMonitor" },
-	{ id: "meterColor", label: "Token activity monitor color", section: "“Working” Loader", group: "decorations", key: "meterColor", cycleValues: ["accent", "border", "borderAccent"], cycleEnabledBy: "meterColorEnabled", cycleDisabledValue: "accent" },
+	{ id: "meterColor", label: "Token activity monitor color", section: "“Working” Loader", group: "decorations", key: "meterColor", cycleValues: SETTING_COLOR_VALUES, cycleEnabledBy: "meterColorEnabled", cycleDisabledValue: "accent" },
 	{ id: "meterDirection", label: "Token activity monitor direction", section: "“Working” Loader", group: "decorations", key: "meterDirection", cycleValues: ["Left to Right", "Right to Left"], cycleEnabledBy: "meterDirectionEnabled", cycleDisabledValue: "Left to Right" },
 	{ id: "meterDimmed", label: "Token activity monitor dimmed", section: "“Working” Loader", group: "decorations", key: "meterDimmed" },
 	{ id: "elapsedTime", label: "Elapsed time since prompt", section: "“Working” Loader", group: "features", key: "elapsedTime" },
 	{ id: "outputTokens", label: "Show output tokens", section: "“Working” Loader", group: "features", key: "outputTokens" },
 	// id differs from key: the Elements Order row already owns "tokenRate" in the menu's shared value namespace.
 	{ id: "showTokenRate", label: "Token rate", section: "“Working” Loader", group: "features", key: "tokenRate" },
+	{ id: "tokenRateColor", label: "Token rate color", section: "“Working” Loader", group: "decorations", key: "tokenRateColor", cycleValues: SETTING_COLOR_VALUES },
 	{ id: "tokenRateDimmed", label: "Token rate dimmed", section: "“Working” Loader", group: "decorations", key: "tokenRateDimmed" },
 	{ id: "doneMarker", label: "Show completion marker", section: "Completion Marker", group: "features", key: "doneMarker" },
 	{ id: "doneMarkerIcon", label: "Pi icon", section: "Completion Marker", group: "features", key: "doneMarkerIcon" },
@@ -168,7 +177,8 @@ function setDecorationCycleValue(decorations: DecorationSettings, key: keyof Dec
 		case "borderColor":
 		case "spinnerColor":
 		case "meterColor":
-			if (stored === "accent" || stored === "border" || stored === "borderAccent") decorations[key] = stored;
+		case "tokenRateColor":
+			if (isSettingColor(stored)) decorations[key] = stored;
 			return;
 		case "borderStyle":
 			if (stored === "double" || stored === "single" || stored === "rounded" || stored === "heavy") decorations[key] = stored;

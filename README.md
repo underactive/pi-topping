@@ -6,7 +6,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
-**“Working” Loader** — animated spinner (with color choice), randomized activity word, shimmer (with direction and speed), token activity meter (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate (with dim toggle) — all arrangeable left to right.
+**“Working” Loader** — animated spinner (with color choice), randomized activity word, shimmer (with direction and speed), token activity meter (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate (with color choice and dim toggle) — all arrangeable left to right.
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
@@ -45,6 +45,7 @@ Run `/topping-settings` (TUI only) to customize your toppings:
 ║    [■] Elapsed time since prompt                      ON   ║
 ║    [■] Show output tokens                             ON   ║
 ║    [■] Token rate                                     ON   ║
+║    [■] Token rate color                        ‹ warning › ║
 ║    [■] Token rate dimmed                             OFF   ║
 ║                                                            ║
 ╟─ Elements Order ───────────────────────────────────────────╢
@@ -66,14 +67,17 @@ Run `/topping-settings` (TUI only) to customize your toppings:
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
-╚════════════════════════════════════════════════════┥ 1/31 ┝╝
+╚════════════════════════════════════════════════════┥ 1/32 ┝╝
 ```
+
+The Border color, Animated spinner color, Token activity monitor color, and Token rate color
+settings all cycle through `accent`, `border`, `borderAccent`, `success`, `error`, and `warning`.
 
 Under **Elements Order**, press `␣` to grab a row, then `↑`/`↓` to slide that element
 left or right within the loader. Elapsed time and output tokens share a single
 `(3s · ↓ 84 tokens)` parenthetical whenever they end up next to each other, and split
-into `(3s)` and `(↓ 84 tokens)` when they do not. The warning-colored `⚡N tok/s`
-token rate is a standalone segment, last by default, and remains reorderable. After its last
+into `(3s)` and `(↓ 84 tokens)` when they do not. The `⚡N tok/s` token rate uses the
+selected theme color and is a standalone segment, last by default, and remains reorderable. After its last
 update it holds full brightness for 1.5 seconds, then fades through five theme-aware shades
 over the next 0.25 seconds; a new count restores full brightness and restarts the cycle.
 

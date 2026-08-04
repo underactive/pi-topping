@@ -14,7 +14,7 @@ import { Text } from "@earendil-works/pi-tui";
 import { ActivityMeter, rateToLevel, TokRateTracker } from "./activity-meter.ts";
 import {
 	buildWorkingMessage,
-	fadeWarningString,
+	fadeThemeColorString,
 	formatElapsed,
 	formatTokenRate,
 	formatTokens,
@@ -26,7 +26,7 @@ import {
 	StreamingWordCounter,
 } from "./format.ts";
 import { showMenu } from "./menu.ts";
-import { applyMenuResult, buildMenuSections, loadSettings, saveSettings } from "./settings.ts";
+import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type SettingColor } from "./settings.ts";
 import { PreviewRenderer } from "./preview.ts";
 import { PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
 import { pickRandomWord, pickRawWord } from "./words.ts";
@@ -273,7 +273,7 @@ export class SessionManager {
 		return this.#settings.decorations.animatedSpinner && this.#settings.loaderOrder[0] !== "spinner";
 	}
 
-	private spinnerColor(): "accent" | "border" | "borderAccent" {
+	private spinnerColor(): SettingColor {
 		const decorations = this.#settings.decorations;
 		return decorations.spinnerColorEnabled ? decorations.spinnerColor : "accent";
 	}
@@ -396,11 +396,12 @@ export class SessionManager {
 		const tokenRate = !tokenRateText
 			? ""
 			: now < state.tokenRateFadeStartsAt
-				? ctx.ui.theme.fg("warning", tokenRateText)
-				: fadeWarningString(
+				? ctx.ui.theme.fg(decorations.tokenRateColor, tokenRateText)
+				: fadeThemeColorString(
 					tokenRateText,
 					Math.floor((now - state.tokenRateFadeStartsAt) / (TOKEN_RATE_FADE_MS / TOKEN_RATE_FADE_SHADE_COUNT)),
 					ctx.ui.theme,
+					decorations.tokenRateColor,
 				);
 		const tokenRateStyled = tokenRate && decorations.tokenRateDimmed ? `\x1b[2m${tokenRate}\x1b[22m` : tokenRate;
 		ctx.ui.setWorkingMessage(

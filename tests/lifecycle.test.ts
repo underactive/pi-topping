@@ -350,6 +350,35 @@ test("live token rate is warning styled, rounded, and last in the loader", async
 	});
 });
 
+test("token rate uses the configured theme color", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, decorations: { ...DEFAULT_SETTINGS.decorations, tokenRateColor: "success" } });
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`);
+		let tick: (() => void) | undefined;
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		mockTimers(t, (callback) => {
+			tick = callback;
+		});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const partial = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: partial }, ctx);
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: partial,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two", partial },
+		}, ctx);
+		now = 1_100;
+		tick!();
+
+		assert.match(messages.at(-1)!, /<success>⚡8 tok\/s<\/success>$/);
+	});
+});
+
 test("dimmed token rate wraps the warning styling in the terminal dim attribute", async (t) => {
 	await withTempAgentDir(async () => {
 		saveSettings({ ...DEFAULT_SETTINGS, decorations: { ...DEFAULT_SETTINGS.decorations, tokenRateDimmed: true } });
@@ -944,6 +973,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.features.elapsedTime, !DEFAULT_SETTINGS.features.elapsedTime);
 		assert.equal(persisted.features.outputTokens, !DEFAULT_SETTINGS.features.outputTokens);
 		assert.equal(persisted.features.tokenRate, !DEFAULT_SETTINGS.features.tokenRate);
+		assert.equal(persisted.decorations.tokenRateColor, DEFAULT_SETTINGS.decorations.tokenRateColor);
 		assert.equal(persisted.decorations.tokenRateDimmed, !DEFAULT_SETTINGS.decorations.tokenRateDimmed);
 		assert.equal(persisted.features.doneMarker, !DEFAULT_SETTINGS.features.doneMarker);
 		assert.equal(persisted.features.doneMarkerIcon, !DEFAULT_SETTINGS.features.doneMarkerIcon);

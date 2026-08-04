@@ -41,6 +41,9 @@ test("colorizeCell dims idle cells and uses the chosen color for active cells", 
 	assert.equal(ActivityMeter.colorizeCell(3, "⣤", theme as never), "<accent>⣤</accent>");
 	assert.equal(ActivityMeter.colorizeCell(3, "⣤", theme as never, "border"), "<border>⣤</border>");
 	assert.equal(ActivityMeter.colorizeCell(7, "⣿", theme as never, "borderAccent"), "<borderAccent>⣿</borderAccent>");
+	assert.equal(ActivityMeter.colorizeCell(3, "⣤", theme as never, "success"), "<success>⣤</success>");
+	assert.equal(ActivityMeter.colorizeCell(3, "⣤", theme as never, "error"), "<error>⣤</error>");
+	assert.equal(ActivityMeter.colorizeCell(3, "⣤", theme as never, "warning"), "<warning>⣤</warning>");
 	assert.equal(ActivityMeter.colorizeCell(3, "⣤", theme as never, "accent", true), "\x1b[2m<accent>⣤</accent>\x1b[22m");
 });
 
