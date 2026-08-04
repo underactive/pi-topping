@@ -3,7 +3,7 @@ import type { PreviewResult } from "./menu.ts";
 import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
 import { buildWorkingMessage, DEFAULT_WORKING_WORD, formatElapsed, formatTokenRate, formatTokens, isFullyDefaultAppearance, METER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
 import { buildPromptBoxLines } from "./prompt-decorator.ts";
-import { fromCycleValue, isSettingColor, LOADER_ORDER_ID, parseLoaderOrder } from "./settings.ts";
+import { fromCycleDirection, fromCycleSpeed, isSettingColor, LOADER_ORDER_ID, parseLoaderOrder } from "./settings.ts";
 import { pickRandomWord } from "./words.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tok/s for the meter,
 // flat 28 tok/s for the token readouts.
@@ -24,7 +24,7 @@ export class PreviewRenderer {
 		return { lines: ["", this.loaderPreview(values, elapsedMs), ""], nextRefreshInMs: SPINNER_FRAME_MS };
 	}
 	private loaderPreview(values: Record<string, boolean | string>, elapsedMs: number): string {
-		this.#meter.setDirection(fromCycleValue(values.meterDirection as string) as "ltr" | "rtl");
+		this.#meter.setDirection(fromCycleDirection(values.meterDirection));
 		if (elapsedMs - this.#lastMeterUpdate >= METER_INTERVAL_MS) { this.#meter.push(rateToLevel(meterRate(elapsedMs))); this.#lastMeterUpdate = elapsedMs; }
 		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false };
 		const decorations = { shimmer: values.shimmer !== false, tokenActivityMonitor: values.tokenActivityMonitor !== false };
@@ -33,7 +33,7 @@ export class PreviewRenderer {
 		const order = parseLoaderOrder(values[LOADER_ORDER_ID]);
 		if (isFullyDefaultAppearance(features, decorations)) return buildWorkingMessage(this.#ctx.ui.theme, { spinner, text: this.#ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD) }, order);
 		const word = features.substituteDefaultMessage ? this.#word : DEFAULT_WORKING_WORD;
-		const styledWord = decorations.shimmer ? shimmerString(word, elapsedMs, this.#ctx.ui.theme, fromCycleValue(values.shimmerDirection as string) as "ltr" | "rtl", fromCycleValue(values.shimmerSpeed as string) as "slow" | "normal" | "fast") : this.#ctx.ui.theme.fg("text", word);
+		const styledWord = decorations.shimmer ? shimmerString(word, elapsedMs, this.#ctx.ui.theme, fromCycleDirection(values.shimmerDirection), fromCycleSpeed(values.shimmerSpeed)) : this.#ctx.ui.theme.fg("text", word);
 		const meterColor = values.meterColorEnabled === false || !isSettingColor(values.meterColor) ? "accent" : values.meterColor;
 		const meter = decorations.tokenActivityMonitor ? this.#meter.render((level, char) => ActivityMeter.colorizeCell(level, char, this.#ctx.ui.theme, meterColor, values.meterDimmed !== false)) : "";
 		const tokenRateText = features.tokenRate ? formatTokenRate(TOKEN_RATE_PER_SEC) : "";

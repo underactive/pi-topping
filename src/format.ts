@@ -69,15 +69,6 @@ export function fadeThemeColorString(
 	return `\x1b[38;2;${blended[0]};${blended[1]};${blended[2]}m${text}\x1b[0m`;
 }
 
-/** Preserve the default warning-colored token-rate fade. */
-export function fadeWarningString(
-	text: string,
-	shade: number,
-	theme: Pick<Theme, "getFgAnsi" | "fg">,
-): string {
-	return fadeThemeColorString(text, shade, theme, "warning");
-}
-
 /** Format elapsed milliseconds as a compact human-readable duration, skipping leading zero units. */
 export function formatElapsed(ms: number): string {
 	let totalSeconds = Math.max(0, Math.floor(ms / 1000));

@@ -7,6 +7,8 @@ import test from "node:test";
 import {
 	applyMenuResult,
 	buildMenuSections,
+	fromCycleDirection,
+	fromCycleSpeed,
 	DEFAULT_SETTINGS,
 	SETTING_COLOR_VALUES,
 	type DecoratorSettings,
@@ -71,6 +73,17 @@ test("applyMenuResult adopts the reordered element list from the menu", () => {
 	const updated = applyMenuResult(DEFAULT_SETTINGS, { [LOADER_ORDER_ID]: "text,meter,spinner,elapsed,tokens" });
 	assert.deepEqual(updated.loaderOrder, ["text", "meter", "spinner", "elapsed", "tokens", "tokenRate"]);
 	assert.deepEqual(DEFAULT_SETTINGS.loaderOrder, ["spinner", "text", "meter", "elapsed", "tokens", "tokenRate"]);
+});
+
+test("cycle values normalize labels and invalid preview inputs", () => {
+	assert.equal(fromCycleDirection("Right to Left"), "rtl");
+	assert.equal(fromCycleDirection("ltr"), "ltr");
+	assert.equal(fromCycleDirection(undefined), "ltr");
+	assert.equal(fromCycleDirection("unexpected"), "ltr");
+	assert.equal(fromCycleSpeed("Fast"), "fast");
+	assert.equal(fromCycleSpeed("normal"), "normal");
+	assert.equal(fromCycleSpeed(undefined), "normal");
+	assert.equal(fromCycleSpeed("unexpected"), "normal");
 });
 
 test("applyMenuResult clones settings and applies known partial values", () => {

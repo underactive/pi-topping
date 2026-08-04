@@ -114,13 +114,25 @@ function toCycleValue(stored: unknown): string {
 }
 
 /** Map a menu cycle label back to its persisted value. */
-export function fromCycleValue(value: string): string {
+function fromCycleValue(value: string): string {
 	if (value === "Left to Right") return "ltr";
 	if (value === "Right to Left") return "rtl";
 	if (value === "Slow") return "slow";
 	if (value === "Normal") return "normal";
 	if (value === "Fast") return "fast";
 	return value;
+}
+
+/** Convert a persisted or menu direction to a safe preview direction. */
+export function fromCycleDirection(value: unknown): "ltr" | "rtl" {
+	const stored = typeof value === "string" ? fromCycleValue(value) : "";
+	return stored === "rtl" ? "rtl" : "ltr";
+}
+
+/** Convert a persisted or menu speed to a safe preview speed. */
+export function fromCycleSpeed(value: unknown): "slow" | "normal" | "fast" {
+	const stored = typeof value === "string" ? fromCycleValue(value) : "";
+	return stored === "slow" || stored === "fast" ? stored : "normal";
 }
 
 type MenuSectionName = "User Prompt" | "“Working” Loader" | "Completion Marker" | "Options";

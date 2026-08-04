@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildWorkingMessage, fadeThemeColorString, fadeWarningString, formatElapsed, formatTokenRate, formatTokens, shimmerString, StreamingWordCounter, TOKEN_RATE_FADE_SHADE_COUNT } from "../src/format.ts";
+import { buildWorkingMessage, fadeThemeColorString, formatElapsed, formatTokenRate, formatTokens, shimmerString, StreamingWordCounter, TOKEN_RATE_FADE_SHADE_COUNT } from "../src/format.ts";
 
 test("formatTokens uses readable thresholds", () => {
 	assert.equal(formatTokens(999), "999");
@@ -17,12 +17,12 @@ test("formatTokenRate rounds to a whole number and hides zero", () => {
 	assert.equal(formatTokenRate(28.2), "⚡28 tok/s");
 });
 
-test("fadeWarningString uses five cosine-eased warning-to-dim shades", () => {
+test("fadeThemeColorString uses five cosine-eased warning-to-dim shades", () => {
 	const theme = {
 		getFgAnsi: (color: string) => color === "warning" ? "\x1b[38;2;110;120;130m" : "\x1b[38;2;10;20;30m",
 		fg: (_color: string, text: string) => text,
 	};
-	const shades = Array.from({ length: TOKEN_RATE_FADE_SHADE_COUNT }, (_, level) => fadeWarningString("⚡20 tok/s", level, theme));
+	const shades = Array.from({ length: TOKEN_RATE_FADE_SHADE_COUNT }, (_, level) => fadeThemeColorString("⚡20 tok/s", level, theme, "warning"));
 
 	assert.deepEqual(shades, [
 		"\x1b[38;2;100;110;120m⚡20 tok/s\x1b[0m",
@@ -43,6 +43,16 @@ test("fadeThemeColorString blends the selected color toward dim", () => {
 		fadeThemeColorString("⚡20 tok/s", 0, theme, "success"),
 		"\x1b[38;2;100;110;120m⚡20 tok/s\x1b[0m",
 	);
+});
+
+test("fade and shimmer fall back for non-truecolor themes", () => {
+	const theme = {
+		getFgAnsi: () => "\x1b[38;5;42m",
+		fg: (color: string, text: string) => `<${color}>${text}</${color}>`,
+	};
+
+	assert.equal(fadeThemeColorString("rate", 0, theme, "error"), "<error>rate</error>");
+	assert.equal(shimmerString("text", 0, theme), "<text>text</text>");
 });
 
 test("token rate remains a standalone trailing loader element", () => {
