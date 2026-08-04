@@ -1,5 +1,5 @@
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DEFAULT_LOADER_ORDER, type LoaderElement } from "./format.ts";
 import type { MenuSection } from "./menu.ts";
@@ -92,11 +92,13 @@ function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, par
 	if (!isPlainObject(parsed)) return merged;
 	for (const [key, value] of Object.entries(parsed)) {
 		if (!(key in merged)) continue;
-		if (typeof merged[key] === "boolean" && typeof value === "boolean") (merged as Record<string, boolean | string>)[key] = value;
-		if ((key === "meterDirection" || key === "shimmerDirection") && (value === "ltr" || value === "rtl")) (merged as Record<string, boolean | string>)[key] = value;
-		if (key === "shimmerSpeed" && (value === "slow" || value === "normal" || value === "fast")) (merged as Record<string, boolean | string>)[key] = value;
-		if (key.endsWith("Color") && isSettingColor(value)) (merged as Record<string, boolean | string>)[key] = value;
-		if (key === "borderStyle" && (value === "double" || value === "single" || value === "rounded" || value === "heavy")) (merged as Record<string, boolean | string>)[key] = value;
+		let valid: boolean | string | undefined;
+		if (typeof merged[key] === "boolean" && typeof value === "boolean") valid = value;
+		else if ((key === "meterDirection" || key === "shimmerDirection") && (value === "ltr" || value === "rtl")) valid = value;
+		else if (key === "shimmerSpeed" && (value === "slow" || value === "normal" || value === "fast")) valid = value;
+		else if (key.endsWith("Color") && isSettingColor(value)) valid = value;
+		else if (key === "borderStyle" && (value === "double" || value === "single" || value === "rounded" || value === "heavy")) valid = value;
+		if (valid !== undefined) (merged as Record<string, boolean | string>)[key] = valid;
 	}
 	return merged;
 }
@@ -112,7 +114,7 @@ function toCycleValue(stored: unknown): string {
 }
 
 /** Map a menu cycle label back to its persisted value. */
-function fromCycleValue(value: string): string {
+export function fromCycleValue(value: string): string {
 	if (value === "Left to Right") return "ltr";
 	if (value === "Right to Left") return "rtl";
 	if (value === "Slow") return "slow";
@@ -196,17 +198,17 @@ function setDecorationCycleValue(decorations: DecorationSettings, key: keyof Dec
 	}
 }
 
-function toggleSection(title: MenuSectionName, settings: DecoratorSettings): MenuSection {
+function buildSection(title: MenuSectionName, settings: DecoratorSettings): MenuSection {
 	return { title, items: MENU_ENTRIES.filter(entry => entry.section === title).map(entry => menuItem(entry, settings)) };
 }
 
 export function buildMenuSections(settings: DecoratorSettings): MenuSection[] {
 	return [
-		toggleSection("User Prompt", settings),
-		toggleSection("“Working” Loader", settings),
+		buildSection("User Prompt", settings),
+		buildSection("“Working” Loader", settings),
 		{ title: "Elements Order", items: parseLoaderOrder(settings.loaderOrder).map(id => ({ id, label: LOADER_ELEMENT_LABELS[id], value: false, reorderGroup: LOADER_ORDER_ID })) },
-		toggleSection("Completion Marker", settings),
-		toggleSection("Options", settings),
+		buildSection("Completion Marker", settings),
+		buildSection("Options", settings),
 	];
 }
 
@@ -228,6 +230,10 @@ export function applyMenuResult(settings: DecoratorSettings, values: Record<stri
 	return next;
 }
 
+/**
+ * When a cycle setting's enabled flag is off, reset the stored value to the menu's
+ * disabled default so stale choices don't resurface on re-enable.
+ */
 export function loadSettings(): DecoratorSettings {
 	try {
 		const parsed = JSON.parse(readFileSync(settingsPath(), "utf8"));
@@ -248,7 +254,16 @@ export function loadSettings(): DecoratorSettings {
 		return settings;
 	} catch { return structuredClone(DEFAULT_SETTINGS); }
 }
+
 export function saveSettings(settings: DecoratorSettings): void {
-	const path = settingsPath(); mkdirSync(dirname(path), { recursive: true });
-	writeFileSync(`${path}.tmp`, `${JSON.stringify(settings, null, 2)}\n`); renameSync(`${path}.tmp`, path);
+	const path = settingsPath();
+	mkdirSync(dirname(path), { recursive: true });
+	const tmpPath = `${path}.${process.pid}.${Date.now()}.tmp`;
+	try {
+		writeFileSync(tmpPath, `${JSON.stringify(settings, null, 2)}\n`);
+		renameSync(tmpPath, path);
+	} catch (err) {
+		try { unlinkSync(tmpPath); } catch { /* tmp file was never created */ }
+		throw err;
+	}
 }

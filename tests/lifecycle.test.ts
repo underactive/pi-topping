@@ -1051,9 +1051,8 @@ test("preview reflects the substituteDefaultMessage fix: toggling it off keeps e
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
-		// Flat cursor order: [0] animatedSpinner, [1] shimmer, [2] tokenActivityMonitor,
-		// [3] decorateUserPrompt, [4] substituteDefaultMessage, [5] elapsedTime,
-		// [6] outputTokens, [7] doneMarker, [8] meterDirection_rtl.
+		// 7 downs from the first row (decorateUserPrompt) lands on substituteDefaultMessage,
+		// per the current menu section order (cf. settings.test.ts:34).
 		capturedComponent!.handleInput!("\x1b[B"); // down x7 -> substituteDefaultMessage
 		capturedComponent!.handleInput!("\x1b[B");
 		capturedComponent!.handleInput!("\x1b[B");

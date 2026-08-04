@@ -20,6 +20,7 @@ test("formatTokenRate rounds to a whole number and hides zero", () => {
 test("fadeWarningString uses five cosine-eased warning-to-dim shades", () => {
 	const theme = {
 		getFgAnsi: (color: string) => color === "warning" ? "\x1b[38;2;110;120;130m" : "\x1b[38;2;10;20;30m",
+		fg: (_color: string, text: string) => text,
 	};
 	const shades = Array.from({ length: TOKEN_RATE_FADE_SHADE_COUNT }, (_, level) => fadeWarningString("⚡20 tok/s", level, theme));
 
@@ -35,6 +36,7 @@ test("fadeWarningString uses five cosine-eased warning-to-dim shades", () => {
 test("fadeThemeColorString blends the selected color toward dim", () => {
 	const theme = {
 		getFgAnsi: (color: string) => color === "success" ? "\x1b[38;2;110;120;130m" : "\x1b[38;2;10;20;30m",
+		fg: (_color: string, text: string) => text,
 	};
 
 	assert.equal(
@@ -72,6 +74,7 @@ test("formatElapsed skips leading zero units", () => {
 test("shimmerString interpolates a continuous dim-to-text gradient", () => {
 	const theme = {
 		getFgAnsi: (color: string) => color === "dim" ? "\x1b[38;2;20;30;40m" : "\x1b[38;2;120;130;140m",
+		fg: (_color: string, text: string) => text,
 	};
 	const text = "abcdefghijklm";
 	const elapsedMs = 2000 * 16 / (text.length + 20);
@@ -88,16 +91,18 @@ test("shimmerString interpolates a continuous dim-to-text gradient", () => {
 test("shimmer speed scales the sweep without stretching the pause between sweeps", () => {
 	const theme = {
 		getFgAnsi: (color: string) => color === "dim" ? "\x1b[38;2;20;30;40m" : "\x1b[38;2;120;130;140m",
+		fg: (_color: string, text: string) => text,
 	};
 	const measure = (speed: "slow" | "normal" | "fast"): { sweepMs: number; pauseMs: number } => {
 		const lit = (ms: number): boolean => [...shimmerString("test", ms, theme, "ltr", speed)
 			.matchAll(/\x1b\[38;2;(\d+;\d+;\d+)m/g)].some(match => match[1] !== "20;30;40");
+		const SCAN_LIMIT_MS = 10_000;
 		let ms = 0;
-		while (!lit(ms)) ms++;
+		while (!lit(ms)) { ms++; assert.ok(ms < SCAN_LIMIT_MS, "shimmer never lit within scan limit"); }
 		const start = ms;
-		while (lit(ms)) ms++;
+		while (lit(ms)) { ms++; assert.ok(ms < SCAN_LIMIT_MS, "shimmer never dimmed within scan limit"); }
 		const end = ms;
-		while (!lit(ms)) ms++;
+		while (!lit(ms)) { ms++; assert.ok(ms < SCAN_LIMIT_MS, "shimmer never re-lit within scan limit"); }
 		return { sweepMs: end - start, pauseMs: ms - end };
 	};
 

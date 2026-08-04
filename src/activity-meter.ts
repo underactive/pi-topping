@@ -25,15 +25,15 @@ const BRAILLE: Record<ActivityMeterLevel, string> = {
 	[ActivityMeterLevel.FULL]: "⣿",
 };
 const WIDTH = 8;
+const RATE_THRESHOLDS = [0, 5, 10, 15, 22, 30, 40] as const;
 type CellColorizer = (level: ActivityMeterLevel, char: string) => string;
 
 /** Convert an estimated output-token rate to a display level. */
 export function rateToLevel(tokensPerSecond: number): ActivityMeterLevel {
-	const THRESHOLDS = [0, 5, 10, 15, 22, 30, 40];
-	for (let i = THRESHOLDS.length - 1; i >= 0; i--) {
-		if (tokensPerSecond > THRESHOLDS[i]) return (i + 1) as ActivityMeterLevel;
+	for (let i = RATE_THRESHOLDS.length - 1; i >= 0; i--) {
+		if (tokensPerSecond > RATE_THRESHOLDS[i]) return (i + 1) as ActivityMeterLevel;
 	}
-	return 0;
+	return ActivityMeterLevel.IDLE;
 }
 
 /** EMA-smoothed rate tracker for a cumulative output-token estimate. */

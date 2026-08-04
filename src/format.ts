@@ -6,6 +6,12 @@ export const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", 
 /** Milliseconds per spinner frame, matching pi-tui's Loader cadence. */
 export const SPINNER_FRAME_MS = 80;
 
+/** Default "Working…" text shown when text randomization/substitution is off. */
+export const DEFAULT_WORKING_WORD = "Working…";
+
+/** Milliseconds between activity meter sample pushes. */
+export const METER_INTERVAL_MS = 100;
+
 /** A user-orderable piece of the working indicator. */
 export type LoaderElement = "spinner" | "text" | "meter" | "elapsed" | "tokens" | "tokenRate";
 
@@ -15,17 +21,18 @@ export const DEFAULT_LOADER_ORDER: readonly LoaderElement[] = ["spinner", "text"
 /** Elements rendered inside the dim parenthetical rather than as standalone segments. */
 const DETAIL_ELEMENTS: ReadonlySet<LoaderElement> = new Set(["elapsed", "tokens"]);
 
+const TOKEN_UNITS = [
+	{ threshold: 10_000, divisor: 1_000, decimals: 1, suffix: "k" },
+	{ threshold: 999_500, divisor: 1_000, decimals: 0, suffix: "k" },
+	{ threshold: 10_000_000, divisor: 1_000_000, decimals: 1, suffix: "M" },
+	{ threshold: 1_000_000_000, divisor: 1_000_000, decimals: 0, suffix: "M" },
+	{ threshold: 1e15, divisor: 1_000_000_000, decimals: 1, suffix: "B" },
+] as const;
+
 /** Format an output-token count for the working indicator. */
 export function formatTokens(count: number): string {
 	if (count < 1000) return count.toString();
-	const UNITS = [
-		{ threshold: 10_000, divisor: 1_000, decimals: 1, suffix: "k" },
-		{ threshold: 999_500, divisor: 1_000, decimals: 0, suffix: "k" },
-		{ threshold: 10_000_000, divisor: 1_000_000, decimals: 1, suffix: "M" },
-		{ threshold: 1_000_000_000, divisor: 1_000_000, decimals: 0, suffix: "M" },
-		{ threshold: 1e15, divisor: 1_000_000_000, decimals: 1, suffix: "B" },
-	];
-	const unit = UNITS.find(u => count < u.threshold);
+	const unit = TOKEN_UNITS.find(u => count < u.threshold);
 	if (unit) {
 		const value = unit.decimals > 0
 			? (count / unit.divisor).toFixed(unit.decimals)
@@ -48,15 +55,16 @@ export const TOKEN_RATE_FADE_SHADE_COUNT = 5;
 export function fadeThemeColorString(
 	text: string,
 	shade: number,
-	theme: Pick<Theme, "getFgAnsi">,
+	theme: Pick<Theme, "getFgAnsi" | "fg">,
 	color: ThemeColor,
 ): string {
 	if (!text) return "";
+	const source = ansiToRgb(theme.getFgAnsi(color));
+	const dim = ansiToRgb(theme.getFgAnsi("dim"));
+	if (!source || !dim) return theme.fg(color, text);
 	const clampedShade = Math.max(0, Math.min(TOKEN_RATE_FADE_SHADE_COUNT - 1, Math.floor(shade)));
 	const progress = (clampedShade + 1) / TOKEN_RATE_FADE_SHADE_COUNT;
 	const eased = 0.5 * (1 - Math.cos(Math.PI * progress));
-	const source = ansiToRgb(theme.getFgAnsi(color));
-	const dim = ansiToRgb(theme.getFgAnsi("dim"));
 	const blended = source.map((channel, index) => Math.round(channel * (1 - eased) + dim[index]! * eased));
 	return `\x1b[38;2;${blended[0]};${blended[1]};${blended[2]}m${text}\x1b[0m`;
 }
@@ -65,7 +73,7 @@ export function fadeThemeColorString(
 export function fadeWarningString(
 	text: string,
 	shade: number,
-	theme: Pick<Theme, "getFgAnsi">,
+	theme: Pick<Theme, "getFgAnsi" | "fg">,
 ): string {
 	return fadeThemeColorString(text, shade, theme, "warning");
 }
@@ -90,7 +98,7 @@ export function formatElapsed(ms: number): string {
 	return parts.join(" ");
 }
 
-/** Codex-style light-sweep shimmer using the active Pi theme. */
+/** True when every appearance toggle is off and Pi's stock loader can be restored. */
 export function isFullyDefaultAppearance(features: {
 	substituteDefaultMessage: boolean;
 	elapsedTime: boolean;
@@ -133,10 +141,11 @@ export function buildWorkingMessage(
 	return segments.join(" ");
 }
 
+/** Codex-style light-sweep shimmer using the active Pi theme. */
 export function shimmerString(
 	text: string,
 	elapsedMs: number,
-	theme: Pick<Theme, "getFgAnsi">,
+	theme: Pick<Theme, "getFgAnsi" | "fg">,
 	direction: "ltr" | "rtl" = "ltr",
 	speed: "slow" | "normal" | "fast" = "normal",
 ): string {
@@ -147,6 +156,7 @@ export function shimmerString(
 	const SHIMMER_PADDING = 10;
 	const SHIMMER_BASE = ansiToRgb(theme.getFgAnsi("dim"));
 	const SHIMMER_HIGHLIGHT = ansiToRgb(theme.getFgAnsi("text"));
+	if (!SHIMMER_BASE || !SHIMMER_HIGHLIGHT) return theme.fg("text", text);
 	const period = chars.length + SHIMMER_PADDING * 2;
 	const unitsPerS = period / SHIMMER_SWEEP_S;
 	// The band crosses padding at either end while every character is still dim. Scaling only
@@ -180,9 +190,9 @@ export function shimmerString(
 		.join("") + "\x1b[0m";
 }
 
-function ansiToRgb(ansi: string): [number, number, number] {
+function ansiToRgb(ansi: string): [number, number, number] | null {
 	const match = ansi.match(/^\x1b\[38;2;(\d+);(\d+);(\d+)m$/);
-	if (!match) throw new Error(`Shimmer requires truecolor theme colors, received ${JSON.stringify(ansi)}`);
+	if (!match) return null;
 	return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 

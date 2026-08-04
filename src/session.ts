@@ -14,11 +14,13 @@ import { Text } from "@earendil-works/pi-tui";
 import { ActivityMeter, rateToLevel, TokRateTracker } from "./activity-meter.ts";
 import {
 	buildWorkingMessage,
+	DEFAULT_WORKING_WORD,
 	fadeThemeColorString,
 	formatElapsed,
 	formatTokenRate,
 	formatTokens,
 	isFullyDefaultAppearance,
+	METER_INTERVAL_MS,
 	shimmerString,
 	SPINNER_FRAME_MS,
 	SPINNER_FRAMES,
@@ -37,9 +39,7 @@ type MessageEndEvent = Extract<ExtensionEvent, { type: "message_end" }>;
 type ToolExecutionStartEvent = Extract<ExtensionEvent, { type: "tool_execution_start" }>;
 
 const DONE_ENTRY_TYPE = "pi-topping-done";
-const DEFAULT_WORKING_WORD = "Working…";
-const SHIMMER_INTERVAL = 50;
-const METER_INTERVAL_MS = 100;
+const SHIMMER_INTERVAL_MS = 50;
 const ELAPSED_INTERVAL_MS = 1_000;
 // Reconciliation resets the EMA at message boundaries, so retain and then fade the last rate to avoid flicker.
 const TOKEN_RATE_HOLD_MS = 1_500;
@@ -103,7 +103,6 @@ export class SessionManager {
 	#onSessionStart = async (_e: SessionStartEvent, ctx: ExtensionContext): Promise<void> => {
 		this.stopTimer();
 		this.#counter.reset();
-		this.#currentCtx = null;
 		this.#state = makeFreshState();
 		this.#settings = loadSettings();
 		this.#state.activityMeter.setDirection(this.#settings.decorations.meterDirection);
@@ -246,9 +245,9 @@ export class SessionManager {
 				details.push(`${entry.data.midTurnInputs} mid-turn input${entry.data.midTurnInputs === 1 ? "" : "s"}`);
 			}
 			const tail = details.length ? ` (${details.join(" · ")})` : "";
-			return new Text(
-				`${features.doneMarkerIcon ? theme.fg("text", this.#settings.decorations.useNerdFont ? "" : "π") : ""}${theme.fg("dim", `${features.doneMarkerIcon ? " " : ""}${entry.data.word} for ${formatElapsed(entry.data.elapsedMs)}${tail}`)}`,
-			);
+			const icon = features.doneMarkerIcon ? theme.fg("text", this.#settings.decorations.useNerdFont ? "" : "π") : "";
+			const summary = theme.fg("dim", `${features.doneMarkerIcon ? " " : ""}${entry.data.word} for ${formatElapsed(entry.data.elapsedMs)}${tail}`);
+			return new Text(icon + summary);
 		});
 		this.#pi.registerMessageRenderer<PromptBoxDetails>(PROMPT_BOX_TYPE, promptBoxRenderer);
 		this.#pi.registerCommand("topping-settings", {
@@ -309,13 +308,10 @@ export class SessionManager {
 
 		const features = this.#settings.features;
 		const decorations = this.#settings.decorations;
-		let interval = decorations.shimmer
-			? SHIMMER_INTERVAL
-			: (decorations.tokenActivityMonitor || features.outputTokens || features.tokenRate)
-				? METER_INTERVAL_MS
-				: features.elapsedTime
-					? ELAPSED_INTERVAL_MS
-					: undefined;
+		let interval: number | undefined;
+		if (decorations.shimmer) interval = SHIMMER_INTERVAL_MS;
+		else if (decorations.tokenActivityMonitor || features.outputTokens || features.tokenRate) interval = METER_INTERVAL_MS;
+		else if (features.elapsedTime) interval = ELAPSED_INTERVAL_MS;
 		if (this.spinnerInMessage()) interval = Math.min(interval ?? SPINNER_FRAME_MS, SPINNER_FRAME_MS);
 		if (interval) this.#state.timer = setInterval(() => this.tick(), interval);
 	}
@@ -393,7 +389,7 @@ export class SessionManager {
 			}
 			tokenRateText = state.tokenRateText;
 		}
-		const tokenRate = !tokenRateText
+		const tokenRateSegment = !tokenRateText
 			? ""
 			: now < state.tokenRateFadeStartsAt
 				? ctx.ui.theme.fg(decorations.tokenRateColor, tokenRateText)
@@ -403,7 +399,7 @@ export class SessionManager {
 					ctx.ui.theme,
 					decorations.tokenRateColor,
 				);
-		const tokenRateStyled = tokenRate && decorations.tokenRateDimmed ? `\x1b[2m${tokenRate}\x1b[22m` : tokenRate;
+		const tokenRateStyled = tokenRateSegment && decorations.tokenRateDimmed ? `\x1b[2m${tokenRateSegment}\x1b[22m` : tokenRateSegment;
 		ctx.ui.setWorkingMessage(
 			buildWorkingMessage(
 				ctx.ui.theme,

@@ -6,7 +6,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
-**“Working” Loader** — animated spinner (with color choice), randomized activity word, shimmer (with direction and speed), token activity meter (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate (with color choice and dim toggle) — all arrangeable left to right.
+**“Working” Loader** — animated spinner (with color choice), randomized activity word, shimmer (with direction and speed), token activity monitor (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate (with color choice and dim toggle) — all arrangeable left to right.
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
@@ -16,13 +16,14 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ## Settings
 
-Run `/topping-settings` (TUI only) to customize your toppings:
+Run `/topping-settings` (TUI only) to customize your toppings. Settings persist to
+`~/.pi/agent/pi-topping/settings.json`; hand edits are tolerated on load.
 
 ```
 ╔═┥ Pi Topping: Settings ┝═══════════════════════════════════╗
 ╟─ Preview ──────────────────────────────────────────────────╢
 ║                                                            ║
-║    Crafting (0m 03s · ↓ 84 tokens) ⚡28 tok/s              ║
+║    Crafting (3s · ↓ 84 tokens) ⚡28 tok/s                  ║
 ║                                                            ║
 ╟─ User Prompt ──────────────────────────────────────────────╢
 ║    [■] High-vis prompt                                ON   ║
@@ -70,6 +71,8 @@ Run `/topping-settings` (TUI only) to customize your toppings:
 ╚════════════════════════════════════════════════════┥ 1/32 ┝╝
 ```
 
+▸ marks the keyboard cursor.
+
 The Border color, Animated spinner color, Token activity monitor color, and Token rate color
 settings all cycle through `accent`, `border`, `borderAccent`, `success`, `error`, and `warning`.
 
@@ -79,7 +82,8 @@ left or right within the loader. Elapsed time and output tokens share a single
 into `(3s)` and `(↓ 84 tokens)` when they do not. The `⚡N tok/s` token rate uses the
 selected theme color and is a standalone segment, last by default, and remains reorderable. After its last
 update it holds full brightness for 1.5 seconds, then fades through five theme-aware shades
-over the next 0.25 seconds; a new count restores full brightness and restarts the cycle.
+over the next 0.25 seconds, once the fade completes, the segment disappears until the next
+token count arrives; a new count restores full brightness and restarts the cycle.
 
 ## Install
 
@@ -102,7 +106,7 @@ npm test
 npm run typecheck
 ```
 
-Tests cover the word/shimmer rendering, activity meter behavior, timer resets, settings persistence, the `menu.ts` component, and the settings menu wiring end to end.
+Tests cover the word/shimmer rendering, prompt box rendering, activity meter behavior, timer resets, settings persistence, the `menu.ts` component, and the settings menu wiring end to end.
 
 ## Limitations
 

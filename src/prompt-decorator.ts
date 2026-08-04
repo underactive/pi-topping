@@ -1,5 +1,6 @@
 import type { MessageRenderer, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { isSettingColor } from "./settings.ts";
 
 export const PROMPT_BOX_TYPE = "pi-topping-prompt";
 
@@ -33,8 +34,10 @@ export function buildPromptBoxLines(
 ): string[] {
 	if (width < 10) return [];
 
-	const g = BORDER_GLYPHS[options.borderStyle ?? "double"];
-	const border = (text: string) => theme.fg(options.borderColor ?? "accent", text);
+	const borderStyle = options.borderStyle && options.borderStyle in BORDER_GLYPHS ? options.borderStyle : "double";
+	const g = BORDER_GLYPHS[borderStyle];
+	const borderColor = isSettingColor(options.borderColor) ? options.borderColor : "accent";
+	const border = (text: string) => theme.fg(borderColor, text);
 	const label = (text: string) => theme.fg("customMessageLabel", text);
 	const muted = (text: string) => theme.fg("dim", text);
 	const bodyText = (text: string) => theme.fg("customMessageText", text);
@@ -48,11 +51,12 @@ export function buildPromptBoxLines(
 		});
 	const innerWidth = width - 2;
 	const icon = options.showIcon === false ? "" : (options.icon ?? "");
-	const title = icon ? `══ ${icon} ` : "";
-	const titleLength = visibleWidth(title);
+	const titleLength = icon ? visibleWidth(`${g.h}${g.h} ${icon} `) : 0;
 	const timeLength = time ? time.length + 3 : 0; // time + right-side " ═"
 	const topFill = Math.max(0, innerWidth - titleLength - timeLength);
-	const topLine = `${border(g.tl)}${icon ? `${border(`${g.h}${g.h} `)}${label(icon)}${border(" ")}` : ""}${border(g.h.repeat(topFill))}${time ? `${border(" ")}${muted(time)}${border(` ${g.h}`)}` : ""}${border(g.tr)}`;
+	const iconSeg = icon ? `${border(`${g.h}${g.h} `)}${label(icon)}${border(" ")}` : "";
+	const timeSeg = time ? `${border(" ")}${muted(time)}${border(` ${g.h}`)}` : "";
+	const topLine = border(g.tl) + iconSeg + border(g.h.repeat(topFill)) + timeSeg + border(g.tr);
 	const lines = [visibleWidth(topLine) > width ? truncateToWidth(topLine, width) : topLine];
 
 	if (content) {
