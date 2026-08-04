@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildWorkingMessage, fadeThemeColorString, formatElapsed, formatTokenRate, formatTokens, shimmerString, StreamingWordCounter, TOKEN_RATE_FADE_SHADE_COUNT } from "../src/format.ts";
+import { buildWorkingMessage, fadeThemeColorString, formatElapsed, formatTokenRate, formatTokens, shimmerString, StreamingWordCounter, TOKEN_RATE_FADE_SHADE_COUNT, TOKEN_RATE_PLACEHOLDER } from "../src/format.ts";
 
 test("formatTokens uses readable thresholds", () => {
 	assert.equal(formatTokens(999), "999");
@@ -10,11 +10,14 @@ test("formatTokens uses readable thresholds", () => {
 	assert.equal(formatTokens(1_250_000), "1.3M");
 });
 
-test("formatTokenRate rounds to a whole number and hides zero", () => {
+test("formatTokenRate rounds to a whole number, pads active rates, and hides zero", () => {
 	assert.equal(formatTokenRate(0), "");
 	assert.equal(formatTokenRate(0.49), "");
-	assert.equal(formatTokenRate(0.5), "⚡1 tok/s");
-	assert.equal(formatTokenRate(28.2), "⚡28 tok/s");
+	assert.equal(formatTokenRate(0.5), "⚡  1 tok/s");
+	assert.equal(formatTokenRate(28.2), "⚡ 28 tok/s");
+	assert.equal(formatTokenRate(100), "⚡100 tok/s");
+	assert.equal(TOKEN_RATE_PLACEHOLDER, "⚡--- tok/s");
+	assert.equal(formatTokenRate(100).length, TOKEN_RATE_PLACEHOLDER.length);
 });
 
 test("fadeThemeColorString uses five cosine-eased warning-to-dim shades", () => {
@@ -61,10 +64,10 @@ test("token rate remains a standalone trailing loader element", () => {
 		text: "Working…",
 		elapsed: "3s",
 		tokens: "↓ 84 tokens",
-		tokenRate: "<warning>⚡28 tok/s</warning>",
+		tokenRate: "<warning>⚡ 28 tok/s</warning>",
 	});
 
-	assert.equal(message, "Working… <dim>(3s · ↓ 84 tokens)</dim> <warning>⚡28 tok/s</warning>");
+	assert.equal(message, "Working… <dim>(3s · ↓ 84 tokens)</dim> <warning>⚡ 28 tok/s</warning>");
 });
 
 test("formatElapsed clamps negatives and pads seconds", () => {

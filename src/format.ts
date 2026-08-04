@@ -42,10 +42,13 @@ export function formatTokens(count: number): string {
 	return `${(count / 1_000_000_000).toFixed(1)}B`;
 }
 
+/** Placeholder shown when the working indicator has no active token-rate sample. */
+export const TOKEN_RATE_PLACEHOLDER = "⚡--- tok/s";
+
 /** Format an output-token throughput estimate for the working indicator. */
 export function formatTokenRate(rate: number): string {
 	const rounded = Math.round(rate);
-	return rounded === 0 ? "" : `⚡${rounded} tok/s`;
+	return rounded === 0 ? "" : `⚡${rounded.toString().padStart(3)} tok/s`;
 }
 
 /** Number of discrete, eased warning-to-dim shades used for the token-rate fade. */

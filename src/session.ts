@@ -25,6 +25,7 @@ import {
 	SPINNER_FRAME_MS,
 	SPINNER_FRAMES,
 	TOKEN_RATE_FADE_SHADE_COUNT,
+	TOKEN_RATE_PLACEHOLDER,
 	StreamingWordCounter,
 } from "./format.ts";
 import { showMenu } from "./menu.ts";
@@ -389,16 +390,18 @@ export class SessionManager {
 			}
 			tokenRateText = state.tokenRateText;
 		}
-		const tokenRateSegment = !tokenRateText
+		const tokenRateSegment = !features.tokenRate
 			? ""
-			: now < state.tokenRateFadeStartsAt
-				? ctx.ui.theme.fg(decorations.tokenRateColor, tokenRateText)
-				: fadeThemeColorString(
-					tokenRateText,
-					Math.floor((now - state.tokenRateFadeStartsAt) / (TOKEN_RATE_FADE_MS / TOKEN_RATE_FADE_SHADE_COUNT)),
-					ctx.ui.theme,
-					decorations.tokenRateColor,
-				);
+			: !tokenRateText
+				? ctx.ui.theme.fg("dim", TOKEN_RATE_PLACEHOLDER)
+				: now < state.tokenRateFadeStartsAt
+					? ctx.ui.theme.fg(decorations.tokenRateColor, tokenRateText)
+					: fadeThemeColorString(
+						tokenRateText,
+						Math.floor((now - state.tokenRateFadeStartsAt) / (TOKEN_RATE_FADE_MS / TOKEN_RATE_FADE_SHADE_COUNT)),
+						ctx.ui.theme,
+						decorations.tokenRateColor,
+					);
 		const tokenRateStyled = tokenRateSegment && decorations.tokenRateDimmed ? `\x1b[2m${tokenRateSegment}\x1b[22m` : tokenRateSegment;
 		ctx.ui.setWorkingMessage(
 			buildWorkingMessage(

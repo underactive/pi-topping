@@ -333,7 +333,7 @@ test("live token rate is warning styled, rounded, and last in the loader", async
 
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
-		assert.ok(!messages.at(-1)!.includes("tok/s"), "a zero rate should be absent");
+		assert.match(messages.at(-1)!, /<dim>⚡--- tok\/s<\/dim>$/, "an inactive rate should use the dim placeholder");
 		assert.ok(!messages.at(-1)!.includes("<warning></warning>"), "empty rates must not be styled");
 
 		const partial = assistantMessage();
@@ -346,7 +346,7 @@ test("live token rate is warning styled, rounded, and last in the loader", async
 		now = 1_100;
 		tick!();
 
-		assert.match(messages.at(-1)!, /<warning>⚡8 tok\/s<\/warning>$/);
+		assert.match(messages.at(-1)!, /<warning>⚡  8 tok\/s<\/warning>$/);
 	});
 });
 
@@ -375,7 +375,7 @@ test("token rate uses the configured theme color", async (t) => {
 		now = 1_100;
 		tick!();
 
-		assert.match(messages.at(-1)!, /<success>⚡8 tok\/s<\/success>$/);
+		assert.match(messages.at(-1)!, /<success>⚡  8 tok\/s<\/success>$/);
 	});
 });
 
@@ -404,7 +404,7 @@ test("dimmed token rate wraps the warning styling in the terminal dim attribute"
 		now = 1_100;
 		tick!();
 
-		assert.match(messages.at(-1)!, /\x1b\[2m<warning>⚡8 tok\/s<\/warning>\x1b\[22m$/);
+		assert.match(messages.at(-1)!, /\x1b\[2m<warning>⚡  8 tok\/s<\/warning>\x1b\[22m$/);
 	});
 });
 
@@ -435,7 +435,7 @@ test("token rate holds, fades, and resets to full brightness on updates", async 
 
 		now = 1_350;
 		tick!();
-		assert.match(messages.at(-1)!, /<warning>⚡8 tok\/s<\/warning>$/);
+		assert.match(messages.at(-1)!, /<warning>⚡  8 tok\/s<\/warning>$/);
 
 		const second = assistantMessage();
 		await extension.emit("message_start", { type: "message_start", message: second }, ctx);
@@ -446,18 +446,18 @@ test("token rate holds, fades, and resets to full brightness on updates", async 
 		}, ctx);
 		now = 1_450;
 		tick!();
-		assert.match(messages.at(-1)!, /<warning>⚡20 tok\/s<\/warning>$/);
+		assert.match(messages.at(-1)!, /<warning>⚡ 20 tok\/s<\/warning>$/);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(5) }, ctx);
 
 		now = 2_949;
 		tick!();
-		assert.match(messages.at(-1)!, /<warning>⚡20 tok\/s<\/warning>$/);
+		assert.match(messages.at(-1)!, /<warning>⚡ 20 tok\/s<\/warning>$/);
 		now = 2_950;
 		tick!();
-		assert.match(messages.at(-1)!, /\x1b\[38;2;212;212;212m⚡20 tok\/s\x1b\[0m$/);
+		assert.match(messages.at(-1)!, /\x1b\[38;2;212;212;212m⚡ 20 tok\/s\x1b\[0m$/);
 		now = 3_000;
 		tick!();
-		assert.match(messages.at(-1)!, /\x1b\[38;2;180;180;180m⚡20 tok\/s\x1b\[0m$/);
+		assert.match(messages.at(-1)!, /\x1b\[38;2;180;180;180m⚡ 20 tok\/s\x1b\[0m$/);
 
 		const third = assistantMessage();
 		await extension.emit("message_start", { type: "message_start", message: third }, ctx);
@@ -468,17 +468,17 @@ test("token rate holds, fades, and resets to full brightness on updates", async 
 		}, ctx);
 		now = 3_049;
 		tick!();
-		assert.match(messages.at(-1)!, /<warning>⚡20 tok\/s<\/warning>$/);
+		assert.match(messages.at(-1)!, /<warning>⚡ 20 tok\/s<\/warning>$/);
 
 		now = 4_549;
 		tick!();
-		assert.match(messages.at(-1)!, /\x1b\[38;2;212;212;212m⚡20 tok\/s\x1b\[0m$/);
+		assert.match(messages.at(-1)!, /\x1b\[38;2;212;212;212m⚡ 20 tok\/s\x1b\[0m$/);
 		now = 4_798;
 		tick!();
-		assert.match(messages.at(-1)!, /\x1b\[38;2;96;96;96m⚡20 tok\/s\x1b\[0m$/);
+		assert.match(messages.at(-1)!, /\x1b\[38;2;96;96;96m⚡ 20 tok\/s\x1b\[0m$/);
 		now = 4_799;
 		tick!();
-		assert.ok(!messages.at(-1)!.includes("tok/s"));
+		assert.match(messages.at(-1)!, /<dim>⚡--- tok\/s<\/dim>$/);
 	});
 });
 
@@ -546,7 +546,7 @@ test("token rate keeps a 100ms timer and updates without the activity meter", as
 		now = 1_100;
 		tick!();
 
-		assert.match(messages.at(-1)!, /<warning>⚡8 tok\/s<\/warning>$/);
+		assert.match(messages.at(-1)!, /<warning>⚡  8 tok\/s<\/warning>$/);
 	});
 });
 
@@ -654,7 +654,7 @@ test("loaderOrder reorders the message and moves the spinner inline when it is n
 		// but the monitor is off so it contributes nothing.
 		assert.match(
 			stripAnsi(messages.at(-1)!),
-			/^\(0s\) Working\u2026 [\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f] \(\u2193 0 tokens\)$/,
+			/^\(0s\) Working\u2026 [\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f] \(\u2193 0 tokens\) ⚡--- tok\/s$/,
 		);
 	});
 });
@@ -843,7 +843,7 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 		previewTick?.();
 		const animated = capturedComponent!.render(72).map(stripAnsi);
 		assert.ok(animated.some((l) => l.includes("Accomplishing\u2026")));
-		assert.ok(animated.some((l) => l.includes("⚡28 tok/s")));
+		assert.ok(animated.some((l) => l.includes("⚡ 28 tok/s")));
 
 		// The Token rate row sits twelve controls below Animated spinner.
 		// Toggling it updates the preview immediately.
