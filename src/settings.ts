@@ -91,7 +91,7 @@ function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, par
 	const merged = { ...defaults };
 	if (!isPlainObject(parsed)) return merged;
 	for (const [key, value] of Object.entries(parsed)) {
-		if (!(key in merged)) continue;
+		if (!Object.hasOwn(merged, key)) continue;
 		let valid: boolean | string | undefined;
 		if (typeof merged[key] === "boolean" && typeof value === "boolean") valid = value;
 		else if ((key === "meterDirection" || key === "shimmerDirection") && (value === "ltr" || value === "rtl")) valid = value;

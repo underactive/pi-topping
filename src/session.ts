@@ -15,6 +15,7 @@ import { ActivityMeter, rateToLevel, TokRateTracker } from "./activity-meter.ts"
 import {
 	buildWorkingMessage,
 	DEFAULT_WORKING_WORD,
+	dimAttribute,
 	fadeThemeColorString,
 	formatElapsed,
 	formatTokenRate,
@@ -68,6 +69,20 @@ export interface SessionState {
 	timer: ReturnType<typeof setInterval> | null;
 	busy: boolean;
 	midTurnInputs: number;
+	/** Last string passed to setWorkingMessage(), or the NOT_SENT sentinel before the first call. */
+	lastMessage: string | undefined | typeof NOT_SENT;
+}
+
+/** Sentinel distinguishing "never called setWorkingMessage()" from an explicit `undefined` message. */
+const NOT_SENT = Symbol("not-sent");
+
+/** Reset all token-rate tracking fields on `state` to their fresh-turn values. */
+function resetTokenRateState(state: SessionState): void {
+	state.rateTracker.reset();
+	state.lastTokenRateSampledAt = 0;
+	state.lastTokenRateTotal = 0;
+	state.tokenRateText = "";
+	state.tokenRateFadeStartsAt = 0;
 }
 
 export function makeFreshState(): SessionState {
@@ -86,6 +101,7 @@ export function makeFreshState(): SessionState {
 		timer: null,
 		busy: false,
 		midTurnInputs: 0,
+		lastMessage: NOT_SENT,
 	};
 }
 
@@ -177,6 +193,8 @@ export class SessionManager {
 		const exactTokens = event.message.usage?.output;
 		this.#state.confirmTokens += exactTokens ?? this.#state.liveTokens;
 		if (exactTokens !== undefined) {
+			// Only reset the sampling state here, not tokenRateText/tokenRateFadeStartsAt:
+			// those must keep holding/fading across message boundaries to avoid flicker.
 			this.#state.rateTracker.reset();
 			this.#state.lastTokenRateSampledAt = 0;
 			this.#state.lastTokenRateTotal = this.#state.confirmTokens;
@@ -207,11 +225,8 @@ export class SessionManager {
 		ctx.ui.setWorkingMessage();
 		this.applyIndicator(ctx);
 		this.#state.activityMeter.reset();
-		this.#state.rateTracker.reset();
-		this.#state.lastTokenRateSampledAt = 0;
-		this.#state.lastTokenRateTotal = 0;
-		this.#state.tokenRateText = "";
-		this.#state.tokenRateFadeStartsAt = 0;
+		resetTokenRateState(this.#state);
+		this.#state.lastMessage = NOT_SENT;
 		if (this.#settings.features.doneMarker && hadPrompt) {
 			this.#pi.appendEntry<DoneEntryData>(DONE_ENTRY_TYPE, {
 				word: this.#settings.features.randomizeDoneMarker ? pickRawWord().past_tense : "Worked",
@@ -239,15 +254,17 @@ export class SessionManager {
 		this.#pi.on("session_shutdown", this.#onSessionShutdown);
 		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) => {
 			if (!entry.data) return undefined;
+			const word = typeof entry.data.word === "string" ? entry.data.word.replace(/[\x00-\x1f\x7f]/g, "") : "Worked";
+			const elapsedMs = typeof entry.data.elapsedMs === "number" && Number.isFinite(entry.data.elapsedMs) ? entry.data.elapsedMs : 0;
 			const features = this.#settings.features;
 			const details: string[] = [];
-			if (features.doneMarkerTokens && entry.data.tokens !== undefined) details.push(`↓ ${formatTokens(entry.data.tokens)} tokens`);
+			if (features.doneMarkerTokens && typeof entry.data.tokens === "number") details.push(`↓ ${formatTokens(entry.data.tokens)} tokens`);
 			if (features.doneMarkerInputs && entry.data.midTurnInputs) {
 				details.push(`${entry.data.midTurnInputs} mid-turn input${entry.data.midTurnInputs === 1 ? "" : "s"}`);
 			}
 			const tail = details.length ? ` (${details.join(" · ")})` : "";
 			const icon = features.doneMarkerIcon ? theme.fg("text", this.#settings.decorations.useNerdFont ? "" : "π") : "";
-			const summary = theme.fg("dim", `${features.doneMarkerIcon ? " " : ""}${entry.data.word} for ${formatElapsed(entry.data.elapsedMs)}${tail}`);
+			const summary = theme.fg("dim", `${features.doneMarkerIcon ? " " : ""}${word} for ${formatElapsed(elapsedMs)}${tail}`);
 			return new Text(icon + summary);
 		});
 		this.#pi.registerMessageRenderer<PromptBoxDetails>(PROMPT_BOX_TYPE, promptBoxRenderer);
@@ -325,12 +342,9 @@ export class SessionManager {
 		state.confirmTokens = 0;
 		state.liveTokens = 0;
 		state.activityMeter.reset();
-		state.rateTracker.reset();
-		state.lastTokenRateSampledAt = 0;
-		state.lastTokenRateTotal = 0;
-		state.tokenRateText = "";
-		state.tokenRateFadeStartsAt = 0;
+		resetTokenRateState(state);
 		state.midTurnInputs = 0;
+		state.lastMessage = NOT_SENT;
 		this.#counter.reset();
 	}
 
@@ -356,11 +370,13 @@ export class SessionManager {
 			? ctx.ui.theme.fg(this.spinnerColor(), SPINNER_FRAMES[Math.floor(now / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!)
 			: "";
 		if (isFullyDefaultAppearance(features, decorations)) {
-			ctx.ui.setWorkingMessage(
-				spinner
-					? buildWorkingMessage(ctx.ui.theme, { spinner, text: ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD) }, this.#settings.loaderOrder)
-					: undefined,
-			);
+			const msg = spinner
+				? buildWorkingMessage(ctx.ui.theme, { spinner, text: ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD) }, this.#settings.loaderOrder)
+				: undefined;
+			if (msg !== state.lastMessage) {
+				state.lastMessage = msg;
+				ctx.ui.setWorkingMessage(msg);
+			}
 			return;
 		}
 
@@ -402,21 +418,23 @@ export class SessionManager {
 						ctx.ui.theme,
 						decorations.tokenRateColor,
 					);
-		const tokenRateStyled = tokenRateSegment && decorations.tokenRateDimmed ? `\x1b[2m${tokenRateSegment}\x1b[22m` : tokenRateSegment;
-		ctx.ui.setWorkingMessage(
-			buildWorkingMessage(
-				ctx.ui.theme,
-				{
-					spinner,
-					text: styled,
-					meter,
-					elapsed: features.elapsedTime ? formatElapsed(now - state.startTime) : "",
-					tokens: features.outputTokens ? `↓ ${formatTokens(total)} tokens` : "",
-					tokenRate: tokenRateStyled,
-				},
-				this.#settings.loaderOrder,
-			),
+		const tokenRateStyled = tokenRateSegment && decorations.tokenRateDimmed ? dimAttribute(tokenRateSegment) : tokenRateSegment;
+		const msg = buildWorkingMessage(
+			ctx.ui.theme,
+			{
+				spinner,
+				text: styled,
+				meter,
+				elapsed: features.elapsedTime ? formatElapsed(now - state.startTime) : "",
+				tokens: features.outputTokens ? `↓ ${formatTokens(total)} tokens` : "",
+				tokenRate: tokenRateStyled,
+			},
+			this.#settings.loaderOrder,
 		);
+		if (msg !== state.lastMessage) {
+			state.lastMessage = msg;
+			ctx.ui.setWorkingMessage(msg);
+		}
 	}
 
 	private async showSettings(ctx: ExtensionCommandContext): Promise<void> {

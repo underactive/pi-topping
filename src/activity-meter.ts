@@ -1,4 +1,5 @@
 import type { ThemeColor } from "@earendil-works/pi-coding-agent";
+import { dimAttribute } from "./format.ts";
 
 export const ActivityMeterLevel = {
 	IDLE: 0,
@@ -132,9 +133,6 @@ export class ActivityMeter {
 	): string {
 		if (level === ActivityMeterLevel.IDLE) return theme.fg("dim", char);
 		const colored = theme.fg(color, char);
-		// ANSI dim (SGR 2) reduces color brightness; SGR 22 resets dim/bold.
-		// This is necessary because theme.fg("dim", ...) sets a gray color instead
-		// of applying the ANSI dim attribute, so nesting would overwrite the accent color.
-		return dimmed ? `\x1b[2m${colored}\x1b[22m` : colored;
+		return dimmed ? dimAttribute(colored) : colored;
 	}
 }

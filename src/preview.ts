@@ -1,9 +1,9 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { PreviewResult } from "./menu.ts";
 import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
-import { buildWorkingMessage, DEFAULT_WORKING_WORD, formatElapsed, formatTokenRate, formatTokens, isFullyDefaultAppearance, METER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
+import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, formatElapsed, formatTokenRate, formatTokens, isFullyDefaultAppearance, METER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
 import { buildPromptBoxLines } from "./prompt-decorator.ts";
-import { fromCycleDirection, fromCycleSpeed, isSettingColor, LOADER_ORDER_ID, parseLoaderOrder } from "./settings.ts";
+import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isSettingColor, LOADER_ORDER_ID, parseLoaderOrder } from "./settings.ts";
 import { pickRandomWord } from "./words.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tok/s for the meter,
 // flat 28 tok/s for the token readouts.
@@ -21,25 +21,34 @@ export class PreviewRenderer {
 		if (PROMPT_IDS.has(activeItemId ?? "")) return this.promptPreview(values);
 		if (MARKER_IDS.has(activeItemId ?? "")) return this.markerPreview(values);
 		if (activeItemId === "useNerdFont") return { lines: [`Icon preview: ${values.useNerdFont ? "" : "π"}`] };
-		return { lines: ["", this.loaderPreview(values, elapsedMs), ""], nextRefreshInMs: SPINNER_FRAME_MS };
+		const nextRefreshInMs = values.shimmer !== false
+			? 50
+			: values.animatedSpinner
+				? SPINNER_FRAME_MS
+				: values.tokenActivityMonitor !== false
+					? METER_INTERVAL_MS
+					: (values.elapsedTime !== false || values.outputTokens !== false)
+						? 1000
+						: undefined;
+		return { lines: ["", this.loaderPreview(values, elapsedMs), ""], nextRefreshInMs };
 	}
 	private loaderPreview(values: Record<string, boolean | string>, elapsedMs: number): string {
 		this.#meter.setDirection(fromCycleDirection(values.meterDirection));
 		if (elapsedMs - this.#lastMeterUpdate >= METER_INTERVAL_MS) { this.#meter.push(rateToLevel(meterRate(elapsedMs))); this.#lastMeterUpdate = elapsedMs; }
 		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false };
 		const decorations = { shimmer: values.shimmer !== false, tokenActivityMonitor: values.tokenActivityMonitor !== false };
-		const spinnerColor = values.spinnerColorEnabled === false || !isSettingColor(values.spinnerColor) ? "accent" : values.spinnerColor;
+		const spinnerColor = values.spinnerColorEnabled === false || !isSettingColor(values.spinnerColor) ? DEFAULT_SETTINGS.decorations.spinnerColor : values.spinnerColor;
 		const spinner = values.animatedSpinner ? this.#ctx.ui.theme.fg(spinnerColor, SPINNER_FRAMES[Math.floor(elapsedMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!) : "";
 		const order = parseLoaderOrder(values[LOADER_ORDER_ID]);
 		if (isFullyDefaultAppearance(features, decorations)) return buildWorkingMessage(this.#ctx.ui.theme, { spinner, text: this.#ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD) }, order);
 		const word = features.substituteDefaultMessage ? this.#word : DEFAULT_WORKING_WORD;
 		const styledWord = decorations.shimmer ? shimmerString(word, elapsedMs, this.#ctx.ui.theme, fromCycleDirection(values.shimmerDirection), fromCycleSpeed(values.shimmerSpeed)) : this.#ctx.ui.theme.fg("text", word);
-		const meterColor = values.meterColorEnabled === false || !isSettingColor(values.meterColor) ? "accent" : values.meterColor;
-		const meter = decorations.tokenActivityMonitor ? this.#meter.render((level, char) => ActivityMeter.colorizeCell(level, char, this.#ctx.ui.theme, meterColor, values.meterDimmed !== false)) : "";
+		const meterColor = values.meterColorEnabled === false || !isSettingColor(values.meterColor) ? DEFAULT_SETTINGS.decorations.meterColor : values.meterColor;
+		const meter = decorations.tokenActivityMonitor ? this.#meter.render((level, char) => ActivityMeter.colorizeCell(level, char, this.#ctx.ui.theme, meterColor, values.meterDimmed === true)) : "";
 		const tokenRateText = features.tokenRate ? formatTokenRate(TOKEN_RATE_PER_SEC) : "";
-		const tokenRateColor = isSettingColor(values.tokenRateColor) ? values.tokenRateColor : "warning";
+		const tokenRateColor = isSettingColor(values.tokenRateColor) ? values.tokenRateColor : DEFAULT_SETTINGS.decorations.tokenRateColor;
 		const tokenRateColored = tokenRateText ? this.#ctx.ui.theme.fg(tokenRateColor, tokenRateText) : "";
-		const tokenRate = tokenRateColored && values.tokenRateDimmed === true ? `\x1b[2m${tokenRateColored}\x1b[22m` : tokenRateColored;
+		const tokenRate = tokenRateColored && values.tokenRateDimmed === true ? dimAttribute(tokenRateColored) : tokenRateColored;
 		return buildWorkingMessage(this.#ctx.ui.theme, {
 			spinner,
 			text: styledWord,
