@@ -42,13 +42,27 @@ export function formatTokens(count: number): string {
 	return `${(count / 1_000_000_000).toFixed(1)}B`;
 }
 
+/** Column width reserved for the numeric portion of the token-rate readout. */
+const TOKEN_RATE_DIGITS = 3;
+
 /** Placeholder shown when the working indicator has no active token-rate sample. */
-export const TOKEN_RATE_PLACEHOLDER = "⚡--- tok/s";
+export const TOKEN_RATE_PLACEHOLDER = `${"-".repeat(TOKEN_RATE_DIGITS)} tok/s`;
 
 /** Format an output-token throughput estimate for the working indicator. */
 export function formatTokenRate(rate: number): string {
 	const rounded = Math.round(rate);
-	return rounded === 0 ? "" : `⚡${rounded.toString().padStart(3)} tok/s`;
+	return rounded === 0 ? "" : `${rounded.toString().padStart(TOKEN_RATE_DIGITS)} tok/s`;
+}
+
+/**
+ * Wrap text in ANSI dim (SGR 2 / reset 22).
+ *
+ * theme.fg("dim", ...) sets a gray color instead of the ANSI dim attribute, so it
+ * would overwrite an already-applied accent color rather than darkening it; the raw
+ * SGR codes are needed to dim on top of an existing color.
+ */
+export function dimAttribute(text: string): string {
+	return `\x1b[2m${text}\x1b[22m`;
 }
 
 /** Number of discrete, eased warning-to-dim shades used for the token-rate fade. */
@@ -135,6 +149,10 @@ export function buildWorkingMessage(
 	return segments.join(" ");
 }
 
+const SHIMMER_SWEEP_S = 2.0;
+const SHIMMER_BAND_HALF = 5.0;
+const SHIMMER_PADDING = 10;
+
 /** Codex-style light-sweep shimmer using the active Pi theme. */
 export function shimmerString(
 	text: string,
@@ -145,9 +163,6 @@ export function shimmerString(
 ): string {
 	const chars = [...text];
 	if (chars.length === 0) return "";
-	const SHIMMER_SWEEP_S = 2.0;
-	const SHIMMER_BAND_HALF = 5.0;
-	const SHIMMER_PADDING = 10;
 	const SHIMMER_BASE = ansiToRgb(theme.getFgAnsi("dim"));
 	const SHIMMER_HIGHLIGHT = ansiToRgb(theme.getFgAnsi("text"));
 	if (!SHIMMER_BASE || !SHIMMER_HIGHLIGHT) return theme.fg("text", text);
@@ -168,20 +183,21 @@ export function shimmerString(
 			: litExit + (phase - enterS - litS) * unitsPerS;
 	const pos = direction === "rtl" ? period - linear : linear;
 
-	return chars
-		.map((ch, i) => {
-			const dist = Math.abs((i + SHIMMER_PADDING) - pos);
-			const t = dist <= SHIMMER_BAND_HALF
-				? 0.5 * (1 + Math.cos(Math.PI * dist / SHIMMER_BAND_HALF))
-				: 0;
-			const alpha = t * 0.9;
-			const r = Math.round(SHIMMER_HIGHLIGHT[0] * alpha + SHIMMER_BASE[0] * (1 - alpha));
-			const g = Math.round(SHIMMER_HIGHLIGHT[1] * alpha + SHIMMER_BASE[1] * (1 - alpha));
-			const b = Math.round(SHIMMER_HIGHLIGHT[2] * alpha + SHIMMER_BASE[2] * (1 - alpha));
-			const bold = t > 0.2 ? "\x1b[1m" : "";
-			return `${bold}\x1b[38;2;${r};${g};${b}m${ch}\x1b[22m`;
-		})
-		.join("") + "\x1b[0m";
+	let out = "";
+	for (let i = 0; i < chars.length; i++) {
+		const ch = chars[i];
+		const dist = Math.abs((i + SHIMMER_PADDING) - pos);
+		const t = dist <= SHIMMER_BAND_HALF
+			? 0.5 * (1 + Math.cos(Math.PI * dist / SHIMMER_BAND_HALF))
+			: 0;
+		const alpha = t * 0.9;
+		const r = Math.round(SHIMMER_HIGHLIGHT[0] * alpha + SHIMMER_BASE[0] * (1 - alpha));
+		const g = Math.round(SHIMMER_HIGHLIGHT[1] * alpha + SHIMMER_BASE[1] * (1 - alpha));
+		const b = Math.round(SHIMMER_HIGHLIGHT[2] * alpha + SHIMMER_BASE[2] * (1 - alpha));
+		const bold = t > 0.2 ? "\x1b[1m" : "";
+		out += `${bold}\x1b[38;2;${r};${g};${b}m${ch}\x1b[22m`;
+	}
+	return out + "\x1b[0m";
 }
 
 function ansiToRgb(ansi: string): [number, number, number] | null {

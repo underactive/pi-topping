@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - “Token rate color” setting in `/topping-settings`, defaulting to `warning`.
 - All color settings (prompt border, animated spinner, token activity monitor, and token rate) now offer `accent`, `border`, `borderAccent`, `success`, `error`, and `warning` choices.
-- “Token rate dimmed” setting in `/topping-settings` that renders the `⚡N tok/s` segment with the terminal dim attribute, matching the token activity monitor's dim toggle.
-- Live output-token throughput in the working loader, displayed by default as a warning-colored `⚡N tok/s` segment with a “Token rate” toggle and reorder row. Active rates are padded to three characters; when inactive, the segment shows a dim `⚡--- tok/s` placeholder. The rate holds full brightness for 1.5 seconds, then fades through five theme-aware shades to the dim text color over 0.25 seconds before returning to the placeholder; a new count restores full brightness and restarts the cycle.
+- “Token rate dimmed” setting in `/topping-settings` that renders the `N tok/s` segment with the terminal dim attribute, matching the token activity monitor's dim toggle.
+- Live output-token throughput in the working loader, displayed by default as a warning-colored `N tok/s` segment with a “Token rate” toggle and reorder row. Active rates are padded to three characters; when inactive, the segment shows a dim `--- tok/s` placeholder. The rate holds full brightness for 1.5 seconds, then fades through five theme-aware shades to the dim text color over 0.25 seconds before returning to the placeholder; a new count restores full brightness and restarts the cycle.
 
 ### Fixed
 - Removed the warning-only fade wrapper, added safe fallback rendering for non-truecolor themes, and hardened preview cycle-value conversion.

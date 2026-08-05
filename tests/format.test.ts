@@ -13,10 +13,10 @@ test("formatTokens uses readable thresholds", () => {
 test("formatTokenRate rounds to a whole number, pads active rates, and hides zero", () => {
 	assert.equal(formatTokenRate(0), "");
 	assert.equal(formatTokenRate(0.49), "");
-	assert.equal(formatTokenRate(0.5), "⚡  1 tok/s");
-	assert.equal(formatTokenRate(28.2), "⚡ 28 tok/s");
-	assert.equal(formatTokenRate(100), "⚡100 tok/s");
-	assert.equal(TOKEN_RATE_PLACEHOLDER, "⚡--- tok/s");
+	assert.equal(formatTokenRate(0.5), "  1 tok/s");
+	assert.equal(formatTokenRate(28.2), " 28 tok/s");
+	assert.equal(formatTokenRate(100), "100 tok/s");
+	assert.equal(TOKEN_RATE_PLACEHOLDER, "--- tok/s");
 	assert.equal(formatTokenRate(100).length, TOKEN_RATE_PLACEHOLDER.length);
 });
 
@@ -25,14 +25,14 @@ test("fadeThemeColorString uses five cosine-eased warning-to-dim shades", () => 
 		getFgAnsi: (color: string) => color === "warning" ? "\x1b[38;2;110;120;130m" : "\x1b[38;2;10;20;30m",
 		fg: (_color: string, text: string) => text,
 	};
-	const shades = Array.from({ length: TOKEN_RATE_FADE_SHADE_COUNT }, (_, level) => fadeThemeColorString("⚡20 tok/s", level, theme, "warning"));
+	const shades = Array.from({ length: TOKEN_RATE_FADE_SHADE_COUNT }, (_, level) => fadeThemeColorString(" 20 tok/s", level, theme, "warning"));
 
 	assert.deepEqual(shades, [
-		"\x1b[38;2;100;110;120m⚡20 tok/s\x1b[0m",
-		"\x1b[38;2;75;85;95m⚡20 tok/s\x1b[0m",
-		"\x1b[38;2;45;55;65m⚡20 tok/s\x1b[0m",
-		"\x1b[38;2;20;30;40m⚡20 tok/s\x1b[0m",
-		"\x1b[38;2;10;20;30m⚡20 tok/s\x1b[0m",
+		"\x1b[38;2;100;110;120m 20 tok/s\x1b[0m",
+		"\x1b[38;2;75;85;95m 20 tok/s\x1b[0m",
+		"\x1b[38;2;45;55;65m 20 tok/s\x1b[0m",
+		"\x1b[38;2;20;30;40m 20 tok/s\x1b[0m",
+		"\x1b[38;2;10;20;30m 20 tok/s\x1b[0m",
 	]);
 });
 
@@ -43,8 +43,8 @@ test("fadeThemeColorString blends the selected color toward dim", () => {
 	};
 
 	assert.equal(
-		fadeThemeColorString("⚡20 tok/s", 0, theme, "success"),
-		"\x1b[38;2;100;110;120m⚡20 tok/s\x1b[0m",
+		fadeThemeColorString(" 20 tok/s", 0, theme, "success"),
+		"\x1b[38;2;100;110;120m 20 tok/s\x1b[0m",
 	);
 });
 
@@ -64,10 +64,10 @@ test("token rate remains a standalone trailing loader element", () => {
 		text: "Working…",
 		elapsed: "3s",
 		tokens: "↓ 84 tokens",
-		tokenRate: "<warning>⚡ 28 tok/s</warning>",
+		tokenRate: "<warning> 28 tok/s</warning>",
 	});
 
-	assert.equal(message, "Working… <dim>(3s · ↓ 84 tokens)</dim> <warning>⚡ 28 tok/s</warning>");
+	assert.equal(message, "Working… <dim>(3s · ↓ 84 tokens)</dim> <warning> 28 tok/s</warning>");
 });
 
 test("formatElapsed clamps negatives and pads seconds", () => {
@@ -110,13 +110,19 @@ test("shimmer speed scales the sweep without stretching the pause between sweeps
 		const lit = (ms: number): boolean => [...shimmerString("test", ms, theme, "ltr", speed)
 			.matchAll(/\x1b\[38;2;(\d+;\d+;\d+)m/g)].some(match => match[1] !== "20;30;40");
 		const SCAN_LIMIT_MS = 10_000;
-		let ms = 0;
-		while (!lit(ms)) { ms++; assert.ok(ms < SCAN_LIMIT_MS, "shimmer never lit within scan limit"); }
-		const start = ms;
-		while (lit(ms)) { ms++; assert.ok(ms < SCAN_LIMIT_MS, "shimmer never dimmed within scan limit"); }
-		const end = ms;
-		while (!lit(ms)) { ms++; assert.ok(ms < SCAN_LIMIT_MS, "shimmer never re-lit within scan limit"); }
-		return { sweepMs: end - start, pauseMs: ms - end };
+		const STEP_MS = 5;
+		// Bracket each transition in coarse STEP_MS strides, then refine to 1ms within the bracket.
+		const findEdge = (fromMs: number, wantLit: boolean): number => {
+			let coarse = fromMs;
+			while (lit(coarse) !== wantLit) { coarse += STEP_MS; assert.ok(coarse < SCAN_LIMIT_MS, "shimmer transition not found within scan limit"); }
+			let fine = Math.max(fromMs, coarse - STEP_MS + 1);
+			while (lit(fine) !== wantLit) fine++;
+			return fine;
+		};
+		const start = findEdge(0, true);
+		const end = findEdge(start, false);
+		const next = findEdge(end, true);
+		return { sweepMs: end - start, pauseMs: next - end };
 	};
 
 	const slow = measure("slow"), normal = measure("normal"), fast = measure("fast");
