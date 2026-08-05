@@ -15,7 +15,7 @@
  *   ║ ⠋ Cerebrating… ⣤⣤⣤⣤ (0m 03s · ↓ 84 tokens)     ║
  *   ║                                                  ║
  *   ╟─ Decorations ───────────────────────────────────╢
- *   ║  ▸ [■] Animated spinner                    ON   ║
+ *   ║  ❯ [■] Animated spinner                    ON   ║
  *   ║    [ ] "Working..." text shimmer           OFF   ║
  *   ║                                                  ║
  *   ╟──────────────────────────────────────────────────╢
@@ -493,7 +493,7 @@ export class MenuComponent implements Component {
 	private renderItemRow(item: MenuItem, selected: boolean, innerWidth: number): string {
 		const th = this.theme;
 		const value = this.values[item.id]!;
-		const marker = selected ? "\u25b8" : " ";
+		const marker = selected ? "\u276f" : " ";
 		const markerColored = selected ? th.fg("accent", marker) : marker;
 
 		if (item.reorderGroup) {
@@ -506,7 +506,7 @@ export class MenuComponent implements Component {
 			const leftPlain = `  ${marker} [${held ? "\u25a0" : " "}] ${label}`;
 			const gap = Math.max(1, innerWidth - visibleWidth(leftPlain) - visibleWidth(rightPlain));
 			const content = `  ${markerColored} [${held ? th.fg("accent", "\u25a0") : th.fg("muted", " ")}] ${th.fg("text", label)}${" ".repeat(gap)}${held ? th.fg("accent", stateWord) : ""}  `;
-			return this.wrap("\u2551", content, "\u2551");
+			return this.wrap("\u2551", selected ? th.bg("selectedBg", content) : content, "\u2551");
 		}
 
 		if (item.cycleValues) {
@@ -518,7 +518,7 @@ export class MenuComponent implements Component {
 			const leftPlain = `  ${marker} [${enabled ? "■" : " "}] ${label}`;
 			const gap = Math.max(1, innerWidth - visibleWidth(leftPlain) - visibleWidth(stateWord) - 2);
 			const content = `  ${markerColored} [${enabled ? th.fg("success", "■") : th.fg("muted", " ")}] ${th.fg("text", label)}${" ".repeat(gap)}${enabled ? th.fg("accent", stateWord) : th.fg("muted", stateWord)}  `;
-			return this.wrap("\u2551", content, "\u2551");
+			return this.wrap("\u2551", selected ? th.bg("selectedBg", content) : content, "\u2551");
 		}
 
 		const enabled = value as boolean;
@@ -531,7 +531,7 @@ export class MenuComponent implements Component {
 		const leftPlain = `  ${marker} [${box}] ${label}`;
 		const gap = Math.max(1, innerWidth - visibleWidth(leftPlain) - visibleWidth(rightPlain));
 		const content = `  ${markerColored} [${enabled ? th.fg("success", box) : th.fg("muted", box)}] ${th.fg("text", label)}${" ".repeat(gap)}${enabled ? th.fg("success", stateWord) : th.fg("muted", stateWord)}  `;
-		return this.wrap("\u2551", content, "\u2551");
+		return this.wrap("\u2551", selected ? th.bg("selectedBg", content) : content, "\u2551");
 	}
 }
 

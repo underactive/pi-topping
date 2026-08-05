@@ -114,6 +114,7 @@ function createContext(
 	const notifications = options?.notifications ?? [];
 	const theme = {
 		fg,
+		bg: (_color: string, text: string) => text,
 		bold: (text: string) => text,
 		getFgAnsi: (color: string) => color === "dim" ? "\x1b[38;2;96;96;96m" : "\x1b[38;2;224;224;224m",
 	};

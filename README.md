@@ -34,7 +34,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║                                                            ║
 ╟─ “Working” Loader ─────────────────────────────────────────╢
 ║    [■] Animated spinner                               ON   ║
-║  ▸ [■] Animated spinner color                   ‹ accent › ║
+║  ❯ [■] Animated spinner color                   ‹ accent › ║
 ║    [■] Randomize "Working" text                       ON   ║
 ║    [■] Text shimmer                                   ON   ║
 ║    [■] Text shimmer direction            ‹ Left to Right › ║
@@ -71,7 +71,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╚════════════════════════════════════════════════════┥ 1/32 ┝╝
 ```
 
-▸ marks the keyboard cursor.
+❯ marks the keyboard cursor, and the selected row is highlighted.
 
 The Border color, Animated spinner color, Token activity monitor color, and Token rate color
 settings all cycle through `accent`, `border`, `borderAccent`, `success`, `error`, and `warning`.

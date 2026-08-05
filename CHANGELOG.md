@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `/topping-settings` now marks the selected row with `❯` (was `▸`) and highlights the whole row with the theme's `selectedBg` color, instead of coloring only the marker glyph.
+
 ## [0.5.0] - 2026-08-01
 
 ### Added

@@ -28,11 +28,15 @@ const FG_CODES: Record<string, string> = {
 	dim: "\x1b[2m",
 	text: "\x1b[39m",
 };
+const BG_CODES: Record<string, string> = {
+	selectedBg: "\x1b[48;5;238m",
+};
 const RESET = "\x1b[0m";
 
 function fakeTheme(): Theme {
 	return {
 		fg: (color: string, text: string) => `${FG_CODES[color] ?? ""}${text}${RESET}`,
+		bg: (color: string, text: string) => `${BG_CODES[color] ?? ""}${text}\x1b[49m`,
 		bold: (text: string) => `\x1b[1m${text}${RESET}`,
 	} as unknown as Theme;
 }
@@ -104,19 +108,19 @@ test("scrolls the item body to fit a 24-row terminal while keeping chrome and cu
 	assert.equal(lines.length, 24);
 	assert.ok(lines[0]!.includes("╔═[ TEST "));
 	assert.ok(lines.at(-1)!.includes("[ 1/20 ]"));
-	assert.ok(lines.some((line) => line.includes("Item 0") && line.includes("▸")));
+	assert.ok(lines.some((line) => line.includes("Item 0") && line.includes("❯")));
 	assert.ok(lines.some((line) => line.includes("↓ more below")));
 
 	for (let i = 0; i < 15; i++) menu.handleInput(KEY.down);
 	lines = menu.render(64).map(stripTags);
 	assert.equal(lines.length, 24);
-	assert.ok(lines.some((line) => line.includes("Item 15") && line.includes("▸")));
+	assert.ok(lines.some((line) => line.includes("Item 15") && line.includes("❯")));
 	assert.ok(lines.some((line) => line.includes("↑ more above") && line.includes("↓ more below")));
 	assert.ok(lines.at(-1)!.includes("[ 16/20 ]"));
 
 	for (let i = 0; i < 4; i++) menu.handleInput(KEY.down);
 	lines = menu.render(64).map(stripTags);
-	assert.ok(lines.some((line) => line.includes("Item 19") && line.includes("▸")));
+	assert.ok(lines.some((line) => line.includes("Item 19") && line.includes("❯")));
 	assert.ok(lines.some((line) => line.includes("↑ more above")));
 	assert.ok(!lines.some((line) => line.includes("↓ more below")));
 	assert.ok(lines.at(-1)!.includes("[ 20/20 ]"));
@@ -136,7 +140,7 @@ test("arrow keys move the cursor with wrap-around in both directions", () => {
 
 	function selectedLabel(): string {
 		const lines = menu.render(64).map(stripTags);
-		const row = lines.find((l) => l.includes("\u25b8"))!;
+		const row = lines.find((l) => l.includes("\u276f"))!;
 		return row.includes("Item A") ? "a" : row.includes("Item B") ? "b" : "c";
 	}
 
@@ -293,7 +297,7 @@ test("a grabbed row clamps at its group edges and cannot escape into neighboring
 	// stepping down lands on the next section rather than somewhere upstream.
 	menu.handleInput(KEY.space);
 	menu.handleInput(KEY.down);
-	const selected = menu.render(64).map(stripTags).find((l) => l.includes("▸"))!;
+	const selected = menu.render(64).map(stripTags).find((l) => l.includes("❯"))!;
 	assert.ok(selected.includes("After"), `expected the cursor on "After": ${JSON.stringify(selected)}`);
 });
 
