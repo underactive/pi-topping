@@ -17,7 +17,11 @@ export interface PromptBoxDetails {
 	submittedAt?: number;
 	showIcon?: boolean;
 	showTimestamp?: boolean;
+	showProvider?: boolean;
+	showModel?: boolean;
 	icon?: string;
+	provider?: string;
+	model?: string;
 	borderColor?: ThemeColor;
 	borderStyle?: BorderStyle;
 }
@@ -51,6 +55,17 @@ export function buildPromptBoxLines(
 		});
 	const innerWidth = width - 2;
 	const icon = options.showIcon === false ? "" : (options.icon ?? "").replace(/[\x00-\x1f\x7f]/g, "");
+	const provider = options.showProvider === false || typeof options.provider !== "string"
+		? ""
+		: options.provider.replace(/[\x00-\x1f\x7f]/g, "");
+	const model = options.showModel === false || typeof options.model !== "string"
+		? ""
+		: options.model.replace(/[\x00-\x1f\x7f]/g, "");
+	const combinedLabel = [provider, model].filter(Boolean).join("/");
+	// truncateToWidth injects reset codes when clipping; remove them before muted() styles the label.
+	const labelText = combinedLabel
+		? truncateToWidth(combinedLabel, Math.max(0, innerWidth - 3)).replace(/\x1b\[0m/g, "")
+		: "";
 	const titleLength = icon ? visibleWidth(`${g.h}${g.h} ${icon} `) : 0;
 	const timeLength = time ? time.length + 3 : 0; // time + right-side " ═"
 	const topFill = Math.max(0, innerWidth - titleLength - timeLength);
@@ -69,7 +84,9 @@ export function buildPromptBoxLines(
 		}
 	}
 
-	const bottomLine = `${border(g.bl)}${border(g.h.repeat(innerWidth))}${border(g.br)}`;
+	const labelLength = labelText ? visibleWidth(labelText) + 3 : 0; // label + right-side " ═"
+	const labelSeg = labelText ? `${border(" ")}${muted(labelText)}${border(` ${g.h}`)}` : "";
+	const bottomLine = `${border(g.bl)}${border(g.h.repeat(Math.max(0, innerWidth - labelLength)))}${labelSeg}${border(g.br)}`;
 	lines.push(visibleWidth(bottomLine) > width ? truncateToWidth(bottomLine, width) : bottomLine);
 	return lines;
 }

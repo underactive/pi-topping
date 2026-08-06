@@ -2,7 +2,7 @@
 
 We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is a [Pi](https://github.com/earendil-works/pi-coding-agent) extension that adds some quality of life improvements to Pi's UX, while looking good in the process:
 
-**User Prompt** — high-vis bordered prompt box with configurable border color and style, pi icon toggle, and timestamp.
+**User Prompt** — high-vis bordered prompt box with configurable border color and style, pi icon toggle, timestamp, and provider/model label.
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
@@ -31,6 +31,8 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Border style                             ‹ double › ║
 ║    [■] Pi icon                                        ON   ║
 ║    [■] Timestamp                                      ON   ║
+║    [■] Provider                                       ON   ║
+║    [■] Model                                          ON   ║
 ║                                                            ║
 ╟─ “Working” Loader ─────────────────────────────────────────╢
 ║    [■] Animated spinner                               ON   ║
@@ -68,10 +70,10 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
-╚════════════════════════════════════════════════════[ 1/32 ]╝
+╚════════════════════════════════════════════════════[ 1/34 ]╝
 ```
 
-❯ marks the keyboard cursor, and the selected row is highlighted.
+❯ marks the keyboard cursor, and the selected row is highlighted. The Provider and Model toggles independently control the lower-right label on decorated prompts.
 
 The Border color, Animated spinner color, Token activity monitor color, and Token rate color
 settings all cycle through `accent`, `border`, `borderAccent`, `success`, `error`, and `warning`.

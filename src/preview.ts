@@ -8,7 +8,7 @@ import { pickRandomWord } from "./words.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tok/s for the meter,
 // flat 28 tok/s for the token readouts.
 const METER_PERIOD_MS = 2400, METER_PEAK_RATE = 46, TOKEN_RATE_PER_SEC = 28;
-const PROMPT_IDS = new Set(["decorateUserPrompt", "borderColor", "borderStyle", "promptIcon", "promptTimestamp"]);
+const PROMPT_IDS = new Set(["decorateUserPrompt", "borderColor", "borderStyle", "promptIcon", "promptTimestamp", "promptProvider", "promptModel"]);
 const MARKER_IDS = new Set(["doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs"]);
 function meterRate(elapsedMs: number): number { return ((1 - Math.cos((2 * Math.PI * elapsedMs) / METER_PERIOD_MS)) / 2) * METER_PEAK_RATE; }
 
@@ -70,7 +70,11 @@ export class PreviewRenderer {
 		const lines = buildPromptBoxLines("ping", timestamp, 70, this.#ctx.ui.theme, {
 			showIcon: values.promptIcon as boolean,
 			showTimestamp: values.promptTimestamp as boolean,
+			showProvider: values.promptProvider as boolean,
+			showModel: values.promptModel as boolean,
 			icon: values.useNerdFont ? "" : "π",
+			provider: this.#ctx.model?.provider,
+			model: this.#ctx.model?.id,
 			borderColor: isSettingColor(borderColor) ? borderColor : "accent",
 			borderStyle: borderStyle === "double" || borderStyle === "single" || borderStyle === "rounded" || borderStyle === "heavy" ? borderStyle : "double",
 		});

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Prompt decorators now show the active provider/model in the lower-right border, with independent Provider and Model visibility toggles in `/topping-settings`.
+
 ### Changed
 - `/topping-settings` now marks the selected row with `❯` (was `▸`) and highlights the whole row with the theme's `selectedBg` color, instead of coloring only the marker glyph.
 - The working loader now joins adjacent elapsed time, output token, and token-rate details with `·` separators without surrounding parentheses; separated details do not retain dangling separators.

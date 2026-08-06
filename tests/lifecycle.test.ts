@@ -195,6 +195,15 @@ function stripAnsi(text: string): string {
 	return text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "");
 }
 
+function moveMenuCursor(component: { handleInput?(data: string): void }, fromId: string, toId: string): void {
+	const ids = buildMenuSections(DEFAULT_SETTINGS).flatMap((section) => section.items.map((item) => item.id));
+	const fromIndex = ids.indexOf(fromId);
+	const toIndex = ids.indexOf(toId);
+	assert.ok(fromIndex >= 0, `unknown menu item: ${fromId}`);
+	assert.ok(toIndex >= fromIndex, `menu helper only moves down: ${fromId} -> ${toId}`);
+	for (let index = fromIndex; index < toIndex; index++) component.handleInput!("\x1b[B");
+}
+
 function mockTimers(t: test.TestContext, onTick: (tick: () => void) => void): void {
 	t.mock.method(globalThis, "setInterval", ((tick: () => void) => {
 		onTick(tick);
@@ -822,6 +831,7 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 				capturedComponent = c;
 			},
 		}) as unknown as ExtensionCommandContext;
+		ctx.model = { provider: "preview", id: "model" } as NonNullable<ExtensionContext["model"]>;
 
 		workingDecorator(extension.asAPI());
 		const command = extension.commands["topping-settings"];
@@ -833,25 +843,32 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
-		const initial = capturedComponent!.render(72).map(stripAnsi);
+		const initial = capturedComponent!.render(76).map(stripAnsi);
 		assert.ok(initial.some((l) => l.includes("Preview")));
 		// The initial selection is in User Prompt, so only its contextual preview is shown.
 		assert.ok(initial.some((l) => l.includes("ping")));
 		assert.ok(initial.some((l) => l.includes("")));
+		assert.ok(initial.some((l) => l.includes("preview/model")));
+
+		// Toggle the provider off to preview a model-only label, then move to “Working” Loader.
+		moveMenuCursor(capturedComponent!, "decorateUserPrompt", "promptProvider");
+		capturedComponent!.handleInput!(" ");
+		const withoutProvider = capturedComponent!.render(76).map(stripAnsi);
+		assert.ok(withoutProvider.some((l) => l.includes(" model ═")));
+		assert.ok(!withoutProvider.some((l) => l.includes("preview/")));
+		moveMenuCursor(capturedComponent!, "promptProvider", "animatedSpinner");
 
 		// Moving to “Working” Loader swaps the preview to its animated example.
-		for (let i = 0; i < 5; i++) capturedComponent!.handleInput!("\x1b[B");
 		now += 200;
 		previewTick?.();
-		const animated = capturedComponent!.render(72).map(stripAnsi);
+		const animated = capturedComponent!.render(76).map(stripAnsi);
 		assert.ok(animated.some((l) => l.includes("Accomplishing\u2026")));
 		assert.ok(animated.some((l) => l.includes(" 28 tok/s")));
 
-		// The Token rate row sits twelve controls below Animated spinner.
-		// Toggling it updates the preview immediately.
-		for (let i = 0; i < 12; i++) capturedComponent!.handleInput!("\x1b[B");
+		// Toggling Token rate updates the preview immediately.
+		moveMenuCursor(capturedComponent!, "animatedSpinner", "showTokenRate");
 		capturedComponent!.handleInput!(" ");
-		const withoutTokenRate = capturedComponent!.render(72).map(stripAnsi);
+		const withoutTokenRate = capturedComponent!.render(76).map(stripAnsi);
 		assert.ok(!withoutTokenRate.some((l) => l.includes("tok/s")));
 
 		// Close the menu (Escape = cancel) so the command handler resolves and
@@ -886,11 +903,9 @@ test("/topping-settings persists toggled values to settings.json on apply", asyn
 
 		// Move from User Prompt to the “Working” Loader controls, then toggle
 		// animated spinner and text shimmer off.
-		for (let i = 0; i < 5; i++) capturedComponent!.handleInput!("\x1b[B");
+		moveMenuCursor(capturedComponent!, "decorateUserPrompt", "animatedSpinner");
 		capturedComponent!.handleInput!(" ");
-		capturedComponent!.handleInput!("\x1b[B");
-		capturedComponent!.handleInput!("\x1b[B");
-		capturedComponent!.handleInput!("\x1b[B");
+		moveMenuCursor(capturedComponent!, "animatedSpinner", "shimmer");
 		capturedComponent!.handleInput!(" ");
 
 		// Apply.
@@ -954,6 +969,8 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.decorations.borderStyle, "double");
 		assert.equal(persisted.decorations.promptIcon, !DEFAULT_SETTINGS.decorations.promptIcon);
 		assert.equal(persisted.decorations.promptTimestamp, !DEFAULT_SETTINGS.decorations.promptTimestamp);
+		assert.equal(persisted.decorations.promptProvider, !DEFAULT_SETTINGS.decorations.promptProvider);
+		assert.equal(persisted.decorations.promptModel, !DEFAULT_SETTINGS.decorations.promptModel);
 		assert.equal(persisted.decorations.animatedSpinner, !DEFAULT_SETTINGS.decorations.animatedSpinner);
 		assert.equal(persisted.decorations.spinnerColorEnabled, false);
 		assert.equal(persisted.decorations.spinnerColor, "accent");
@@ -1053,15 +1070,7 @@ test("preview reflects the substituteDefaultMessage fix: toggling it off keeps e
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
-		// 7 downs from the first row (decorateUserPrompt) lands on substituteDefaultMessage,
-		// per the current menu section order (cf. settings.test.ts:34).
-		capturedComponent!.handleInput!("\x1b[B"); // down x7 -> substituteDefaultMessage
-		capturedComponent!.handleInput!("\x1b[B");
-		capturedComponent!.handleInput!("\x1b[B");
-		capturedComponent!.handleInput!("\x1b[B");
-		capturedComponent!.handleInput!("\x1b[B");
-		capturedComponent!.handleInput!("\x1b[B");
-		capturedComponent!.handleInput!("\x1b[B");
+		moveMenuCursor(capturedComponent!, "decorateUserPrompt", "substituteDefaultMessage");
 		capturedComponent!.handleInput!(" "); // space: toggle substituteDefaultMessage off
 
 		const lines = capturedComponent!.render(72).map(stripAnsi);
@@ -1104,7 +1113,7 @@ test("preview's simulated activity meter visibly animates (oscillates) rather th
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
 		// Switch from the User Prompt preview to “Working” Loader.
-		for (let i = 0; i < 5; i++) capturedComponent!.handleInput!("\x1b[B");
+		moveMenuCursor(capturedComponent!, "decorateUserPrompt", "animatedSpinner");
 		const meterRegex = /[\u2880\u28c0\u28e0\u28e4\u28f4\u28f6\u28fe\u28ff]{8}/;
 		function meterAt(elapsedMs: number): string {
 			now = elapsedMs;
@@ -1135,17 +1144,25 @@ test("normal interactive input is re-sent as a decorated custom message", async 
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		const ctx = createContext([], []);
+		ctx.model = { provider: "anthropic", id: "claude-sonnet-4-5" } as NonNullable<ExtensionContext["model"]>;
 		workingDecorator(extension.asAPI());
 
 		const result = await extension.emit("input", { type: "input", text: "decorate this", source: "interactive" }, ctx);
 
 		assert.deepEqual(result, { action: "handled" });
 		assert.equal(extension.sentMessages.length, 1);
-		const sent = extension.sentMessages[0] as { message: { customType: string; content: string; display: boolean; details: { submittedAt: number } }; options: { triggerTurn: boolean } };
+		const sent = extension.sentMessages[0] as {
+			message: { customType: string; content: string; display: boolean; details: { submittedAt: number; showProvider?: boolean; showModel?: boolean; provider?: string; model?: string } };
+			options: { triggerTurn: boolean };
+		};
 		assert.equal(sent.message.customType, PROMPT_BOX_TYPE);
 		assert.equal(sent.message.content, "decorate this");
 		assert.equal(sent.message.display, true);
 		assert.equal(typeof sent.message.details.submittedAt, "number");
+		assert.equal(sent.message.details.provider, "anthropic");
+		assert.equal(sent.message.details.model, "claude-sonnet-4-5");
+		assert.equal(sent.message.details.showProvider, true);
+		assert.equal(sent.message.details.showModel, true);
 		assert.deepEqual(sent.options, { triggerTurn: true });
 	});
 });

@@ -6,13 +6,15 @@ import { buildPromptBoxLines } from "../src/prompt-decorator.ts";
 
 const theme = { fg: (_color: string, text: string) => text };
 
-test("prompt box includes the Nerd Font icon and its submission time", () => {
+test("prompt box includes its icon, submission time, and provider/model", () => {
 	const submittedAt = new Date(2026, 6, 18, 14, 32, 5).getTime();
-	const lines = buildPromptBoxLines("hello", submittedAt, 60, theme);
+	const provider = "anthropic";
+	const model = "claude-sonnet-4-5";
+	const lines = buildPromptBoxLines("hello", submittedAt, 60, theme, { provider, model });
 
 	assert.match(lines[0]!, //);
 	assert.match(lines[0]!, /14:32:05/);
-	assert.equal(lines.at(-1), `╚${"═".repeat(58)}╝`);
+	assert.equal(lines.at(-1), `╚${"═".repeat(28)} ${provider}/${model} ═╝`);
 });
 
 test("prompt box omits time when none was submitted", () => {
@@ -23,11 +25,48 @@ test("prompt box omits time when none was submitted", () => {
 	assert.doesNotMatch(lines[0]!, /\d{2}:\d{2}:\d{2}/);
 });
 
+test("prompt box can show only the model", () => {
+	const model = "claude-sonnet-4-5";
+	const lines = buildPromptBoxLines("", undefined, 40, theme, {
+		provider: "anthropic",
+		model,
+		showProvider: false,
+	});
+
+	assert.equal(lines.at(-1), `╚${"═".repeat(18)} ${model} ═╝`);
+});
+
+test("prompt box can show only the provider", () => {
+	const provider = "anthropic";
+	const lines = buildPromptBoxLines("", undefined, 40, theme, {
+		provider,
+		model: "claude-sonnet-4-5",
+		showModel: false,
+	});
+
+	assert.equal(lines.at(-1), `╚${"═".repeat(26)} ${provider} ═╝`);
+});
+
+test("prompt box can hide both provider and model", () => {
+	const lines = buildPromptBoxLines("", undefined, 20, theme, {
+		provider: "anthropic",
+		model: "claude-sonnet-4-5",
+		showProvider: false,
+		showModel: false,
+	});
+
+	assert.equal(lines.at(-1), `╚${"═".repeat(18)}╝`);
+});
+
 test("prompt box wraps long content without exceeding its width", () => {
 	const width = 24;
-	const lines = buildPromptBoxLines("one two three four five six seven eight nine", undefined, width, theme);
+	const lines = buildPromptBoxLines("one two three four five six seven eight nine", undefined, width, theme, {
+		provider: "provider",
+		model: "very-long-model-name",
+	});
 
 	assert.ok(lines.length > 3);
+	assert.match(lines.at(-1)!, /\.\.\./);
 	assert.ok(lines.every((line) => visibleWidth(line) <= width));
 });
 
