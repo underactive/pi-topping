@@ -50,7 +50,7 @@ export function buildPromptBoxLines(
 			second: "2-digit",
 		});
 	const innerWidth = width - 2;
-	const icon = options.showIcon === false ? "" : (options.icon ?? "");
+	const icon = options.showIcon === false ? "" : (options.icon ?? "").replace(/[\x00-\x1f\x7f]/g, "");
 	const titleLength = icon ? visibleWidth(`${g.h}${g.h} ${icon} `) : 0;
 	const timeLength = time ? time.length + 3 : 0; // time + right-side " ═"
 	const topFill = Math.max(0, innerWidth - titleLength - timeLength);
@@ -75,7 +75,7 @@ export function buildPromptBoxLines(
 }
 
 export const promptBoxRenderer: MessageRenderer<PromptBoxDetails> = (message, _options, theme) => {
-	const content = typeof message.content === "string" ? message.content : "";
+	const content = typeof message.content === "string" ? message.content.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "") : "";
 	const details = (message.details ?? {}) as PromptBoxDetails;
 	const linesByWidth = new Map<number, string[]>();
 	return {

@@ -20,7 +20,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 `~/.pi/agent/pi-topping/settings.json`; hand edits are tolerated on load.
 
 ```
-╔═┥ Pi Topping: Settings ┝═══════════════════════════════════╗
+╔═[ Pi Topping: Settings ]═══════════════════════════════════╗
 ╟─ Preview ──────────────────────────────────────────────────╢
 ║                                                            ║
 ║    Crafting (3s · ↓ 84 tokens)  28 tok/s                  ║
@@ -68,7 +68,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
-╚════════════════════════════════════════════════════┥ 1/32 ┝╝
+╚════════════════════════════════════════════════════[ 1/32 ]╝
 ```
 
 ❯ marks the keyboard cursor, and the selected row is highlighted.

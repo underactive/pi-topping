@@ -243,25 +243,20 @@ export function applyMenuResult(settings: DecoratorSettings, values: Record<stri
 }
 
 /**
- * When a cycle setting's enabled flag is off, reset the stored value to the menu's
- * disabled default so stale choices don't resurface on re-enable.
+ * Read settings.json, merging valid leaves over the defaults and falling back
+ * to defaults on any read/parse error. When a cycle setting's enabled flag is
+ * off, its stored value resets to the menu's disabled default so stale choices
+ * don't resurface on re-enable.
  */
 export function loadSettings(): DecoratorSettings {
 	try {
 		const parsed = JSON.parse(readFileSync(settingsPath(), "utf8"));
 		if (!isPlainObject(parsed)) return structuredClone(DEFAULT_SETTINGS);
 		const settings = { decorations: mergeGroup(DEFAULT_SETTINGS.decorations, parsed.decorations), features: mergeGroup(DEFAULT_SETTINGS.features, parsed.features), loaderOrder: parseLoaderOrder(parsed.loaderOrder) };
-		const gated: readonly (readonly ["borderColor" | "borderStyle" | "spinnerColor" | "meterColor" | "shimmerDirection" | "meterDirection" | "shimmerSpeed", "borderColorEnabled" | "borderStyleEnabled" | "spinnerColorEnabled" | "meterColorEnabled" | "shimmerDirectionEnabled" | "meterDirectionEnabled" | "shimmerSpeedEnabled", string])[] = [
-			["borderColor", "borderColorEnabled", "border"],
-			["borderStyle", "borderStyleEnabled", "double"],
-			["spinnerColor", "spinnerColorEnabled", "accent"],
-			["meterColor", "meterColorEnabled", "accent"],
-			["shimmerDirection", "shimmerDirectionEnabled", "ltr"],
-			["meterDirection", "meterDirectionEnabled", "ltr"],
-			["shimmerSpeed", "shimmerSpeedEnabled", "normal"],
-		];
-		for (const [key, enabledKey, resetValue] of gated) {
-			if (!settings.decorations[enabledKey]) (settings.decorations as unknown as Record<string, string>)[key] = resetValue;
+		for (const entry of MENU_ENTRIES) {
+			if (entry.group === "decorations" && entry.cycleEnabledBy && entry.cycleDisabledValue !== undefined && !settings.decorations[entry.cycleEnabledBy]) {
+				setDecorationCycleValue(settings.decorations, entry.key, entry.cycleDisabledValue);
+			}
 		}
 		return settings;
 	} catch { return structuredClone(DEFAULT_SETTINGS); }
@@ -272,7 +267,7 @@ export function saveSettings(settings: DecoratorSettings): void {
 	mkdirSync(dirname(path), { recursive: true });
 	const tmpPath = `${path}.${process.pid}.${Date.now()}.tmp`;
 	try {
-		writeFileSync(tmpPath, `${JSON.stringify(settings, null, 2)}\n`);
+		writeFileSync(tmpPath, `${JSON.stringify(settings, null, 2)}\n`, { flag: "wx" });
 		renameSync(tmpPath, path);
 	} catch (err) {
 		try { unlinkSync(tmpPath); } catch { /* tmp file was never created */ }

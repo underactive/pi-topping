@@ -12,6 +12,12 @@ export const DEFAULT_WORKING_WORD = "Working…";
 /** Milliseconds between activity meter sample pushes. */
 export const METER_INTERVAL_MS = 100;
 
+/** Milliseconds between shimmer re-renders. */
+export const SHIMMER_INTERVAL_MS = 50;
+
+/** Milliseconds between elapsed-time display updates. */
+export const ELAPSED_INTERVAL_MS = 1_000;
+
 /** A user-orderable piece of the working indicator. */
 export type LoaderElement = "spinner" | "text" | "meter" | "elapsed" | "tokens" | "tokenRate";
 
