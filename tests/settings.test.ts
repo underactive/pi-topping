@@ -16,6 +16,7 @@ import {
 	loadSettings,
 	parseLoaderOrder,
 	saveSettings,
+	DONE_MARKER_BORDER_STYLE_VALUES,
 	settingsPath,
 } from "../src/settings.ts";
 
@@ -43,11 +44,15 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Options"]);
 	const itemIds = sections.flatMap(section => section.items).map(item => item.id);
 	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
-	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderColor", "borderStyle", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
+	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "doneMarker", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
 	assert.equal(sections[1]!.items.find(item => item.id === "showTokenRate")!.value, true);
 	assert.equal(DEFAULT_SETTINGS.decorations.meterDirection, "rtl");
 	assert.equal(DEFAULT_SETTINGS.decorations.shimmerInverted, false);
+	assert.equal(DEFAULT_SETTINGS.decorations.doneMarkerBorderStyle, "none");
+	assert.equal(DEFAULT_SETTINGS.decorations.doneMarkerBorderColor, "accent");
+	assert.deepEqual(sections[3]!.items.find(item => item.id === "doneMarkerBorderStyle")!.cycleValues, DONE_MARKER_BORDER_STYLE_VALUES);
+	assert.deepEqual(sections[3]!.items.find(item => item.id === "doneMarkerBorderColor")!.cycleValues, SETTING_COLOR_VALUES);
 	const tokenRateColor = sections[1]!.items.find(item => item.id === "tokenRateColor")!;
 	assert.equal(tokenRateColor.value, "warning");
 	assert.deepEqual(tokenRateColor.cycleValues, SETTING_COLOR_VALUES);
@@ -114,8 +119,14 @@ test("applyMenuResult clones settings and applies known partial values", () => {
 	assert.equal(applyMenuResult(updated, { shimmerSpeed: "Slow" }).decorations.shimmerSpeed, "slow");
 });
 
+test("applyMenuResult accepts every completion marker border style", () => {
+	for (const style of DONE_MARKER_BORDER_STYLE_VALUES) {
+		assert.equal(applyMenuResult(DEFAULT_SETTINGS, { doneMarkerBorderStyle: style }).decorations.doneMarkerBorderStyle, style);
+	}
+});
+
 test("applyMenuResult accepts every setting color for every color setting", () => {
-	const colorKeys = ["borderColor", "spinnerColor", "meterColor", "tokenRateColor"] as const;
+	const colorKeys = ["borderColor", "doneMarkerBorderColor", "spinnerColor", "meterColor", "tokenRateColor"] as const;
 	for (const color of SETTING_COLOR_VALUES) {
 		for (const key of colorKeys) {
 			assert.equal(applyMenuResult(DEFAULT_SETTINGS, { [key]: color }).decorations[key], color);
@@ -149,14 +160,20 @@ test("loadSettings deep-merges a partial nested file over defaults", () => {
 test("loadSettings accepts allowed setting colors and rejects other theme colors", () => {
 	withTempAgentDir(() => {
 		mkdirSync(join(settingsPath(), ".."), { recursive: true });
-		for (const key of ["borderColor", "spinnerColor", "meterColor", "tokenRateColor"] as const) {
+		for (const key of ["borderColor", "doneMarkerBorderColor", "spinnerColor", "meterColor", "tokenRateColor"] as const) {
 			writeFileSync(settingsPath(), JSON.stringify({ decorations: { [key]: "success" } }));
 			assert.equal(loadSettings().decorations[key], "success");
 		}
 
-		writeFileSync(settingsPath(), JSON.stringify({ decorations: { borderColor: "muted", tokenRateColor: "muted" } }));
+		writeFileSync(settingsPath(), JSON.stringify({ decorations: { borderColor: "muted", doneMarkerBorderColor: "muted", tokenRateColor: "muted" } }));
 		assert.equal(loadSettings().decorations.borderColor, DEFAULT_SETTINGS.decorations.borderColor);
+		assert.equal(loadSettings().decorations.doneMarkerBorderColor, DEFAULT_SETTINGS.decorations.doneMarkerBorderColor);
 		assert.equal(loadSettings().decorations.tokenRateColor, DEFAULT_SETTINGS.decorations.tokenRateColor);
+
+		writeFileSync(settingsPath(), JSON.stringify({ decorations: { doneMarkerBorderStyle: "heavy" } }));
+		assert.equal(loadSettings().decorations.doneMarkerBorderStyle, "heavy");
+		writeFileSync(settingsPath(), JSON.stringify({ decorations: { doneMarkerBorderStyle: "invalid" } }));
+		assert.equal(loadSettings().decorations.doneMarkerBorderStyle, DEFAULT_SETTINGS.decorations.doneMarkerBorderStyle);
 	});
 });
 

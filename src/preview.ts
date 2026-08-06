@@ -2,8 +2,8 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { PreviewResult } from "./menu.ts";
 import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
 import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatElapsed, formatTokenRate, formatTokens, isFullyDefaultAppearance, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
-import { buildPromptBoxLines } from "./prompt-decorator.ts";
-import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isSettingColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
+import { buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
+import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isDoneMarkerBorderStyle, isSettingColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
 import { pickRandomWord } from "./words.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tok/s for the meter,
 // flat 28 tok/s for the token readouts.
@@ -130,12 +130,16 @@ export class PreviewRenderer {
 	private markerPreview(values: Record<string, boolean | string>): PreviewResult {
 		if (!values.doneMarker) return { lines: ["Completion marker is disabled."] };
 		const theme = this.#ctx.ui.theme;
-		const icon = values.doneMarkerIcon ? `${values.useNerdFont ? "" : "π"} ` : "";
+		const icon = values.doneMarkerIcon ? theme.fg("text", values.useNerdFont ? "" : "π") : "";
 		const word = values.randomizeDoneMarker ? "Concocted" : "Worked";
 		const details: string[] = [];
 		if (values.doneMarkerTokens) details.push("↓ 949 tokens");
 		if (values.doneMarkerInputs) details.push("2 mid-turn inputs");
 		const tail = details.length ? ` (${details.join(" · ")})` : "";
-		return { lines: ["", `${values.doneMarkerIcon ? theme.fg("text", icon) : ""}${theme.fg("dim", `${word} for 2m 52s${tail}`)}`, ""] };
+		const content = `${icon}${theme.fg("dim", `${values.doneMarkerIcon ? " " : ""}${word} for 2m 52s${tail}`)}`;
+		const borderStyle = isDoneMarkerBorderStyle(values.doneMarkerBorderStyle) ? values.doneMarkerBorderStyle : "none";
+		const borderColor = isSettingColor(values.doneMarkerBorderColor) ? values.doneMarkerBorderColor : DEFAULT_SETTINGS.decorations.doneMarkerBorderColor;
+		const marker = borderStyle === "none" ? content : buildCompletionMarkerLine(content, 70, theme, borderStyle, borderColor);
+		return { lines: ["", marker, ""] };
 	}
 }

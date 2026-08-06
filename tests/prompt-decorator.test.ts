@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { visibleWidth } from "@earendil-works/pi-tui";
-import { buildPromptBoxLines } from "../src/prompt-decorator.ts";
+import { buildCompletionMarkerLine, buildPromptBoxLines } from "../src/prompt-decorator.ts";
 
 const theme = { fg: (_color: string, text: string) => text };
 
@@ -80,6 +80,48 @@ test("prompt box accepts every setting border color", () => {
 		const lines = buildPromptBoxLines("ping", undefined, 40, taggedTheme, { borderColor: color });
 		assert.ok(lines[0]!.includes(`<${color}>`));
 	}
+});
+
+test("completion marker uses the selected border color", () => {
+	const colors = ["accent", "border", "borderAccent", "success", "error", "warning"] as const;
+	const seen: string[] = [];
+	const taggedTheme = { fg: (color: string, text: string) => {
+		seen.push(color);
+		return text;
+	} };
+	for (const color of colors) {
+		seen.length = 0;
+		buildCompletionMarkerLine(" Mustered", 80, taggedTheme, "heavy", color);
+		assert.ok(seen.includes(color));
+	}
+});
+
+test("completion marker uses the selected border glyphs and requested trail", () => {
+	const content = " Mustered for 4s (↓ 25 tokens)";
+	assert.equal(
+		buildCompletionMarkerLine(content, 52, theme, "heavy", "accent"),
+		"┗━━  Mustered for 4s (↓ 25 tokens) ━━━━━━ ━━━━ ━━ ━",
+	);
+	assert.equal(
+		buildCompletionMarkerLine(content, 52, theme, "double", "accent"),
+		"╚══  Mustered for 4s (↓ 25 tokens) ══════ ════ ══ ═",
+	);
+	assert.equal(
+		buildCompletionMarkerLine(content, 52, theme, "single", "accent"),
+		"└──  Mustered for 4s (↓ 25 tokens) ────── ──── ── ─",
+	);
+	assert.equal(
+		buildCompletionMarkerLine(content, 52, theme, "rounded", "accent"),
+		"╰──  Mustered for 4s (↓ 25 tokens) ────── ──── ── ─",
+	);
+});
+
+test("none leaves completion marker content undecorated and narrow widths clip it", () => {
+	const content = " Mustered for 4s (↓ 25 tokens)";
+	assert.equal(buildCompletionMarkerLine(content, 52, theme, "none", "accent"), content);
+	const clipped = buildCompletionMarkerLine(content, 10, theme, "heavy", "accent");
+	assert.ok(visibleWidth(clipped) <= 10);
+	assert.match(clipped, /^┗━━  M/);
 });
 
 test("prompt box swaps its box-drawing glyphs per borderStyle", () => {

@@ -10,7 +10,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
-**Completion Marker** — end-of-turn marker with icon, randomized verb, and token consumption display. If you steered or followed up (`Alt+Enter`) while Pi was working, the marker also tallies those, e.g. `π Whisked for 2s (↓ 55 tokens · 2 mid-turn inputs)`. Hooks into Pi's `agent_settled` event.
+**Completion Marker** — end-of-turn marker with icon, randomized verb, token consumption display, and optional border-style/color decorations. If you steered or followed up (`Alt+Enter`) while Pi was working, the marker also tallies those, e.g. `π Whisked for 2s (↓ 55 tokens · 2 mid-turn inputs)`. Hooks into Pi's `agent_settled` event.
 
 ![Example of pi-topping's completion marker](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_completion_marker.png)
 
@@ -27,8 +27,8 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║                                                            ║
 ╟─ User Prompt ──────────────────────────────────────────────╢
 ║    [■] High-vis prompt                                ON   ║
-║    [■] Border color                             ‹ accent › ║
 ║    [■] Border style                             ‹ double › ║
+║    [■] Border color                             ‹ accent › ║
 ║    [■] Pi icon                                        ON   ║
 ║    [■] Timestamp                                      ON   ║
 ║    [■] Provider                                       ON   ║
@@ -62,6 +62,8 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║                                                            ║
 ╟─ Completion Marker ────────────────────────────────────────╢
 ║    [■] Show completion marker                         ON   ║
+║    [■] Border style                               ‹ none › ║
+║    [■] Border color                             ‹ accent › ║
 ║    [■] Pi icon                                        ON   ║
 ║    [■] Randomize "Worked" text                        ON   ║
 ║    [■] Tokens spent                                   ON   ║
@@ -71,13 +73,12 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
-╚════════════════════════════════════════════════════[ 9/35 ]╝
+╚════════════════════════════════════════════════════[ 9/37 ]╝
 ```
 
 ❯ marks the keyboard cursor, and the selected row is highlighted. The Provider and Model toggles independently control the lower-right label on decorated prompts.
 
-The Border color, Animated spinner color, Token activity monitor color, and Token rate color
-settings all cycle through `accent`, `border`, `borderAccent`, `success`, `error`, and `warning`.
+The User Prompt Border style cycles through `double`, `single`, `rounded`, and `heavy` box-drawing sets, followed by its Border color. The Completion Marker Border style offers those same choices plus `none`; `none` leaves the marker undecorated, and its Border color follows the style. User Prompt and Completion Marker Border color settings, along with the Animated spinner, Token activity monitor, and Token rate colors, cycle through `accent`, `border`, `borderAccent`, `success`, `error`, and `warning`.
 
 Under **Elements Order**, press `␣` to grab a row, then `↑`/`↓` to slide that element
 left or right within the loader. Elapsed time, output tokens, and token rate are joined with

@@ -10,7 +10,7 @@ import type {
 	SessionShutdownEvent,
 	SessionStartEvent,
 } from "@earendil-works/pi-coding-agent";
-import { Text } from "@earendil-works/pi-tui";
+import { Text, type Component } from "@earendil-works/pi-tui";
 import { ActivityMeter, rateToLevel, TokRateTracker } from "./activity-meter.ts";
 import {
 	buildWorkingMessage,
@@ -34,7 +34,7 @@ import {
 import { showMenu } from "./menu.ts";
 import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type SettingColor } from "./settings.ts";
 import { PreviewRenderer } from "./preview.ts";
-import { PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
+import { buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
 import { pickRandomWord, pickRawWord } from "./words.ts";
 
 type MessageStartEvent = Extract<ExtensionEvent, { type: "message_start" }>;
@@ -269,7 +269,18 @@ export class SessionManager {
 			const tail = details.length ? ` (${details.join(" · ")})` : "";
 			const icon = features.doneMarkerIcon ? theme.fg("text", this.#settings.decorations.useNerdFont ? "" : "π") : "";
 			const summary = theme.fg("dim", `${features.doneMarkerIcon ? " " : ""}${word} for ${formatElapsed(elapsedMs)}${tail}`);
-			return new Text(icon + summary);
+			const markerContent = icon + summary;
+			const borderStyle = this.#settings.decorations.doneMarkerBorderStyle;
+			const borderColor = this.#settings.decorations.doneMarkerBorderColor;
+			if (borderStyle === "none") return new Text(markerContent);
+			return {
+				render: (width: number): string[] => [
+					"",
+					` ${buildCompletionMarkerLine(markerContent, Math.max(0, width - 2), theme, borderStyle, borderColor)}`,
+					"",
+				],
+				invalidate(): void {},
+			} satisfies Component;
 		});
 		this.#pi.registerMessageRenderer<PromptBoxDetails>(PROMPT_BOX_TYPE, promptBoxRenderer);
 		this.#pi.registerCommand("topping-settings", {

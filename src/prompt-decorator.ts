@@ -1,10 +1,8 @@
 import type { MessageRenderer, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import { isSettingColor } from "./settings.ts";
+import { isSettingColor, type BorderStyle, type DoneMarkerBorderStyle, type SettingColor } from "./settings.ts";
 
 export const PROMPT_BOX_TYPE = "pi-topping-prompt";
-
-export type BorderStyle = "double" | "single" | "rounded" | "heavy";
 
 const BORDER_GLYPHS: Record<BorderStyle, { tl: string; tr: string; bl: string; br: string; h: string; v: string }> = {
 	double: { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║" },
@@ -31,6 +29,27 @@ export interface PromptBoxDetails {
 }
 
 type PromptTheme = { fg(color: string, text: string): string };
+
+const COMPLETION_MARKER_TRAIL_RUNS = [6, 4, 2, 1] as const;
+
+/** Build one decorated completion-marker line, clipped to the available width. */
+export function buildCompletionMarkerLine(
+	content: string,
+	width: number,
+	theme: PromptTheme,
+	borderStyle: DoneMarkerBorderStyle,
+	borderColor: SettingColor,
+): string {
+	const safeWidth = Math.max(0, Math.floor(width));
+	if (safeWidth === 0) return "";
+	if (borderStyle === "none") return truncateToWidth(content, safeWidth);
+
+	const g = BORDER_GLYPHS[borderStyle];
+	const border = (text: string) => theme.fg(borderColor, text);
+	const trail = ` ${COMPLETION_MARKER_TRAIL_RUNS.map(length => g.h.repeat(length)).join(" ")}`;
+	const line = `${border(`${g.bl}${g.h.repeat(2)} `)}${content}${border(trail)}`;
+	return visibleWidth(line) > safeWidth ? truncateToWidth(line, safeWidth) : line;
+}
 
 /** Build the rendered lines for a decorated user prompt. */
 export function buildPromptBoxLines(

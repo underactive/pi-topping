@@ -7,6 +7,19 @@ import type { MenuSection } from "./menu.ts";
 export const SETTING_COLOR_VALUES = ["accent", "border", "borderAccent", "success", "error", "warning"] as const;
 export type SettingColor = (typeof SETTING_COLOR_VALUES)[number];
 
+export const BORDER_STYLE_VALUES = ["double", "single", "rounded", "heavy"] as const;
+export type BorderStyle = (typeof BORDER_STYLE_VALUES)[number];
+export const DONE_MARKER_BORDER_STYLE_VALUES = [...BORDER_STYLE_VALUES, "none"] as const;
+export type DoneMarkerBorderStyle = (typeof DONE_MARKER_BORDER_STYLE_VALUES)[number];
+
+function isBorderStyle(value: unknown): value is BorderStyle {
+	return typeof value === "string" && BORDER_STYLE_VALUES.some(style => style === value);
+}
+
+export function isDoneMarkerBorderStyle(value: unknown): value is DoneMarkerBorderStyle {
+	return typeof value === "string" && DONE_MARKER_BORDER_STYLE_VALUES.some(style => style === value);
+}
+
 export function isSettingColor(value: unknown): value is SettingColor {
 	return typeof value === "string" && SETTING_COLOR_VALUES.some(color => color === value);
 }
@@ -26,8 +39,10 @@ export interface DecoratorSettings {
 		decorateUserPrompt: boolean;
 		borderColor: SettingColor;
 		borderColorEnabled: boolean;
-		borderStyle: "double" | "single" | "rounded" | "heavy";
+		borderStyle: BorderStyle;
 		borderStyleEnabled: boolean;
+		doneMarkerBorderStyle: DoneMarkerBorderStyle;
+		doneMarkerBorderColor: SettingColor;
 		spinnerColor: SettingColor;
 		spinnerColorEnabled: boolean;
 		meterColor: SettingColor;
@@ -56,7 +71,7 @@ export interface DecoratorSettings {
 }
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
-	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "accent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
+	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "accent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "accent", spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
 	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 };
@@ -100,7 +115,8 @@ function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, par
 		else if ((key === "meterDirection" || key === "shimmerDirection") && (value === "ltr" || value === "rtl")) valid = value;
 		else if (key === "shimmerSpeed" && (value === "slow" || value === "normal" || value === "fast")) valid = value;
 		else if (key.endsWith("Color") && isSettingColor(value)) valid = value;
-		else if (key === "borderStyle" && (value === "double" || value === "single" || value === "rounded" || value === "heavy")) valid = value;
+		else if (key === "borderStyle" && isBorderStyle(value)) valid = value;
+		else if (key === "doneMarkerBorderStyle" && isDoneMarkerBorderStyle(value)) valid = value;
 		if (valid !== undefined) (merged as Record<string, boolean | string>)[key] = valid;
 	}
 	return merged;
@@ -148,8 +164,8 @@ type FeatureMenuEntry = MenuEntryBase & { group: "features"; key: keyof FeatureS
 type MenuEntry = DecorationMenuEntry | FeatureMenuEntry;
 export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "decorateUserPrompt", label: "High-vis prompt", section: "User Prompt", group: "decorations", key: "decorateUserPrompt" },
+	{ id: "borderStyle", label: "Border style", section: "User Prompt", group: "decorations", key: "borderStyle", cycleValues: BORDER_STYLE_VALUES, cycleEnabledBy: "borderStyleEnabled", cycleDisabledValue: "double" },
 	{ id: "borderColor", label: "Border color", section: "User Prompt", group: "decorations", key: "borderColor", cycleValues: SETTING_COLOR_VALUES, cycleEnabledBy: "borderColorEnabled", cycleDisabledValue: "border" },
-	{ id: "borderStyle", label: "Border style", section: "User Prompt", group: "decorations", key: "borderStyle", cycleValues: ["double", "single", "rounded", "heavy"], cycleEnabledBy: "borderStyleEnabled", cycleDisabledValue: "double" },
 	{ id: "promptIcon", label: "Pi icon", section: "User Prompt", group: "decorations", key: "promptIcon" },
 	{ id: "promptTimestamp", label: "Timestamp", section: "User Prompt", group: "decorations", key: "promptTimestamp" },
 	{ id: "promptProvider", label: "Provider", section: "User Prompt", group: "decorations", key: "promptProvider" },
@@ -172,6 +188,8 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "tokenRateColor", label: "Token rate color", section: "“Working” Loader", group: "decorations", key: "tokenRateColor", cycleValues: SETTING_COLOR_VALUES },
 	{ id: "tokenRateDimmed", label: "Token rate dimmed", section: "“Working” Loader", group: "decorations", key: "tokenRateDimmed" },
 	{ id: "doneMarker", label: "Show completion marker", section: "Completion Marker", group: "features", key: "doneMarker" },
+	{ id: "doneMarkerBorderStyle", label: "Border style", section: "Completion Marker", group: "decorations", key: "doneMarkerBorderStyle", cycleValues: DONE_MARKER_BORDER_STYLE_VALUES },
+	{ id: "doneMarkerBorderColor", label: "Border color", section: "Completion Marker", group: "decorations", key: "doneMarkerBorderColor", cycleValues: SETTING_COLOR_VALUES },
 	{ id: "doneMarkerIcon", label: "Pi icon", section: "Completion Marker", group: "features", key: "doneMarkerIcon" },
 	{ id: "randomizeDoneMarker", label: "Randomize “Worked” text", section: "Completion Marker", group: "features", key: "randomizeDoneMarker" },
 	{ id: "doneMarkerTokens", label: "Tokens spent", section: "Completion Marker", group: "features", key: "doneMarkerTokens" },
@@ -198,10 +216,14 @@ function setDecorationCycleValue(decorations: DecorationSettings, key: keyof Dec
 		case "spinnerColor":
 		case "meterColor":
 		case "tokenRateColor":
+		case "doneMarkerBorderColor":
 			if (isSettingColor(stored)) decorations[key] = stored;
 			return;
 		case "borderStyle":
-			if (stored === "double" || stored === "single" || stored === "rounded" || stored === "heavy") decorations[key] = stored;
+			if (BORDER_STYLE_VALUES.some(style => style === stored)) decorations[key] = stored as BorderStyle;
+			return;
+		case "doneMarkerBorderStyle":
+			if (DONE_MARKER_BORDER_STYLE_VALUES.some(style => style === stored)) decorations[key] = stored as DoneMarkerBorderStyle;
 			return;
 		case "shimmerDirection":
 		case "meterDirection":

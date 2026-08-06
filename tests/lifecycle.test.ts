@@ -1354,9 +1354,54 @@ test("the pi-topping-done entry renderer renders the word/time in dim text and t
 		assert.ok(component, "expected the renderer to return a component");
 
 		const lines = component.render(80);
+		assert.equal(lines.length, 3);
 		const text = lines.join("\n");
 		assert.match(text, /<text><\/text>/);
 		assert.match(text, /<dim> Baked for 6m 41s<\/dim>/);
+	});
+});
+
+test("completion marker border style renders the selected decoration", async () => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			decorations: { ...DEFAULT_SETTINGS.decorations, doneMarkerBorderStyle: "heavy" },
+		});
+
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		workingDecorator(extension.asAPI());
+		const renderer = extension.entryRenderers["pi-topping-done"]!;
+		const component = renderer(
+			{ type: "custom", customType: "pi-topping-done", data: { word: "Mustered", elapsedMs: 4_000, tokens: 25 } },
+			{ expanded: false },
+			ctx.ui.theme,
+		) as { render(width: number): string[] };
+
+		const lines = component.render(54);
+		assert.equal(lines.length, 3);
+		assert.equal(lines[1], " ┗━━  Mustered for 4s (↓ 25 tokens) ━━━━━━ ━━━━ ━━ ━");
+	});
+});
+
+test("completion marker border color styles the decoration", async () => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			decorations: { ...DEFAULT_SETTINGS.decorations, doneMarkerBorderStyle: "heavy", doneMarkerBorderColor: "success" },
+		});
+
+		const extension = new MockExtension();
+		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
+		workingDecorator(extension.asAPI());
+		const renderer = extension.entryRenderers["pi-topping-done"]!;
+		const component = renderer(
+			{ type: "custom", customType: "pi-topping-done", data: { word: "Mustered", elapsedMs: 4_000, tokens: 25 } },
+			{ expanded: false },
+			ctx.ui.theme,
+		) as { render(width: number): string[] };
+
+		assert.match(component.render(200)[1]!, /<success>┗━━/);
 	});
 });
 
