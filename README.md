@@ -71,7 +71,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
-╚════════════════════════════════════════════════════[ 1/35 ]╝
+╚════════════════════════════════════════════════════[ 9/35 ]╝
 ```
 
 ❯ marks the keyboard cursor, and the selected row is highlighted. The Provider and Model toggles independently control the lower-right label on decorated prompts.
@@ -84,8 +84,8 @@ left or right within the loader. Elapsed time, output tokens, and token rate are
 `·` separators whenever adjacent. When reordering separates them, each adjacent run is rendered
 without a separator before or after it. Invert shimmer keeps the working text at the default text
 color and sweeps a dimmed gradient across it. The `N tok/s` token rate uses the selected theme color and
-remains reorderable. Active rates are padded to three characters so updates do not shift the other
-segments; when inactive, it remains as the dim `--- tok/s` placeholder. After its last update it holds
+remains reorderable. Active rates below 1,000 are padded to three characters so updates do not shift the other
+segments; larger rates may shift later segments. When inactive, it remains as the dim `--- tok/s` placeholder. After its last update it holds
 full brightness for 1.5 seconds, then fades through five theme-aware shades to the dim text color over
 the next 0.25 seconds before returning to the placeholder; a new count restores full brightness and
 restarts the cycle.

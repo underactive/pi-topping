@@ -3,13 +3,13 @@ import type { PreviewResult } from "./menu.ts";
 import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
 import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatElapsed, formatTokenRate, formatTokens, isFullyDefaultAppearance, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
 import { buildPromptBoxLines } from "./prompt-decorator.ts";
-import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isSettingColor, LOADER_ORDER_ID, parseLoaderOrder } from "./settings.ts";
+import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isSettingColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
 import { pickRandomWord } from "./words.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tok/s for the meter,
 // flat 28 tok/s for the token readouts.
 const METER_PERIOD_MS = 2400, METER_PEAK_RATE = 46, TOKEN_RATE_PER_SEC = 28;
-const PROMPT_IDS = new Set(["decorateUserPrompt", "borderColor", "borderStyle", "promptIcon", "promptTimestamp", "promptProvider", "promptModel"]);
-const MARKER_IDS = new Set(["doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs"]);
+const PROMPT_IDS = new Set(MENU_ENTRIES.filter(entry => entry.section === "User Prompt").map(entry => entry.id));
+const MARKER_IDS = new Set(MENU_ENTRIES.filter(entry => entry.section === "Completion Marker").map(entry => entry.id));
 function meterRate(elapsedMs: number): number { return ((1 - Math.cos((2 * Math.PI * elapsedMs) / METER_PERIOD_MS)) / 2) * METER_PEAK_RATE; }
 
 /** Stateful, per-menu preview renderer that follows the active settings section. */
@@ -37,41 +37,86 @@ export class PreviewRenderer {
 	}
 	private loaderPreview(values: Record<string, boolean | string>, elapsedMs: number): string {
 		this.#meter.setDirection(fromCycleDirection(values.meterDirection));
-		if (elapsedMs - this.#lastMeterUpdate >= METER_INTERVAL_MS) { this.#meter.push(rateToLevel(meterRate(elapsedMs))); this.#lastMeterUpdate = elapsedMs; }
+		if (elapsedMs - this.#lastMeterUpdate >= METER_INTERVAL_MS) {
+			this.#meter.push(rateToLevel(meterRate(elapsedMs)));
+			this.#lastMeterUpdate = elapsedMs;
+		}
 		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false };
 		const decorations = { shimmer: values.shimmer !== false, shimmerInverted: values.shimmerInverted === true, tokenActivityMonitor: values.tokenActivityMonitor !== false };
-		const spinnerColor = values.spinnerColorEnabled === false || !isSettingColor(values.spinnerColor) ? DEFAULT_SETTINGS.decorations.spinnerColor : values.spinnerColor;
-		const spinner = values.animatedSpinner !== false ? this.#ctx.ui.theme.fg(spinnerColor, SPINNER_FRAMES[Math.floor(elapsedMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!) : "";
+		let spinnerColor = DEFAULT_SETTINGS.decorations.spinnerColor;
+		if (values.spinnerColorEnabled !== false && isSettingColor(values.spinnerColor)) {
+			spinnerColor = values.spinnerColor;
+		}
+		let spinner = "";
+		if (values.animatedSpinner !== false) {
+			spinner = this.#ctx.ui.theme.fg(spinnerColor, SPINNER_FRAMES[Math.floor(elapsedMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!);
+		}
 		const order = parseLoaderOrder(values[LOADER_ORDER_ID]);
-		if (isFullyDefaultAppearance(features, decorations)) return buildWorkingMessage(this.#ctx.ui.theme, { spinner, text: this.#ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD) }, order);
-		const word = features.substituteDefaultMessage ? this.#word : DEFAULT_WORKING_WORD;
-		const styledWord = decorations.shimmer ? shimmerString(word, elapsedMs, this.#ctx.ui.theme, fromCycleDirection(values.shimmerDirection), fromCycleSpeed(values.shimmerSpeed), decorations.shimmerInverted) : this.#ctx.ui.theme.fg("text", word);
-		const meterColor = values.meterColorEnabled === false || !isSettingColor(values.meterColor) ? DEFAULT_SETTINGS.decorations.meterColor : values.meterColor;
-		const meter = decorations.tokenActivityMonitor ? this.#meter.render((level, char) => ActivityMeter.colorizeCell(level, char, this.#ctx.ui.theme, meterColor, values.meterDimmed === true)) : "";
-		const tokenRateText = features.tokenRate ? formatTokenRate(TOKEN_RATE_PER_SEC) : "";
-		const tokenRateColor = isSettingColor(values.tokenRateColor) ? values.tokenRateColor : DEFAULT_SETTINGS.decorations.tokenRateColor;
-		const tokenRateColored = tokenRateText ? this.#ctx.ui.theme.fg(tokenRateColor, tokenRateText) : "";
-		const tokenRate = tokenRateColored && values.tokenRateDimmed === true ? dimAttribute(tokenRateColored) : tokenRateColored;
+		if (isFullyDefaultAppearance(features, decorations)) {
+			return buildWorkingMessage(this.#ctx.ui.theme, { spinner, text: this.#ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD) }, order);
+		}
+		let word = DEFAULT_WORKING_WORD;
+		if (features.substituteDefaultMessage) {
+			word = this.#word;
+		}
+		let styledWord: string;
+		if (decorations.shimmer) {
+			styledWord = shimmerString(word, elapsedMs, this.#ctx.ui.theme, fromCycleDirection(values.shimmerDirection), fromCycleSpeed(values.shimmerSpeed), decorations.shimmerInverted);
+		} else {
+			styledWord = this.#ctx.ui.theme.fg("text", word);
+		}
+		let meterColor = DEFAULT_SETTINGS.decorations.meterColor;
+		if (values.meterColorEnabled !== false && isSettingColor(values.meterColor)) {
+			meterColor = values.meterColor;
+		}
+		let meter = "";
+		if (decorations.tokenActivityMonitor) {
+			meter = this.#meter.render((level, char) => ActivityMeter.colorizeCell(level, char, this.#ctx.ui.theme, meterColor, values.meterDimmed === true));
+		}
+		let tokenRateText = "";
+		if (features.tokenRate) {
+			tokenRateText = formatTokenRate(TOKEN_RATE_PER_SEC);
+		}
+		let tokenRateColor = DEFAULT_SETTINGS.decorations.tokenRateColor;
+		if (isSettingColor(values.tokenRateColor)) {
+			tokenRateColor = values.tokenRateColor;
+		}
+		let tokenRateColored = "";
+		if (tokenRateText) {
+			tokenRateColored = this.#ctx.ui.theme.fg(tokenRateColor, tokenRateText);
+		}
+		let tokenRate = tokenRateColored;
+		if (tokenRateColored && values.tokenRateDimmed === true) {
+			tokenRate = dimAttribute(tokenRateColored);
+		}
+		let elapsed = "";
+		if (features.elapsedTime) {
+			elapsed = formatElapsed(elapsedMs);
+		}
+		let tokens = "";
+		if (features.outputTokens) {
+			tokens = `↓ ${formatTokens(Math.max(0, Math.floor(elapsedMs / 1000 * TOKEN_RATE_PER_SEC)))} tokens`;
+		}
 		return buildWorkingMessage(this.#ctx.ui.theme, {
 			spinner,
 			text: styledWord,
 			meter,
-			elapsed: features.elapsedTime ? formatElapsed(elapsedMs) : "",
-			tokens: features.outputTokens ? `↓ ${formatTokens(Math.max(0, Math.floor(elapsedMs / 1000 * TOKEN_RATE_PER_SEC)))} tokens` : "",
+			elapsed,
+			tokens,
 			tokenRate,
 		}, order);
 	}
 	private promptPreview(values: Record<string, boolean | string>): PreviewResult {
-		if (!values.decorateUserPrompt) return { lines: ["User prompt decoration is disabled."] };
+		if (values.decorateUserPrompt !== true) return { lines: ["User prompt decoration is disabled."] };
 
 		const borderColor = values.borderColor;
 		const borderStyle = values.borderStyle;
-		const timestamp = values.promptTimestamp ? Date.now() : undefined;
+		const timestamp = values.promptTimestamp === true ? Date.now() : undefined;
 		const lines = buildPromptBoxLines("ping", timestamp, 70, this.#ctx.ui.theme, {
-			showIcon: values.promptIcon as boolean,
-			showTimestamp: values.promptTimestamp as boolean,
-			showProvider: values.promptProvider as boolean,
-			showModel: values.promptModel as boolean,
+			showIcon: values.promptIcon === true,
+			showTimestamp: values.promptTimestamp === true,
+			showProvider: values.promptProvider === true,
+			showModel: values.promptModel === true,
 			icon: values.useNerdFont ? "" : "π",
 			provider: this.#ctx.model?.provider,
 			model: this.#ctx.model?.id,

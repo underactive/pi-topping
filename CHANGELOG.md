@@ -5,27 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] - 2026-08-06
 
 ### Added
 - Added an `Invert shimmer` setting that keeps the working text at the default text color and sweeps a dimmed gradient across it.
 - Prompt decorators now show the active provider/model in the lower-right border, with independent Provider and Model visibility toggles in `/topping-settings`.
+- "Token rate color" setting in `/topping-settings`, defaulting to `warning`.
+- All color settings (prompt border, animated spinner, token activity monitor, and token rate) now offer `accent`, `border`, `borderAccent`, `success`, `error`, and `warning` choices.
+- "Token rate dimmed" setting in `/topping-settings` that renders the `N tok/s` segment with the terminal dim attribute, matching the token activity monitor's dim toggle.
+- Live output-token throughput in the working loader, displayed by default as a warning-colored `N tok/s` segment with a "Token rate" toggle and reorder row. Active rates below 1,000 are padded to three characters so updates do not shift the other segments; larger rates may shift later segments. When inactive, the segment shows a dim `--- tok/s` placeholder. The rate holds full brightness for 1.5 seconds, then fades through five theme-aware shades to the dim text color over the next 0.25 seconds before returning to the placeholder; a new count restores full brightness and restarts the cycle.
 
 ### Changed
 - `/topping-settings` now marks the selected row with `❯` (was `▸`) and highlights the whole row with the theme's `selectedBg` color, instead of coloring only the marker glyph.
 - The working loader now joins adjacent elapsed time, output token, and token-rate details with `·` separators without surrounding parentheses; separated details do not retain dangling separators.
 - New installations now default to this working-loader order: spinner, activity word, token activity monitor, token rate, elapsed time, then output tokens.
 - The token activity monitor now defaults to right-to-left movement.
-
-## [0.5.0] - 2026-08-01
-
-### Added
-- "Token rate color" setting in `/topping-settings`, defaulting to `warning`.
-- All color settings (prompt border, animated spinner, token activity monitor, and token rate) now offer `accent`, `border`, `borderAccent`, `success`, `error`, and `warning` choices.
-- "Token rate dimmed" setting in `/topping-settings` that renders the `N tok/s` segment with the terminal dim attribute, matching the token activity monitor's dim toggle.
-- Live output-token throughput in the working loader, displayed by default as a warning-colored `N tok/s` segment with a "Token rate" toggle and reorder row. Active rates are padded to three characters; when inactive, the segment shows a dim `--- tok/s` placeholder. The rate holds full brightness for 1.5 seconds, then fades through five theme-aware shades to the dim text color over 0.25 seconds before returning to the placeholder; a new count restores full brightness and restarts the cycle.
+- `/topping-settings` now describes prompt decoration, working-loader features/order, and completion-marker settings.
 
 ### Fixed
+- Provider and model labels now strip control and Unicode formatting characters before rendering.
+- Settings previews now require strict boolean values.
 - Removed the warning-only fade wrapper, added safe fallback rendering for non-truecolor themes, and hardened preview cycle-value conversion.
 
 ## [0.4.0] - 2026-07-30

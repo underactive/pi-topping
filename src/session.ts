@@ -47,14 +47,14 @@ const DONE_ENTRY_TYPE = "pi-topping-done";
 const TOKEN_RATE_HOLD_MS = 1_500;
 const TOKEN_RATE_FADE_MS = 250;
 
-export interface DoneEntryData {
+interface DoneEntryData {
 	word: string;
 	elapsedMs: number;
 	tokens?: number;
 	midTurnInputs?: number;
 }
 
-export interface SessionState {
+interface SessionState {
 	startTime: number;
 	currentWord: string;
 	confirmTokens: number;
@@ -85,7 +85,7 @@ function resetTokenRateState(state: SessionState): void {
 	state.tokenRateFadeStartsAt = 0;
 }
 
-export function makeFreshState(): SessionState {
+function makeFreshState(): SessionState {
 	return {
 		startTime: 0,
 		currentWord: "",
@@ -273,7 +273,7 @@ export class SessionManager {
 		});
 		this.#pi.registerMessageRenderer<PromptBoxDetails>(PROMPT_BOX_TYPE, promptBoxRenderer);
 		this.#pi.registerCommand("topping-settings", {
-			description: "Configure pi-topping's spinner, shimmer, activity meter, and message details.",
+			description: "Configure prompt decoration, working-loader features/order, and completion-marker settings.",
 			handler: async (_a, ctx) => this.showSettings(ctx),
 		});
 	}

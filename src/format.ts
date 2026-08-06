@@ -24,7 +24,7 @@ export type LoaderElement = "spinner" | "text" | "meter" | "elapsed" | "tokens" 
 /** Default first-use working-indicator element order. */
 export const DEFAULT_LOADER_ORDER: readonly LoaderElement[] = ["spinner", "text", "meter", "tokenRate", "elapsed", "tokens"];
 
-/** Elements rendered inside the dim detail group rather than as standalone segments. */
+/** Elements share a detail group; separators and non-rate details are dimmed. */
 const DETAIL_ELEMENTS: ReadonlySet<LoaderElement> = new Set(["elapsed", "tokens", "tokenRate"]);
 
 const TOKEN_UNITS = [
@@ -160,7 +160,12 @@ const SHIMMER_SWEEP_S = 2.0;
 const SHIMMER_BAND_HALF = 5.0;
 const SHIMMER_PADDING = 10;
 
-/** Codex-style light-sweep shimmer using the active Pi theme. */
+/**
+ * Codex-style light-sweep shimmer using the active Pi theme.
+ *
+ * With `invert=true`, the text color is used at rest and the sweep moves toward
+ * the theme's dim color.
+ */
 export function shimmerString(
 	text: string,
 	elapsedMs: number,

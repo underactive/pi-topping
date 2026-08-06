@@ -13,6 +13,10 @@ const BORDER_GLYPHS: Record<BorderStyle, { tl: string; tr: string; bl: string; b
 	heavy: { tl: "┏", tr: "┓", bl: "┗", br: "┛", h: "━", v: "┃" },
 };
 
+/**
+ * False visibility options hide each corresponding part; present provider and
+ * model values join with `/` in the bottom border.
+ */
 export interface PromptBoxDetails {
 	submittedAt?: number;
 	showIcon?: boolean;
@@ -57,10 +61,10 @@ export function buildPromptBoxLines(
 	const icon = options.showIcon === false ? "" : (options.icon ?? "").replace(/[\x00-\x1f\x7f]/g, "");
 	const provider = options.showProvider === false || typeof options.provider !== "string"
 		? ""
-		: options.provider.replace(/[\x00-\x1f\x7f]/g, "");
+		: options.provider.replace(/[\p{Cc}\p{Cf}]/gu, "");
 	const model = options.showModel === false || typeof options.model !== "string"
 		? ""
-		: options.model.replace(/[\x00-\x1f\x7f]/g, "");
+		: options.model.replace(/[\p{Cc}\p{Cf}]/gu, "");
 	const combinedLabel = [provider, model].filter(Boolean).join("/");
 	// truncateToWidth injects reset codes when clipping; remove them before muted() styles the label.
 	const labelText = combinedLabel
