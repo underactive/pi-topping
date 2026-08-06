@@ -7,14 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Configurable Completion Marker border style with `none`, `double`, `single`, `rounded`, and `heavy` choices; `none` keeps the existing undecorated marker.
-- Completion Marker border color setting with the same `accent`, `border`, `borderAccent`, `success`, `error`, and `warning` choices as the User Prompt border color.
-
 ## [0.5.0] - 2026-08-06
 
 ### Added
+- Configurable Completion Marker border style with `none`, `double`, `single`, `rounded`, and `heavy` choices; `none` keeps the existing undecorated marker.
+- Completion Marker border color setting with the same `accent`, `border`, `borderAccent`, `success`, `error`, and `warning` choices as the User Prompt border color.
+- All color settings (prompt border, completion marker border, animated spinner, token activity monitor, and token rate) now offer `accent`, `border`, `borderAccent`, `success`, `error`, and `warning` choices.
 - Added an `Invert shimmer` setting that keeps the working text at the default text color and sweeps a dimmed gradient across it.
 - Prompt decorators now show the active provider/model in the lower-right border, with independent Provider and Model visibility toggles in `/topping-settings`.
 - "Token rate color" setting in `/topping-settings`, defaulting to `warning`.
@@ -30,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/topping-settings` now describes prompt decoration, working-loader features/order, and completion-marker settings.
 
 ### Fixed
+- Settings menu labels and titles now use visible width when truncating, keeping box-drawing layouts aligned.
 - Provider and model labels now strip control and Unicode formatting characters before rendering.
 - Settings previews now require strict boolean values.
 - Removed the warning-only fade wrapper, added safe fallback rendering for non-truecolor themes, and hardened preview cycle-value conversion.
