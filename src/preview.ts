@@ -39,13 +39,13 @@ export class PreviewRenderer {
 		this.#meter.setDirection(fromCycleDirection(values.meterDirection));
 		if (elapsedMs - this.#lastMeterUpdate >= METER_INTERVAL_MS) { this.#meter.push(rateToLevel(meterRate(elapsedMs))); this.#lastMeterUpdate = elapsedMs; }
 		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false };
-		const decorations = { shimmer: values.shimmer !== false, tokenActivityMonitor: values.tokenActivityMonitor !== false };
+		const decorations = { shimmer: values.shimmer !== false, shimmerInverted: values.shimmerInverted === true, tokenActivityMonitor: values.tokenActivityMonitor !== false };
 		const spinnerColor = values.spinnerColorEnabled === false || !isSettingColor(values.spinnerColor) ? DEFAULT_SETTINGS.decorations.spinnerColor : values.spinnerColor;
 		const spinner = values.animatedSpinner !== false ? this.#ctx.ui.theme.fg(spinnerColor, SPINNER_FRAMES[Math.floor(elapsedMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!) : "";
 		const order = parseLoaderOrder(values[LOADER_ORDER_ID]);
 		if (isFullyDefaultAppearance(features, decorations)) return buildWorkingMessage(this.#ctx.ui.theme, { spinner, text: this.#ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD) }, order);
 		const word = features.substituteDefaultMessage ? this.#word : DEFAULT_WORKING_WORD;
-		const styledWord = decorations.shimmer ? shimmerString(word, elapsedMs, this.#ctx.ui.theme, fromCycleDirection(values.shimmerDirection), fromCycleSpeed(values.shimmerSpeed)) : this.#ctx.ui.theme.fg("text", word);
+		const styledWord = decorations.shimmer ? shimmerString(word, elapsedMs, this.#ctx.ui.theme, fromCycleDirection(values.shimmerDirection), fromCycleSpeed(values.shimmerSpeed), decorations.shimmerInverted) : this.#ctx.ui.theme.fg("text", word);
 		const meterColor = values.meterColorEnabled === false || !isSettingColor(values.meterColor) ? DEFAULT_SETTINGS.decorations.meterColor : values.meterColor;
 		const meter = decorations.tokenActivityMonitor ? this.#meter.render((level, char) => ActivityMeter.colorizeCell(level, char, this.#ctx.ui.theme, meterColor, values.meterDimmed === true)) : "";
 		const tokenRateText = features.tokenRate ? formatTokenRate(TOKEN_RATE_PER_SEC) : "";

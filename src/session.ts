@@ -386,7 +386,7 @@ export class SessionManager {
 
 		const word = features.substituteDefaultMessage ? state.currentWord : DEFAULT_WORKING_WORD;
 		const styled = decorations.shimmer
-			? shimmerString(word, now - state.shimmerOrigin, ctx.ui.theme, decorations.shimmerDirection, decorations.shimmerSpeed)
+			? shimmerString(word, now - state.shimmerOrigin, ctx.ui.theme, decorations.shimmerDirection, decorations.shimmerSpeed, decorations.shimmerInverted)
 			: ctx.ui.theme.fg("text", word);
 		const meter = decorations.tokenActivityMonitor
 			? state.activityMeter.render((level, char) =>

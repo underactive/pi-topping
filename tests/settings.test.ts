@@ -43,10 +43,11 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Options"]);
 	const itemIds = sections.flatMap(section => section.items).map(item => item.id);
 	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
-	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderColor", "borderStyle", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
+	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderColor", "borderStyle", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
 	assert.equal(sections[1]!.items.find(item => item.id === "showTokenRate")!.value, true);
 	assert.equal(DEFAULT_SETTINGS.decorations.meterDirection, "rtl");
+	assert.equal(DEFAULT_SETTINGS.decorations.shimmerInverted, false);
 	const tokenRateColor = sections[1]!.items.find(item => item.id === "tokenRateColor")!;
 	assert.equal(tokenRateColor.value, "warning");
 	assert.deepEqual(tokenRateColor.cycleValues, SETTING_COLOR_VALUES);
@@ -98,6 +99,7 @@ test("applyMenuResult clones settings and applies known partial values", () => {
 		shimmer: false,
 		meterDirection: "Right to Left",
 		shimmerSpeed: "Fast",
+		shimmerInverted: true,
 		unknown: false,
 	});
 
@@ -105,6 +107,7 @@ test("applyMenuResult clones settings and applies known partial values", () => {
 	assert.equal(updated.decorations.shimmer, false);
 	assert.equal(updated.decorations.meterDirection, "rtl");
 	assert.equal(updated.decorations.shimmerSpeed, "fast");
+	assert.equal(updated.decorations.shimmerInverted, true);
 	assert.equal(updated.features.doneMarker, true);
 
 	assert.equal(applyMenuResult(updated, { meterDirection: "Left to Right" }).decorations.meterDirection, "ltr");

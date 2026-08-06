@@ -129,6 +129,23 @@ test("shimmerString interpolates a continuous dim-to-text gradient", () => {
 	assert.ok(result.endsWith("\x1b[0m"));
 });
 
+test("inverted shimmer keeps the text color at rest and dims with a gradient", () => {
+	const theme = {
+		getFgAnsi: (color: string) => color === "dim" ? "\x1b[38;2;20;30;40m" : "\x1b[38;2;120;130;140m",
+		fg: (_color: string, text: string) => text,
+	};
+	const text = "abcdefghijklm";
+	const elapsedMs = 2000 * 16 / (text.length + 20);
+	const result = shimmerString(text, elapsedMs, theme, "ltr", "normal", true);
+	const colors = [...result.matchAll(/\x1b\[38;2;(\d+);(\d+);(\d+)m/g)].map(match => match.slice(1).join(","));
+
+	assert.equal(colors[0], "120,130,140");
+	assert.equal(colors[6], "30,40,50");
+	assert.ok(new Set(colors).size > 3, "expected colors between the base and dimmed band");
+	assert.doesNotMatch(result, /\x1b\[1m/);
+	assert.ok(result.endsWith("\x1b[0m"));
+});
+
 test("shimmer speed scales the sweep without stretching the pause between sweeps", () => {
 	const theme = {
 		getFgAnsi: (color: string) => color === "dim" ? "\x1b[38;2;20;30;40m" : "\x1b[38;2;120;130;140m",

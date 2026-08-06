@@ -603,6 +603,40 @@ test("substituteDefaultMessage=false shows a Working\u2026 placeholder but other
 	});
 });
 
+test("inverted shimmer keeps the working text bright with a dimmed gradient", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			decorations: { ...DEFAULT_SETTINGS.decorations, shimmerInverted: true, tokenActivityMonitor: false },
+			features: { ...DEFAULT_SETTINGS.features, elapsedTime: false, outputTokens: false, tokenRate: false },
+		});
+
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, []);
+		let now = 1;
+		let tick: (() => void) | undefined;
+		t.mock.method(Date, "now", () => now);
+		t.mock.method(Math, "random", () => 0);
+		mockTimers(t, (callback) => {
+			tick = callback;
+		});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		now = 501;
+		assert.ok(tick, "expected the shimmer timer to be registered");
+		tick!();
+
+		const message = messages.at(-1)!;
+		const colors = [...message.matchAll(/\x1b\[38;2;(\d+);(\d+);(\d+)m/g)].map((match) => match.slice(1).join(","));
+		assert.ok(colors.includes("224,224,224"), "expected the resting text color");
+		assert.ok(new Set(colors).size > 1, "expected a dimmed gradient across the shimmer");
+		assert.ok(colors.some((color) => Number(color.split(",")[0]) < 224), "expected the shimmer to dim the text");
+		assert.doesNotMatch(message, /\x1b\[1m/);
+	});
+});
+
 test("fully-default settings (nothing customized) restore pi's untouched default message", async (t) => {
 	await withTempAgentDir(async () => {
 		// Every toggle that could alter the message's appearance is off, so tick()
@@ -859,14 +893,27 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 		moveMenuCursor(capturedComponent!, "promptProvider", "animatedSpinner");
 
 		// Moving to “Working” Loader swaps the preview to its animated example.
-		now += 200;
+		now += 1_000;
 		previewTick?.();
-		const animated = capturedComponent!.render(76).map(stripAnsi);
+		const animatedRaw = capturedComponent!.render(76);
+		const animated = animatedRaw.map(stripAnsi);
 		assert.ok(animated.some((l) => l.includes("Accomplishing\u2026")));
 		assert.ok(animated.some((l) => l.includes(" 28 tok/s")));
+		const normalShimmer = animatedRaw.find((l) => stripAnsi(l).includes("Accomplishing\u2026"))!;
+		assert.match(normalShimmer, /\x1b\[1m/);
+
+		// Inverting the shimmer keeps the resting text bright, then sweeps a dimmed gradient without bolding it.
+		moveMenuCursor(capturedComponent!, "animatedSpinner", "shimmerInverted");
+		capturedComponent!.handleInput!(" ");
+		const invertedRaw = capturedComponent!.render(76);
+		const invertedShimmer = invertedRaw.find((l) => stripAnsi(l).includes("Accomplishing\u2026"))!;
+		assert.doesNotMatch(invertedShimmer, /\x1b\[1m/);
+		assert.match(invertedShimmer, /\x1b\[38;2;224;224;224m/);
+		const invertedColors = [...invertedShimmer.matchAll(/\x1b\[38;2;(\d+);(\d+);(\d+)m/g)].map((match) => Number(match[1]));
+		assert.ok(invertedColors.some((red) => red < 224), "expected the shimmer to dim the text");
 
 		// Toggling Token rate updates the preview immediately.
-		moveMenuCursor(capturedComponent!, "animatedSpinner", "showTokenRate");
+		moveMenuCursor(capturedComponent!, "shimmerInverted", "showTokenRate");
 		capturedComponent!.handleInput!(" ");
 		const withoutTokenRate = capturedComponent!.render(76).map(stripAnsi);
 		assert.ok(!withoutTokenRate.some((l) => l.includes("tok/s")));
@@ -979,6 +1026,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 			!DEFAULT_SETTINGS.features.substituteDefaultMessage,
 		);
 		assert.equal(persisted.decorations.shimmer, !DEFAULT_SETTINGS.decorations.shimmer);
+		assert.equal(persisted.decorations.shimmerInverted, !DEFAULT_SETTINGS.decorations.shimmerInverted);
 		assert.equal(persisted.decorations.shimmerDirectionEnabled, false);
 		assert.equal(persisted.decorations.shimmerDirection, "ltr");
 		assert.equal(persisted.decorations.shimmerSpeedEnabled, false);

@@ -167,12 +167,13 @@ export function shimmerString(
 	theme: Pick<Theme, "getFgAnsi" | "fg">,
 	direction: "ltr" | "rtl" = "ltr",
 	speed: "slow" | "normal" | "fast" = "normal",
+	invert = false,
 ): string {
 	const chars = [...text];
 	if (chars.length === 0) return "";
-	const SHIMMER_BASE = ansiToRgb(theme.getFgAnsi("dim"));
-	const SHIMMER_HIGHLIGHT = ansiToRgb(theme.getFgAnsi("text"));
-	if (!SHIMMER_BASE || !SHIMMER_HIGHLIGHT) return theme.fg("text", text);
+	const shimmerBase = ansiToRgb(theme.getFgAnsi(invert ? "text" : "dim"));
+	const shimmerHighlight = ansiToRgb(theme.getFgAnsi(invert ? "dim" : "text"));
+	if (!shimmerBase || !shimmerHighlight) return theme.fg("text", text);
 	const period = chars.length + SHIMMER_PADDING * 2;
 	const unitsPerS = period / SHIMMER_SWEEP_S;
 	// The band crosses padding at either end while every character is still dim. Scaling only
@@ -198,10 +199,10 @@ export function shimmerString(
 			? 0.5 * (1 + Math.cos(Math.PI * dist / SHIMMER_BAND_HALF))
 			: 0;
 		const alpha = t * 0.9;
-		const r = Math.round(SHIMMER_HIGHLIGHT[0] * alpha + SHIMMER_BASE[0] * (1 - alpha));
-		const g = Math.round(SHIMMER_HIGHLIGHT[1] * alpha + SHIMMER_BASE[1] * (1 - alpha));
-		const b = Math.round(SHIMMER_HIGHLIGHT[2] * alpha + SHIMMER_BASE[2] * (1 - alpha));
-		const bold = t > 0.2 ? "\x1b[1m" : "";
+		const r = Math.round(shimmerHighlight[0] * alpha + shimmerBase[0] * (1 - alpha));
+		const g = Math.round(shimmerHighlight[1] * alpha + shimmerBase[1] * (1 - alpha));
+		const b = Math.round(shimmerHighlight[2] * alpha + shimmerBase[2] * (1 - alpha));
+		const bold = !invert && t > 0.2 ? "\x1b[1m" : "";
 		out += `${bold}\x1b[38;2;${r};${g};${b}m${ch}\x1b[22m`;
 	}
 	return out + "\x1b[0m";

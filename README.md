@@ -6,7 +6,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
-**“Working” Loader** — animated spinner (with color choice), randomized activity word, shimmer (with direction and speed), token activity monitor (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate (with color choice and dim toggle) — all arrangeable left to right.
+**“Working” Loader** — animated spinner (with color choice), randomized activity word, shimmer (with direction, speed, and invert option), token activity monitor (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate (with color choice and dim toggle) — all arrangeable left to right.
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
@@ -39,6 +39,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║  ❯ [■] Animated spinner color                   ‹ accent › ║
 ║    [■] Randomize "Working" text                       ON   ║
 ║    [■] Text shimmer                                   ON   ║
+║    [■] Invert shimmer                                OFF   ║
 ║    [■] Text shimmer direction            ‹ Left to Right › ║
 ║    [■] Text shimmer speed                       ‹ Normal › ║
 ║    [■] Token activity monitor                         ON   ║
@@ -70,7 +71,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
-╚════════════════════════════════════════════════════[ 1/34 ]╝
+╚════════════════════════════════════════════════════[ 1/35 ]╝
 ```
 
 ❯ marks the keyboard cursor, and the selected row is highlighted. The Provider and Model toggles independently control the lower-right label on decorated prompts.
@@ -81,7 +82,8 @@ settings all cycle through `accent`, `border`, `borderAccent`, `success`, `error
 Under **Elements Order**, press `␣` to grab a row, then `↑`/`↓` to slide that element
 left or right within the loader. Elapsed time, output tokens, and token rate are joined with
 `·` separators whenever adjacent. When reordering separates them, each adjacent run is rendered
-without a separator before or after it. The `N tok/s` token rate uses the selected theme color and
+without a separator before or after it. Invert shimmer keeps the working text at the default text
+color and sweeps a dimmed gradient across it. The `N tok/s` token rate uses the selected theme color and
 remains reorderable. Active rates are padded to three characters so updates do not shift the other
 segments; when inactive, it remains as the dim `--- tok/s` placeholder. After its last update it holds
 full brightness for 1.5 seconds, then fades through five theme-aware shades to the dim text color over
