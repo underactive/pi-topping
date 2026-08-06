@@ -16,12 +16,14 @@ import {
 	buildWorkingMessage,
 	DEFAULT_WORKING_WORD,
 	dimAttribute,
+	ELAPSED_INTERVAL_MS,
 	fadeThemeColorString,
 	formatElapsed,
 	formatTokenRate,
 	formatTokens,
 	isFullyDefaultAppearance,
 	METER_INTERVAL_MS,
+	SHIMMER_INTERVAL_MS,
 	shimmerString,
 	SPINNER_FRAME_MS,
 	SPINNER_FRAMES,
@@ -41,8 +43,6 @@ type MessageEndEvent = Extract<ExtensionEvent, { type: "message_end" }>;
 type ToolExecutionStartEvent = Extract<ExtensionEvent, { type: "tool_execution_start" }>;
 
 const DONE_ENTRY_TYPE = "pi-topping-done";
-const SHIMMER_INTERVAL_MS = 50;
-const ELAPSED_INTERVAL_MS = 1_000;
 // Reconciliation resets the EMA at message boundaries, so retain and then fade the last rate to avoid flicker.
 const TOKEN_RATE_HOLD_MS = 1_500;
 const TOKEN_RATE_FADE_MS = 250;
@@ -259,7 +259,7 @@ export class SessionManager {
 			const features = this.#settings.features;
 			const details: string[] = [];
 			if (features.doneMarkerTokens && typeof entry.data.tokens === "number") details.push(`↓ ${formatTokens(entry.data.tokens)} tokens`);
-			if (features.doneMarkerInputs && entry.data.midTurnInputs) {
+			if (features.doneMarkerInputs && typeof entry.data.midTurnInputs === "number" && entry.data.midTurnInputs) {
 				details.push(`${entry.data.midTurnInputs} mid-turn input${entry.data.midTurnInputs === 1 ? "" : "s"}`);
 			}
 			const tail = details.length ? ` (${details.join(" · ")})` : "";

@@ -1,7 +1,7 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { PreviewResult } from "./menu.ts";
 import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
-import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, formatElapsed, formatTokenRate, formatTokens, isFullyDefaultAppearance, METER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
+import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatElapsed, formatTokenRate, formatTokens, isFullyDefaultAppearance, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
 import { buildPromptBoxLines } from "./prompt-decorator.ts";
 import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isSettingColor, LOADER_ORDER_ID, parseLoaderOrder } from "./settings.ts";
 import { pickRandomWord } from "./words.ts";
@@ -14,22 +14,25 @@ function meterRate(elapsedMs: number): number { return ((1 - Math.cos((2 * Math.
 
 /** Stateful, per-menu preview renderer that follows the active settings section. */
 export class PreviewRenderer {
-	readonly #word = pickRandomWord(); readonly #meter = new ActivityMeter(); #lastMeterUpdate = 0;
+	readonly #word = pickRandomWord();
+	readonly #meter = new ActivityMeter();
+	#lastMeterUpdate = 0;
 	readonly #ctx: ExtensionContext;
 	constructor(ctx: ExtensionContext) { this.#ctx = ctx; }
 	render(values: Record<string, boolean | string>, elapsedMs: number, activeItemId?: string): PreviewResult {
 		if (PROMPT_IDS.has(activeItemId ?? "")) return this.promptPreview(values);
 		if (MARKER_IDS.has(activeItemId ?? "")) return this.markerPreview(values);
 		if (activeItemId === "useNerdFont") return { lines: [`Icon preview: ${values.useNerdFont ? "" : "π"}`] };
-		const nextRefreshInMs = values.shimmer !== false
-			? 50
-			: values.animatedSpinner
-				? SPINNER_FRAME_MS
-				: values.tokenActivityMonitor !== false
-					? METER_INTERVAL_MS
-					: (values.elapsedTime !== false || values.outputTokens !== false)
-						? 1000
-						: undefined;
+		let nextRefreshInMs: number | undefined;
+		if (values.shimmer !== false) {
+			nextRefreshInMs = SHIMMER_INTERVAL_MS;
+		} else if (values.animatedSpinner !== false) {
+			nextRefreshInMs = SPINNER_FRAME_MS;
+		} else if (values.tokenActivityMonitor !== false) {
+			nextRefreshInMs = METER_INTERVAL_MS;
+		} else if (values.elapsedTime !== false || values.outputTokens !== false) {
+			nextRefreshInMs = ELAPSED_INTERVAL_MS;
+		}
 		return { lines: ["", this.loaderPreview(values, elapsedMs), ""], nextRefreshInMs };
 	}
 	private loaderPreview(values: Record<string, boolean | string>, elapsedMs: number): string {
@@ -38,7 +41,7 @@ export class PreviewRenderer {
 		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false };
 		const decorations = { shimmer: values.shimmer !== false, tokenActivityMonitor: values.tokenActivityMonitor !== false };
 		const spinnerColor = values.spinnerColorEnabled === false || !isSettingColor(values.spinnerColor) ? DEFAULT_SETTINGS.decorations.spinnerColor : values.spinnerColor;
-		const spinner = values.animatedSpinner ? this.#ctx.ui.theme.fg(spinnerColor, SPINNER_FRAMES[Math.floor(elapsedMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!) : "";
+		const spinner = values.animatedSpinner !== false ? this.#ctx.ui.theme.fg(spinnerColor, SPINNER_FRAMES[Math.floor(elapsedMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!) : "";
 		const order = parseLoaderOrder(values[LOADER_ORDER_ID]);
 		if (isFullyDefaultAppearance(features, decorations)) return buildWorkingMessage(this.#ctx.ui.theme, { spinner, text: this.#ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD) }, order);
 		const word = features.substituteDefaultMessage ? this.#word : DEFAULT_WORKING_WORD;

@@ -10,9 +10,9 @@
  * preview section driven by a caller-supplied render callback, e.g.:
  *
  *   ╔═[ Pi Topping: Settings ]════════════════════════╗
- *   ╟─ Preview ─────────────────────────────────────╢
+ *   ╟─ Preview ────────────────────────────────────╢
  *   ║                                                  ║
- *   ║ ⠋ Cerebrating… ⣤⣤⣤⣤ (0m 03s · ↓ 84 tokens)     ║
+ *   ║ ⠋ Cerebrating… ⣤⣤⣤⣤ (3s · ↓ 84 tokens)     ║
  *   ║                                                  ║
  *   ╟─ Decorations ───────────────────────────────────╢
  *   ║  ❯ [■] Animated spinner                    ON   ║
@@ -90,6 +90,7 @@ export interface MenuResult<T> {
 
 const DEFAULT_HINTS = ["\u2191\u2193 move", "\u2423 toggle", "\u23ce apply", "esc cancel"];
 const MAX_WIDTH = 76;
+const ROW_PREFIX_WIDTH = 8; // "  " + marker + " " + "[" + box + "]" + " "
 
 interface FlatItem {
 	id: string;
@@ -442,7 +443,7 @@ export class MenuComponent implements Component {
 		const prefix = titlePrefix ?? "";
 		const suffix = titleSuffix ?? "";
 		const maxTitleLen = Math.max(0, innerWidth - prefix.length - suffix.length);
-		const shownTitle = title.length > maxTitleLen ? truncateToWidth(title, maxTitleLen) : title;
+		const shownTitle = visibleWidth(title) > maxTitleLen ? truncateToWidth(title, maxTitleLen) : title;
 		const styledTitle = boldTitle ? th.bold(shownTitle) : shownTitle;
 		const fillCount = Math.max(0, innerWidth - visibleWidth(prefix + shownTitle + suffix));
 		const titleContent = th.fg("text", styledTitle);
@@ -500,9 +501,8 @@ export class MenuComponent implements Component {
 			const held = value as boolean;
 			const stateWord = held ? "\u2191 \u2193" : "";
 			const rightPlain = `${stateWord}  `;
-			const fixedLeftLen = 8;
-			const maxLabelLen = Math.max(0, innerWidth - fixedLeftLen - rightPlain.length - 1);
-			const label = item.label.length > maxLabelLen ? truncateToWidth(item.label, maxLabelLen) : item.label;
+			const maxLabelLen = Math.max(0, innerWidth - ROW_PREFIX_WIDTH - visibleWidth(rightPlain) - 1);
+			const label = visibleWidth(item.label) > maxLabelLen ? truncateToWidth(item.label, maxLabelLen) : item.label;
 			const leftPlain = `  ${marker} [${held ? "\u25a0" : " "}] ${label}`;
 			const gap = Math.max(1, innerWidth - visibleWidth(leftPlain) - visibleWidth(rightPlain));
 			const content = `  ${markerColored} [${held ? th.fg("accent", "\u25a0") : th.fg("muted", " ")}] ${th.fg("text", label)}${" ".repeat(gap)}${held ? th.fg("accent", stateWord) : ""}  `;
@@ -512,9 +512,8 @@ export class MenuComponent implements Component {
 		if (item.cycleValues) {
 			const enabled = item.cycleEnabledBy ? this.values[item.cycleEnabledBy] as boolean : true;
 			const stateWord = `‹ ${value} ›`;
-			const fixedLeftLen = 8;
-			const maxLabelLen = Math.max(0, innerWidth - fixedLeftLen - visibleWidth(stateWord) - 1);
-			const label = item.label.length > maxLabelLen ? truncateToWidth(item.label, maxLabelLen) : item.label;
+			const maxLabelLen = Math.max(0, innerWidth - ROW_PREFIX_WIDTH - visibleWidth(stateWord) - 1);
+			const label = visibleWidth(item.label) > maxLabelLen ? truncateToWidth(item.label, maxLabelLen) : item.label;
 			const leftPlain = `  ${marker} [${enabled ? "■" : " "}] ${label}`;
 			const gap = Math.max(1, innerWidth - visibleWidth(leftPlain) - visibleWidth(stateWord) - 2);
 			const content = `  ${markerColored} [${enabled ? th.fg("success", "■") : th.fg("muted", " ")}] ${th.fg("text", label)}${" ".repeat(gap)}${enabled ? th.fg("accent", stateWord) : th.fg("muted", stateWord)}  `;
@@ -525,9 +524,8 @@ export class MenuComponent implements Component {
 		const box = enabled ? "\u25a0" : " ";
 		const stateWord = enabled ? "ON" : "OFF";
 		const rightPlain = `${stateWord}  `;
-		const fixedLeftLen = 8; // "  " + marker(1) + " " + "[" + box(1) + "]" + " "
-		const maxLabelLen = Math.max(0, innerWidth - fixedLeftLen - rightPlain.length - 1);
-		const label = item.label.length > maxLabelLen ? truncateToWidth(item.label, maxLabelLen) : item.label;
+		const maxLabelLen = Math.max(0, innerWidth - ROW_PREFIX_WIDTH - visibleWidth(rightPlain) - 1);
+		const label = visibleWidth(item.label) > maxLabelLen ? truncateToWidth(item.label, maxLabelLen) : item.label;
 		const leftPlain = `  ${marker} [${box}] ${label}`;
 		const gap = Math.max(1, innerWidth - visibleWidth(leftPlain) - visibleWidth(rightPlain));
 		const content = `  ${markerColored} [${enabled ? th.fg("success", box) : th.fg("muted", box)}] ${th.fg("text", label)}${" ".repeat(gap)}${enabled ? th.fg("success", stateWord) : th.fg("muted", stateWord)}  `;

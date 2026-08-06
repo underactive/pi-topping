@@ -545,3 +545,14 @@ test("dispose() is a safe no-op when there is no preview or no TUI", () => {
 	const withPreviewNoTui = makeMenu(() => {}, { preview: () => ["x"] });
 	assert.doesNotThrow(() => withPreviewNoTui.dispose());
 });
+
+test("selected item row includes selectedBg highlight", () => {
+	const menu = makeMenu(() => {});
+	const lines = menu.render(64);
+
+	const itemA = lines.find((l) => l.includes("Item A"))!;
+	const itemB = lines.find((l) => l.includes("Item B"))!;
+
+	assert.ok(itemA.includes(BG_CODES.selectedBg), "selected item A must have selectedBg");
+	assert.ok(!itemB.includes(BG_CODES.selectedBg), "unselected item B must not have selectedBg");
+});
