@@ -43,9 +43,10 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Options"]);
 	const itemIds = sections.flatMap(section => section.items).map(item => item.id);
 	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
-	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderColor", "borderStyle", "promptIcon", "promptTimestamp", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "spinner", "text", "meter", "elapsed", "tokens", "tokenRate", "doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
+	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderColor", "borderStyle", "promptIcon", "promptTimestamp", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "doneMarker", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
 	assert.equal(sections[1]!.items.find(item => item.id === "showTokenRate")!.value, true);
+	assert.equal(DEFAULT_SETTINGS.decorations.meterDirection, "rtl");
 	const tokenRateColor = sections[1]!.items.find(item => item.id === "tokenRateColor")!;
 	assert.equal(tokenRateColor.value, "warning");
 	assert.deepEqual(tokenRateColor.cycleValues, SETTING_COLOR_VALUES);
@@ -63,16 +64,21 @@ test("buildMenuSections appends tokenRate to legacy five-element orders", () => 
 });
 
 test("parseLoaderOrder drops junk and duplicates, then appends the missing elements", () => {
-	assert.deepEqual(parseLoaderOrder("tokens,spinner"), ["tokens", "spinner", "text", "meter", "elapsed", "tokenRate"]);
-	assert.deepEqual(parseLoaderOrder(["meter", "meter", "nope", 7]), ["meter", "spinner", "text", "elapsed", "tokens", "tokenRate"]);
+	assert.deepEqual(parseLoaderOrder("tokens,spinner"), ["tokens", "spinner", "text", "meter", "tokenRate", "elapsed"]);
+	assert.deepEqual(parseLoaderOrder(["meter", "meter", "nope", 7]), ["meter", "spinner", "text", "tokenRate", "elapsed", "tokens"]);
 	assert.deepEqual(parseLoaderOrder(undefined), [...DEFAULT_SETTINGS.loaderOrder]);
 	assert.deepEqual(parseLoaderOrder(""), [...DEFAULT_SETTINGS.loaderOrder]);
+});
+
+test("parseLoaderOrder preserves complete saved orders after default changes", () => {
+	const savedOrder = ["spinner", "text", "meter", "elapsed", "tokens", "tokenRate"];
+	assert.deepEqual(parseLoaderOrder(savedOrder), savedOrder);
 });
 
 test("applyMenuResult adopts the reordered element list from the menu", () => {
 	const updated = applyMenuResult(DEFAULT_SETTINGS, { [LOADER_ORDER_ID]: "text,meter,spinner,elapsed,tokens" });
 	assert.deepEqual(updated.loaderOrder, ["text", "meter", "spinner", "elapsed", "tokens", "tokenRate"]);
-	assert.deepEqual(DEFAULT_SETTINGS.loaderOrder, ["spinner", "text", "meter", "elapsed", "tokens", "tokenRate"]);
+	assert.deepEqual(DEFAULT_SETTINGS.loaderOrder, ["spinner", "text", "meter", "tokenRate", "elapsed", "tokens"]);
 });
 
 test("cycle values normalize labels and invalid preview inputs", () => {

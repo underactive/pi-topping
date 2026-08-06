@@ -23,7 +23,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╔═[ Pi Topping: Settings ]═══════════════════════════════════╗
 ╟─ Preview ──────────────────────────────────────────────────╢
 ║                                                            ║
-║    Crafting (3s · ↓ 84 tokens)  28 tok/s                  ║
+║    Crafting  28 tok/s · 3s · ↓ 84 tokens                   ║
 ║                                                            ║
 ╟─ User Prompt ──────────────────────────────────────────────╢
 ║    [■] High-vis prompt                                ON   ║
@@ -41,7 +41,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Text shimmer speed                       ‹ Normal › ║
 ║    [■] Token activity monitor                         ON   ║
 ║    [■] Token activity monitor color             ‹ accent › ║
-║    [■] Token activity monitor direction  ‹ Left to Right › ║
+║    [■] Token activity monitor direction  ‹ Right to Left › ║
 ║    [■] Token activity monitor dimmed                 OFF   ║
 ║    [■] Elapsed time since prompt                      ON   ║
 ║    [■] Show output tokens                             ON   ║
@@ -53,9 +53,9 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [ ] Animated spinner                                    ║
 ║    [■] “Working” text                                ↑ ↓   ║
 ║    [ ] Token activity monitor                              ║
+║    [ ] Token rate                                          ║
 ║    [ ] Elapsed time                                        ║
 ║    [ ] Output tokens                                       ║
-║    [ ] Token rate                                          ║
 ║                                                            ║
 ╟─ Completion Marker ────────────────────────────────────────╢
 ║    [■] Show completion marker                         ON   ║
@@ -77,14 +77,14 @@ The Border color, Animated spinner color, Token activity monitor color, and Toke
 settings all cycle through `accent`, `border`, `borderAccent`, `success`, `error`, and `warning`.
 
 Under **Elements Order**, press `␣` to grab a row, then `↑`/`↓` to slide that element
-left or right within the loader. Elapsed time and output tokens share a single
-`(3s · ↓ 84 tokens)` parenthetical whenever they end up next to each other, and split
-into `(3s)` and `(↓ 84 tokens)` when they do not. The `N tok/s` token rate uses the selected theme
-color and is a standalone segment, last by default, and remains reorderable. Active rates are padded to
-three characters so updates do not shift the other segments; when inactive, it remains as the dim
-`--- tok/s` placeholder. After its last update it holds full brightness for 1.5 seconds, then fades
-through five theme-aware shades to the dim text color over the next 0.25 seconds before returning to the
-placeholder; a new count restores full brightness and restarts the cycle.
+left or right within the loader. Elapsed time, output tokens, and token rate are joined with
+`·` separators whenever adjacent. When reordering separates them, each adjacent run is rendered
+without a separator before or after it. The `N tok/s` token rate uses the selected theme color and
+remains reorderable. Active rates are padded to three characters so updates do not shift the other
+segments; when inactive, it remains as the dim `--- tok/s` placeholder. After its last update it holds
+full brightness for 1.5 seconds, then fades through five theme-aware shades to the dim text color over
+the next 0.25 seconds before returning to the placeholder; a new count restores full brightness and
+restarts the cycle.
 
 ## Install
 

@@ -58,7 +58,7 @@ test("fade and shimmer fall back for non-truecolor themes", () => {
 	assert.equal(shimmerString("text", 0, theme), "<text>text</text>");
 });
 
-test("token rate remains a standalone trailing loader element", () => {
+test("token rate joins the adjacent detail group", () => {
 	const theme = { fg: (color: string, text: string) => `<${color}>${text}</${color}>` };
 	const message = buildWorkingMessage(theme as never, {
 		text: "Working…",
@@ -67,7 +67,35 @@ test("token rate remains a standalone trailing loader element", () => {
 		tokenRate: "<warning> 28 tok/s</warning>",
 	});
 
-	assert.equal(message, "Working… <dim>(3s · ↓ 84 tokens)</dim> <warning> 28 tok/s</warning>");
+	assert.equal(message, "Working… <warning> 28 tok/s</warning><dim> · </dim><dim>3s</dim><dim> · </dim><dim>↓ 84 tokens</dim>");
+});
+
+test("detail styling survives a token rate moved before another detail", () => {
+	const theme = {
+		fg: (color: string, text: string) => `\x1b[38;5;${color === "dim" ? 8 : 7}m${text}\x1b[39m`,
+	};
+	const message = buildWorkingMessage(theme as never, {
+		elapsed: "3s",
+		tokens: "↓ 84 tokens",
+		tokenRate: "\x1b[38;5;3m 28 tok/s\x1b[39m",
+	}, ["elapsed", "tokenRate", "tokens"]);
+
+	assert.equal(
+		message,
+		"\x1b[38;5;8m3s\x1b[39m\x1b[38;5;8m · \x1b[39m\x1b[38;5;3m 28 tok/s\x1b[39m\x1b[38;5;8m · \x1b[39m\x1b[38;5;8m↓ 84 tokens\x1b[39m",
+	);
+});
+
+test("detail separators do not surround a detail element moved outside its group", () => {
+	const theme = { fg: (color: string, text: string) => `<${color}>${text}</${color}>` };
+	const message = buildWorkingMessage(theme as never, {
+		text: "Working…",
+		elapsed: "3s",
+		tokens: "↓ 84 tokens",
+		tokenRate: "<warning>28 tok/s</warning>",
+	}, ["elapsed", "text", "tokens", "tokenRate"]);
+
+	assert.equal(message, "<dim>3s</dim> Working… <dim>↓ 84 tokens</dim><dim> · </dim><warning>28 tok/s</warning>");
 });
 
 test("formatElapsed clamps negatives and pads seconds", () => {

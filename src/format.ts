@@ -21,11 +21,11 @@ export const ELAPSED_INTERVAL_MS = 1_000;
 /** A user-orderable piece of the working indicator. */
 export type LoaderElement = "spinner" | "text" | "meter" | "elapsed" | "tokens" | "tokenRate";
 
-/** Left-to-right element order matching pi's stock working indicator. */
-export const DEFAULT_LOADER_ORDER: readonly LoaderElement[] = ["spinner", "text", "meter", "elapsed", "tokens", "tokenRate"];
+/** Default first-use working-indicator element order. */
+export const DEFAULT_LOADER_ORDER: readonly LoaderElement[] = ["spinner", "text", "meter", "tokenRate", "elapsed", "tokens"];
 
-/** Elements rendered inside the dim parenthetical rather than as standalone segments. */
-const DETAIL_ELEMENTS: ReadonlySet<LoaderElement> = new Set(["elapsed", "tokens"]);
+/** Elements rendered inside the dim detail group rather than as standalone segments. */
+const DETAIL_ELEMENTS: ReadonlySet<LoaderElement> = new Set(["elapsed", "tokens", "tokenRate"]);
 
 const TOKEN_UNITS = [
 	{ threshold: 10_000, divisor: 1_000, decimals: 1, suffix: "k" },
@@ -126,7 +126,7 @@ export function isFullyDefaultAppearance(features: {
  * Assemble the working indicator from already-styled pieces, laid out in `order`.
  *
  * Empty/omitted pieces are dropped, and any run of detail elements left adjacent
- * after that collapses into a single dim parenthetical.
+ * after that renders as one visual group with dim separators.
  */
 export function buildWorkingMessage(
 	theme: Pick<Theme, "fg">,
@@ -136,7 +136,7 @@ export function buildWorkingMessage(
 	const segments: string[] = [];
 	let details: string[] = [];
 	const flushDetails = (): void => {
-		if (details.length) segments.push(theme.fg("dim", `(${details.join(" · ")})`));
+		if (details.length) segments.push(details.join(theme.fg("dim", " · ")));
 		details = [];
 	};
 
@@ -144,7 +144,8 @@ export function buildWorkingMessage(
 		const value = parts[element];
 		if (!value) continue;
 		if (DETAIL_ELEMENTS.has(element)) {
-			details.push(value);
+			// tokenRate arrives pre-colored; dimming it here would replace its configured color.
+			details.push(element === "tokenRate" ? value : theme.fg("dim", value));
 			continue;
 		}
 		flushDetails();

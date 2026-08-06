@@ -12,7 +12,7 @@
  *   ╔═[ Pi Topping: Settings ]════════════════════════╗
  *   ╟─ Preview ────────────────────────────────────╢
  *   ║                                                  ║
- *   ║ ⠋ Cerebrating… ⣤⣤⣤⣤ (3s · ↓ 84 tokens)     ║
+ *   ║ ⠋ Cerebrating… ⣤⣤⣤⣤  28 tok/s · 3s · ↓ 84 tokens ║
  *   ║                                                  ║
  *   ╟─ Decorations ───────────────────────────────────╢
  *   ║  ❯ [■] Animated spinner                    ON   ║

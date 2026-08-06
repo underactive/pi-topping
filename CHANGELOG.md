@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `/topping-settings` now marks the selected row with `❯` (was `▸`) and highlights the whole row with the theme's `selectedBg` color, instead of coloring only the marker glyph.
+- The working loader now joins adjacent elapsed time, output token, and token-rate details with `·` separators without surrounding parentheses; separated details do not retain dangling separators.
+- New installations now default to this working-loader order: spinner, activity word, token activity monitor, token rate, elapsed time, then output tokens.
+- The token activity monitor now defaults to right-to-left movement.
 
 ## [0.5.0] - 2026-08-01
 
