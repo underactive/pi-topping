@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New installations now default to this working-loader order: spinner, activity word, token activity monitor, token rate, elapsed time, then output tokens.
 - The token activity monitor now defaults to right-to-left movement.
 - `/topping-settings` now describes prompt decoration, working-loader features/order, and completion-marker settings.
+- User Prompt border color now defaults to `borderAccent`.
 
 ### Fixed
 - Settings menu labels and titles now use visible width when truncating, keeping box-drawing layouts aligned.

@@ -1,6 +1,6 @@
 import type { MessageRenderer, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import { isSettingColor, type BorderStyle, type DoneMarkerBorderStyle, type SettingColor } from "./settings.ts";
+import { DEFAULT_SETTINGS, isBorderStyle, isSettingColor, type BorderStyle, type DoneMarkerBorderStyle, type SettingColor } from "./settings.ts";
 
 export const PROMPT_BOX_TYPE = "pi-topping-prompt";
 
@@ -32,6 +32,23 @@ type PromptTheme = { fg(color: string, text: string): string };
 
 const COMPLETION_MARKER_TRAIL_RUNS = [6, 4, 2, 1] as const;
 
+/** Strip control and formatting characters (bidi overrides, zero-width joiners, etc.) from untrusted single-line text. */
+export function stripControlChars(text: string): string {
+	return text.replace(/[\p{Cc}\p{Cf}]/gu, "");
+}
+
+/** Assemble the completion-marker content: an optional icon, then the dim `word for elapsed (details)` summary. */
+export function buildCompletionMarkerContent(
+	theme: PromptTheme,
+	icon: string,
+	word: string,
+	elapsed: string,
+	details: string[],
+): string {
+	const tail = details.length ? ` (${details.join(" · ")})` : "";
+	return `${icon}${theme.fg("dim", `${icon ? " " : ""}${word} for ${elapsed}${tail}`)}`;
+}
+
 /** Build one decorated completion-marker line, clipped to the available width. */
 export function buildCompletionMarkerLine(
 	content: string,
@@ -61,9 +78,9 @@ export function buildPromptBoxLines(
 ): string[] {
 	if (width < 10) return [];
 
-	const borderStyle = options.borderStyle && options.borderStyle in BORDER_GLYPHS ? options.borderStyle : "double";
+	const borderStyle = isBorderStyle(options.borderStyle) ? options.borderStyle : "double";
 	const g = BORDER_GLYPHS[borderStyle];
-	const borderColor = isSettingColor(options.borderColor) ? options.borderColor : "accent";
+	const borderColor = isSettingColor(options.borderColor) ? options.borderColor : DEFAULT_SETTINGS.decorations.borderColor;
 	const border = (text: string) => theme.fg(borderColor, text);
 	const label = (text: string) => theme.fg("customMessageLabel", text);
 	const muted = (text: string) => theme.fg("dim", text);
@@ -77,13 +94,16 @@ export function buildPromptBoxLines(
 			second: "2-digit",
 		});
 	const innerWidth = width - 2;
-	const icon = options.showIcon === false ? "" : (options.icon ?? "").replace(/[\x00-\x1f\x7f]/g, "");
+	const rawIcon = options.icon ?? "";
+	const icon = options.showIcon === false || typeof rawIcon !== "string"
+		? ""
+		: stripControlChars(rawIcon);
 	const provider = options.showProvider === false || typeof options.provider !== "string"
 		? ""
-		: options.provider.replace(/[\p{Cc}\p{Cf}]/gu, "");
+		: stripControlChars(options.provider);
 	const model = options.showModel === false || typeof options.model !== "string"
 		? ""
-		: options.model.replace(/[\p{Cc}\p{Cf}]/gu, "");
+		: stripControlChars(options.model);
 	const combinedLabel = [provider, model].filter(Boolean).join("/");
 	// truncateToWidth injects reset codes when clipping; remove them before muted() styles the label.
 	const labelText = combinedLabel
@@ -115,7 +135,7 @@ export function buildPromptBoxLines(
 }
 
 export const promptBoxRenderer: MessageRenderer<PromptBoxDetails> = (message, _options, theme) => {
-	const content = typeof message.content === "string" ? message.content.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "") : "";
+	const content = typeof message.content === "string" ? message.content.replace(/(?![\n\t])[\p{Cc}\p{Cf}]/gu, "") : "";
 	const details = (message.details ?? {}) as PromptBoxDetails;
 	const linesByWidth = new Map<number, string[]>();
 	return {

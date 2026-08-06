@@ -1,6 +1,7 @@
 import type {
 	AgentSettledEvent,
 	AgentStartEvent,
+	CustomEntry,
 	ExtensionAPI,
 	ExtensionCommandContext,
 	ExtensionContext,
@@ -9,6 +10,7 @@ import type {
 	InputEventResult,
 	SessionShutdownEvent,
 	SessionStartEvent,
+	Theme,
 } from "@earendil-works/pi-coding-agent";
 import { Text, type Component } from "@earendil-works/pi-tui";
 import { ActivityMeter, rateToLevel, TokRateTracker } from "./activity-meter.ts";
@@ -34,7 +36,7 @@ import {
 import { showMenu } from "./menu.ts";
 import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type SettingColor } from "./settings.ts";
 import { PreviewRenderer } from "./preview.ts";
-import { buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
+import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, stripControlChars, type PromptBoxDetails } from "./prompt-decorator.ts";
 import { pickRandomWord, pickRawWord } from "./words.ts";
 
 type MessageStartEvent = Extract<ExtensionEvent, { type: "message_start" }>;
@@ -246,6 +248,39 @@ export class SessionManager {
 		this.stopTimer();
 	};
 
+	#renderDoneEntry(entry: CustomEntry<DoneEntryData>, theme: Theme): Component | undefined {
+		if (!entry.data) return undefined;
+		const word = typeof entry.data.word === "string" ? stripControlChars(entry.data.word) : "Worked";
+		const elapsedMs = typeof entry.data.elapsedMs === "number" && Number.isFinite(entry.data.elapsedMs) ? entry.data.elapsedMs : 0;
+		const features = this.#settings.features;
+		const details: string[] = [];
+		if (features.doneMarkerTokens && typeof entry.data.tokens === "number") details.push(`↓ ${formatTokens(entry.data.tokens)} tokens`);
+		if (features.doneMarkerInputs && typeof entry.data.midTurnInputs === "number" && entry.data.midTurnInputs) {
+			details.push(`${entry.data.midTurnInputs} mid-turn input${entry.data.midTurnInputs === 1 ? "" : "s"}`);
+		}
+		const icon = features.doneMarkerIcon ? theme.fg("text", this.#settings.decorations.useNerdFont ? "" : "π") : "";
+		const markerContent = buildCompletionMarkerContent(theme, icon, word, formatElapsed(elapsedMs), details);
+		const borderStyle = this.#settings.decorations.doneMarkerBorderStyle;
+		const borderColor = this.#settings.decorations.doneMarkerBorderColor;
+		if (borderStyle === "none") return new Text(markerContent);
+
+		let cachedWidth: number | undefined;
+		let cachedLines: string[] | undefined;
+		return {
+			render(width: number): string[] {
+				if (cachedWidth !== width) {
+					cachedWidth = width;
+					cachedLines = ["", ` ${buildCompletionMarkerLine(markerContent, width - 2, theme, borderStyle, borderColor)}`, ""];
+				}
+				return cachedLines!;
+			},
+			invalidate(): void {
+				cachedWidth = undefined;
+				cachedLines = undefined;
+			},
+		} satisfies Component;
+	}
+
 	install(): void {
 		this.#pi.on("session_start", this.#onSessionStart);
 		this.#pi.on("input", this.#onInput);
@@ -256,32 +291,7 @@ export class SessionManager {
 		this.#pi.on("tool_execution_start", this.#onToolExecutionStart);
 		this.#pi.on("agent_settled", this.#onAgentSettled);
 		this.#pi.on("session_shutdown", this.#onSessionShutdown);
-		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) => {
-			if (!entry.data) return undefined;
-			const word = typeof entry.data.word === "string" ? entry.data.word.replace(/[\x00-\x1f\x7f]/g, "") : "Worked";
-			const elapsedMs = typeof entry.data.elapsedMs === "number" && Number.isFinite(entry.data.elapsedMs) ? entry.data.elapsedMs : 0;
-			const features = this.#settings.features;
-			const details: string[] = [];
-			if (features.doneMarkerTokens && typeof entry.data.tokens === "number") details.push(`↓ ${formatTokens(entry.data.tokens)} tokens`);
-			if (features.doneMarkerInputs && typeof entry.data.midTurnInputs === "number" && entry.data.midTurnInputs) {
-				details.push(`${entry.data.midTurnInputs} mid-turn input${entry.data.midTurnInputs === 1 ? "" : "s"}`);
-			}
-			const tail = details.length ? ` (${details.join(" · ")})` : "";
-			const icon = features.doneMarkerIcon ? theme.fg("text", this.#settings.decorations.useNerdFont ? "" : "π") : "";
-			const summary = theme.fg("dim", `${features.doneMarkerIcon ? " " : ""}${word} for ${formatElapsed(elapsedMs)}${tail}`);
-			const markerContent = icon + summary;
-			const borderStyle = this.#settings.decorations.doneMarkerBorderStyle;
-			const borderColor = this.#settings.decorations.doneMarkerBorderColor;
-			if (borderStyle === "none") return new Text(markerContent);
-			return {
-				render: (width: number): string[] => [
-					"",
-					` ${buildCompletionMarkerLine(markerContent, Math.max(0, width - 2), theme, borderStyle, borderColor)}`,
-					"",
-				],
-				invalidate(): void {},
-			} satisfies Component;
-		});
+		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) => this.#renderDoneEntry(entry, theme));
 		this.#pi.registerMessageRenderer<PromptBoxDetails>(PROMPT_BOX_TYPE, promptBoxRenderer);
 		this.#pi.registerCommand("topping-settings", {
 			description: "Configure prompt decoration, working-loader features/order, and completion-marker settings.",

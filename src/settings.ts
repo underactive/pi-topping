@@ -12,7 +12,7 @@ export type BorderStyle = (typeof BORDER_STYLE_VALUES)[number];
 export const DONE_MARKER_BORDER_STYLE_VALUES = [...BORDER_STYLE_VALUES, "none"] as const;
 export type DoneMarkerBorderStyle = (typeof DONE_MARKER_BORDER_STYLE_VALUES)[number];
 
-function isBorderStyle(value: unknown): value is BorderStyle {
+export function isBorderStyle(value: unknown): value is BorderStyle {
 	return typeof value === "string" && BORDER_STYLE_VALUES.some(style => style === value);
 }
 
@@ -71,7 +71,7 @@ export interface DecoratorSettings {
 }
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
-	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "accent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "accent", spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
+	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "borderAccent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "borderAccent", spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
 	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 };
@@ -165,7 +165,7 @@ type MenuEntry = DecorationMenuEntry | FeatureMenuEntry;
 export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "decorateUserPrompt", label: "High-vis prompt", section: "User Prompt", group: "decorations", key: "decorateUserPrompt" },
 	{ id: "borderStyle", label: "Border style", section: "User Prompt", group: "decorations", key: "borderStyle", cycleValues: BORDER_STYLE_VALUES, cycleEnabledBy: "borderStyleEnabled", cycleDisabledValue: "double" },
-	{ id: "borderColor", label: "Border color", section: "User Prompt", group: "decorations", key: "borderColor", cycleValues: SETTING_COLOR_VALUES, cycleEnabledBy: "borderColorEnabled", cycleDisabledValue: "border" },
+	{ id: "borderColor", label: "Border color", section: "User Prompt", group: "decorations", key: "borderColor", cycleValues: SETTING_COLOR_VALUES, cycleEnabledBy: "borderColorEnabled", cycleDisabledValue: "borderAccent" },
 	{ id: "promptIcon", label: "Pi icon", section: "User Prompt", group: "decorations", key: "promptIcon" },
 	{ id: "promptTimestamp", label: "Timestamp", section: "User Prompt", group: "decorations", key: "promptTimestamp" },
 	{ id: "promptProvider", label: "Provider", section: "User Prompt", group: "decorations", key: "promptProvider" },
@@ -220,10 +220,10 @@ function setDecorationCycleValue(decorations: DecorationSettings, key: keyof Dec
 			if (isSettingColor(stored)) decorations[key] = stored;
 			return;
 		case "borderStyle":
-			if (BORDER_STYLE_VALUES.some(style => style === stored)) decorations[key] = stored as BorderStyle;
+			if (isBorderStyle(stored)) decorations[key] = stored;
 			return;
 		case "doneMarkerBorderStyle":
-			if (DONE_MARKER_BORDER_STYLE_VALUES.some(style => style === stored)) decorations[key] = stored as DoneMarkerBorderStyle;
+			if (isDoneMarkerBorderStyle(stored)) decorations[key] = stored;
 			return;
 		case "shimmerDirection":
 		case "meterDirection":

@@ -1011,7 +1011,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		const persisted = loadSettings();
 		assert.equal(persisted.decorations.decorateUserPrompt, !DEFAULT_SETTINGS.decorations.decorateUserPrompt);
 		assert.equal(persisted.decorations.borderColorEnabled, false);
-		assert.equal(persisted.decorations.borderColor, "border");
+		assert.equal(persisted.decorations.borderColor, "borderAccent");
 		assert.equal(persisted.decorations.borderStyleEnabled, false);
 		assert.equal(persisted.decorations.borderStyle, "double");
 		assert.equal(persisted.decorations.promptIcon, !DEFAULT_SETTINGS.decorations.promptIcon);

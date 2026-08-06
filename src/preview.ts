@@ -2,12 +2,12 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { PreviewResult } from "./menu.ts";
 import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
 import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatElapsed, formatTokenRate, formatTokens, isFullyDefaultAppearance, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
-import { buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
-import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isDoneMarkerBorderStyle, isSettingColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
+import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
+import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderStyle, isSettingColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
 import { pickRandomWord } from "./words.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tok/s for the meter,
 // flat 28 tok/s for the token readouts.
-const METER_PERIOD_MS = 2400, METER_PEAK_RATE = 46, TOKEN_RATE_PER_SEC = 28;
+const METER_PERIOD_MS = 2400, METER_PEAK_RATE = 46, TOKEN_RATE_PER_SEC = 28, PREVIEW_WIDTH = 70;
 const PROMPT_IDS = new Set(MENU_ENTRIES.filter(entry => entry.section === "User Prompt").map(entry => entry.id));
 const MARKER_IDS = new Set(MENU_ENTRIES.filter(entry => entry.section === "Completion Marker").map(entry => entry.id));
 function meterRate(elapsedMs: number): number { return ((1 - Math.cos((2 * Math.PI * elapsedMs) / METER_PERIOD_MS)) / 2) * METER_PEAK_RATE; }
@@ -112,7 +112,7 @@ export class PreviewRenderer {
 		const borderColor = values.borderColor;
 		const borderStyle = values.borderStyle;
 		const timestamp = values.promptTimestamp === true ? Date.now() : undefined;
-		const lines = buildPromptBoxLines("ping", timestamp, 70, this.#ctx.ui.theme, {
+		const lines = buildPromptBoxLines("ping", timestamp, PREVIEW_WIDTH, this.#ctx.ui.theme, {
 			showIcon: values.promptIcon === true,
 			showTimestamp: values.promptTimestamp === true,
 			showProvider: values.promptProvider === true,
@@ -120,26 +120,25 @@ export class PreviewRenderer {
 			icon: values.useNerdFont ? "" : "π",
 			provider: this.#ctx.model?.provider,
 			model: this.#ctx.model?.id,
-			borderColor: isSettingColor(borderColor) ? borderColor : "accent",
-			borderStyle: borderStyle === "double" || borderStyle === "single" || borderStyle === "rounded" || borderStyle === "heavy" ? borderStyle : "double",
+			borderColor: isSettingColor(borderColor) ? borderColor : DEFAULT_SETTINGS.decorations.borderColor,
+			borderStyle: isBorderStyle(borderStyle) ? borderStyle : "double",
 		});
 		return timestamp === undefined
 			? { lines }
 			: { lines, nextRefreshInMs: 1_000 - (timestamp % 1_000) };
 	}
 	private markerPreview(values: Record<string, boolean | string>): PreviewResult {
-		if (!values.doneMarker) return { lines: ["Completion marker is disabled."] };
+		if (values.doneMarker !== true) return { lines: ["Completion marker is disabled."] };
 		const theme = this.#ctx.ui.theme;
-		const icon = values.doneMarkerIcon ? theme.fg("text", values.useNerdFont ? "" : "π") : "";
-		const word = values.randomizeDoneMarker ? "Concocted" : "Worked";
+		const icon = values.doneMarkerIcon === true ? theme.fg("text", values.useNerdFont === true ? "" : "π") : "";
+		const word = values.randomizeDoneMarker === true ? "Concocted" : "Worked";
 		const details: string[] = [];
-		if (values.doneMarkerTokens) details.push("↓ 949 tokens");
-		if (values.doneMarkerInputs) details.push("2 mid-turn inputs");
-		const tail = details.length ? ` (${details.join(" · ")})` : "";
-		const content = `${icon}${theme.fg("dim", `${values.doneMarkerIcon ? " " : ""}${word} for 2m 52s${tail}`)}`;
+		if (values.doneMarkerTokens === true) details.push("↓ 949 tokens");
+		if (values.doneMarkerInputs === true) details.push("2 mid-turn inputs");
+		const content = buildCompletionMarkerContent(theme, icon, word, "2m 52s", details);
 		const borderStyle = isDoneMarkerBorderStyle(values.doneMarkerBorderStyle) ? values.doneMarkerBorderStyle : "none";
 		const borderColor = isSettingColor(values.doneMarkerBorderColor) ? values.doneMarkerBorderColor : DEFAULT_SETTINGS.decorations.doneMarkerBorderColor;
-		const marker = borderStyle === "none" ? content : buildCompletionMarkerLine(content, 70, theme, borderStyle, borderColor);
+		const marker = buildCompletionMarkerLine(content, PREVIEW_WIDTH, theme, borderStyle, borderColor);
 		return { lines: ["", marker, ""] };
 	}
 }

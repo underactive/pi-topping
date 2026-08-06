@@ -82,17 +82,20 @@ test("prompt box accepts every setting border color", () => {
 	}
 });
 
+test("prompt box defaults to borderAccent when no color is specified", () => {
+	const taggedTheme = { fg: (color: string, text: string) => `<${color}>${text}</${color}>` };
+	const lines = buildPromptBoxLines("ping", undefined, 40, taggedTheme);
+	assert.match(lines[0]!, /^<borderAccent>/);
+});
+
 test("completion marker uses the selected border color", () => {
 	const colors = ["accent", "border", "borderAccent", "success", "error", "warning"] as const;
-	const seen: string[] = [];
-	const taggedTheme = { fg: (color: string, text: string) => {
-		seen.push(color);
-		return text;
-	} };
+	const taggedTheme = { fg: (color: string, text: string) => `<${color}>${text}</${color}>` };
 	for (const color of colors) {
-		seen.length = 0;
-		buildCompletionMarkerLine(" Mustered", 80, taggedTheme, "heavy", color);
-		assert.ok(seen.includes(color));
+		assert.match(
+			buildCompletionMarkerLine(" Mustered", 80, taggedTheme, "heavy", color),
+			new RegExp(`^<${color}>┗━━`),
+		);
 	}
 });
 

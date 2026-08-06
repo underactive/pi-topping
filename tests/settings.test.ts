@@ -50,7 +50,7 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.equal(DEFAULT_SETTINGS.decorations.meterDirection, "rtl");
 	assert.equal(DEFAULT_SETTINGS.decorations.shimmerInverted, false);
 	assert.equal(DEFAULT_SETTINGS.decorations.doneMarkerBorderStyle, "none");
-	assert.equal(DEFAULT_SETTINGS.decorations.doneMarkerBorderColor, "accent");
+	assert.equal(DEFAULT_SETTINGS.decorations.doneMarkerBorderColor, "borderAccent");
 	assert.deepEqual(sections[3]!.items.find(item => item.id === "doneMarkerBorderStyle")!.cycleValues, DONE_MARKER_BORDER_STYLE_VALUES);
 	assert.deepEqual(sections[3]!.items.find(item => item.id === "doneMarkerBorderColor")!.cycleValues, SETTING_COLOR_VALUES);
 	const tokenRateColor = sections[1]!.items.find(item => item.id === "tokenRateColor")!;
@@ -137,6 +137,7 @@ test("applyMenuResult accepts every setting color for every color setting", () =
 test("loadSettings returns defaults when the file is missing", () => {
 	withTempAgentDir(() => {
 		assert.deepEqual(loadSettings(), DEFAULT_SETTINGS);
+		assert.equal(loadSettings().decorations.borderColor, "borderAccent");
 	});
 });
 

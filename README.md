@@ -23,12 +23,12 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╔═[ Pi Topping: Settings ]═══════════════════════════════════╗
 ╟─ Preview ──────────────────────────────────────────────────╢
 ║                                                            ║
-║    Crafting  28 tok/s · 3s · ↓ 84 tokens                   ║
+║ ⠋ Crafting… ⣠⣤⣶⣶⣤⣠⣀⢀ 28 tok/s · 3s · ↓ 84 tokens           ║
 ║                                                            ║
 ╟─ User Prompt ──────────────────────────────────────────────╢
 ║    [■] High-vis prompt                                ON   ║
 ║    [■] Border style                             ‹ double › ║
-║    [■] Border color                             ‹ accent › ║
+║    [■] Border color                       ‹ borderAccent › ║
 ║    [■] Pi icon                                        ON   ║
 ║    [■] Timestamp                                      ON   ║
 ║    [■] Provider                                       ON   ║
@@ -37,7 +37,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╟─ “Working” Loader ─────────────────────────────────────────╢
 ║    [■] Animated spinner                               ON   ║
 ║  ❯ [■] Animated spinner color                   ‹ accent › ║
-║    [■] Randomize "Working" text                       ON   ║
+║    [■] Randomize “Working” text                       ON   ║
 ║    [■] Text shimmer                                   ON   ║
 ║    [■] Invert shimmer                                OFF   ║
 ║    [■] Text shimmer direction            ‹ Left to Right › ║
@@ -54,7 +54,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║                                                            ║
 ╟─ Elements Order ───────────────────────────────────────────╢
 ║    [ ] Animated spinner                                    ║
-║    [■] “Working” text                                ↑ ↓   ║
+║    [ ] “Working” text                                      ║
 ║    [ ] Token activity monitor                              ║
 ║    [ ] Token rate                                          ║
 ║    [ ] Elapsed time                                        ║
@@ -63,9 +63,9 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╟─ Completion Marker ────────────────────────────────────────╢
 ║    [■] Show completion marker                         ON   ║
 ║    [■] Border style                               ‹ none › ║
-║    [■] Border color                             ‹ accent › ║
+║    [■] Border color                       ‹ borderAccent › ║
 ║    [■] Pi icon                                        ON   ║
-║    [■] Randomize "Worked" text                        ON   ║
+║    [■] Randomize “Worked” text                        ON   ║
 ║    [■] Tokens spent                                   ON   ║
 ║    [■] Mid-turn inputs                                ON   ║
 ║                                                            ║
@@ -78,15 +78,20 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 
 ❯ marks the keyboard cursor, and the selected row is highlighted. The Provider and Model toggles independently control the lower-right label on decorated prompts.
 
-The User Prompt Border style cycles through `double`, `single`, `rounded`, and `heavy` box-drawing sets, followed by its Border color. The Completion Marker Border style offers those same choices plus `none`; `none` leaves the marker undecorated, and its Border color follows the style.
+The User Prompt Border style cycles through `double`, `single`, `rounded`, and `heavy` box-drawing sets; the Border color row sits directly beneath it. The Completion Marker Border style offers those same choices plus `none`; `none` leaves the marker undecorated, and its Border color row sits directly beneath it.
+
+A cycle row's `[■]` box gates it: `␣` unchecks the box, snaps the setting back to its default, and stops `←`/`→` from cycling. The Completion Marker Border style and Border color rows, and Token rate color, have no gate — their box stays `[■]` and `␣` does nothing.
 
 The User Prompt and Completion Marker Border color settings, along with the Animated spinner, Token activity monitor, and Token rate colors, cycle through `accent`, `border`, `borderAccent`, `success`, `error`, and `warning`.
+
+Invert shimmer keeps the working text at the default text color and sweeps a dimmed gradient across it.
 
 Under **Elements Order**, press `␣` to grab a row, then `↑`/`↓` to slide that element
 left or right within the loader. Elapsed time, output tokens, and token rate are joined with
 `·` separators whenever adjacent. When reordering separates them, each adjacent run is rendered
-without a separator before or after it. Invert shimmer keeps the working text at the default text
-color and sweeps a dimmed gradient across it. The `N tok/s` token rate uses the selected theme color and
+without a separator before or after it.
+
+The `N tok/s` token rate uses the selected theme color and
 remains reorderable. Active rates below 1,000 are padded to three characters so updates do not shift the other
 segments; larger rates may shift later segments. When inactive, it remains as the dim `--- tok/s` placeholder. After its last update it holds
 full brightness for 1.5 seconds, then fades through five theme-aware shades to the dim text color over
@@ -114,7 +119,7 @@ npm test
 npm run typecheck
 ```
 
-Tests cover the word/shimmer rendering, prompt box rendering, activity meter behavior, timer resets, settings persistence, the `menu.ts` component, and the settings menu wiring end to end.
+Tests cover the word/shimmer rendering, prompt box and completion marker rendering, activity meter behavior, timer resets, settings persistence, the `menu.ts` component, and the settings menu wiring end to end.
 
 ## Limitations
 
