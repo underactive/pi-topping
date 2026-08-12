@@ -154,10 +154,7 @@ export class SessionManager {
 						borderStyle: this.#settings.decorations.borderStyle,
 					},
 				},
-				{
-					triggerTurn: true,
-					...(event.streamingBehavior ? { deliverAs: event.streamingBehavior } : {}),
-				},
+				{ triggerTurn: true },
 			);
 			return { action: "handled" };
 		}
@@ -303,8 +300,19 @@ export class SessionManager {
 		return !!ctx.hasUI && ctx.mode !== "print";
 	}
 
+	/**
+	 * Mid-stream inputs (steer/follow-up) must pass through untouched: re-sending them via
+	 * sendMessage(deliverAs) bypasses Pi's queue state, so the "Steering:"/"Follow-up:" rows
+	 * below the editor never render (issue #2).
+	 */
 	private shouldDecorate(event: InputEvent): boolean {
-		return event.source !== "extension" && !!event.text.trim() && !event.images?.length && !/^[\/!?:]/.test(event.text);
+		return (
+			!event.streamingBehavior &&
+			event.source !== "extension" &&
+			!!event.text.trim() &&
+			!event.images?.length &&
+			!/^[\/!?:]/.test(event.text)
+		);
 	}
 
 	/**

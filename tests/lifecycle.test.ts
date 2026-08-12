@@ -1215,7 +1215,7 @@ test("normal interactive input is re-sent as a decorated custom message", async 
 	});
 });
 
-test("decorated streaming input preserves its delivery behavior", async () => {
+test("mid-stream input passes through so Pi's native queue UI renders", async () => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		const ctx = createContext([], []);
@@ -1228,16 +1228,10 @@ test("decorated streaming input preserves its delivery behavior", async () => {
 				ctx,
 			);
 
-			assert.deepEqual(result, { action: "handled" });
+			assert.equal(result, undefined);
 		}
 
-		assert.deepEqual(
-			extension.sentMessages.map((sent) => sent.options),
-			[
-				{ triggerTurn: true, deliverAs: "steer" },
-				{ triggerTurn: true, deliverAs: "followUp" },
-			],
-		);
+		assert.equal(extension.sentMessages.length, 0);
 	});
 });
 
