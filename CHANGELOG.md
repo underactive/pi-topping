@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-08-11
+
 ### Fixed
 - Inputs submitted while Pi is working (steer / `Alt+Enter` follow-up) now pass through undecorated so Pi's native `Steering:` / `Follow-up:` queue rows render again ([#2](https://github.com/underactive/pi-topping/issues/2)). Re-sending them via `sendMessage(deliverAs)` bypasses Pi's queue UI state, so mid-turn prompts skip the high-vis box until Pi exposes a queue-aware path.
 
