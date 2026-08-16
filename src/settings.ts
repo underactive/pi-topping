@@ -104,7 +104,7 @@ export function parseLoaderOrder(value: unknown): LoaderElement[] {
 }
 
 export function settingsPath(): string { return join(getAgentDir(), "pi-topping", "settings.json"); }
-function isPlainObject(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
+export function isPlainObject(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
 function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, parsed: unknown): T {
 	const merged = { ...defaults };
 	if (!isPlainObject(parsed)) return merged;
@@ -290,15 +290,18 @@ export function loadSettings(): DecoratorSettings {
 	} catch { return structuredClone(DEFAULT_SETTINGS); }
 }
 
-export function saveSettings(settings: DecoratorSettings): void {
-	const path = settingsPath();
+export function atomicWriteFile(path: string, contents: string): void {
 	mkdirSync(dirname(path), { recursive: true });
 	const tmpPath = `${path}.${process.pid}.${Date.now()}.tmp`;
 	try {
-		writeFileSync(tmpPath, `${JSON.stringify(settings, null, 2)}\n`, { flag: "wx" });
+		writeFileSync(tmpPath, contents, { flag: "wx" });
 		renameSync(tmpPath, path);
 	} catch (err) {
 		try { unlinkSync(tmpPath); } catch { /* tmp file was never created */ }
 		throw err;
 	}
+}
+
+export function saveSettings(settings: DecoratorSettings): void {
+	atomicWriteFile(settingsPath(), `${JSON.stringify(settings, null, 2)}\n`);
 }

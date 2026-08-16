@@ -34,7 +34,9 @@ import {
 	StreamingWordCounter,
 } from "./format.ts";
 import { showMenu } from "./menu.ts";
+import { registerSetupCommand } from "./setup-command.ts";
 import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type SettingColor } from "./settings.ts";
+import { notifyMissingToppingsOnce } from "./toppings.ts";
 import { PreviewRenderer } from "./preview.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, stripControlChars, type PromptBoxDetails } from "./prompt-decorator.ts";
 import { pickRandomWord, pickRawWord } from "./words.ts";
@@ -126,7 +128,10 @@ export class SessionManager {
 		this.#settings = loadSettings();
 		this.#state.activityMeter.setDirection(this.#settings.decorations.meterDirection);
 		this.#currentCtx = ctx;
-		if (this.usable(ctx)) this.applyIndicator(ctx);
+		if (this.usable(ctx)) {
+			this.applyIndicator(ctx);
+			notifyMissingToppingsOnce(this.#pi, ctx.ui);
+		}
 	};
 
 	#onInput = async (event: InputEvent, ctx: ExtensionContext): Promise<InputEventResult | void> => {
@@ -294,6 +299,7 @@ export class SessionManager {
 			description: "Configure prompt decoration, working-loader features/order, and completion-marker settings.",
 			handler: async (_a, ctx) => this.showSettings(ctx),
 		});
+		registerSetupCommand(this.#pi);
 	}
 
 	private usable(ctx: ExtensionContext): boolean {

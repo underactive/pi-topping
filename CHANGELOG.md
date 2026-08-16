@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `/topping-setup` TUI command to detect and selectively install missing Pi Topping sibling extensions.
+- `/topping-setup` now includes `@underactive/pi-topping-web-tools`.
+- `/topping-setup disable-side-toppings-check` suppresses the one-time missing-toppings warning; `/topping-setup enable-side-toppings-check` restores it.
+- One-time session-start warning banner directing users to `/topping-setup` when sibling toppings are missing.
+
 ## [0.5.1] - 2026-08-11
 
 ### Fixed

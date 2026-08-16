@@ -1,6 +1,4 @@
 /**
- * menu.ts
- *
  * A reusable, dependency-light box-drawing toggle-menu component for Pi
  * extensions, built on top of `@earendil-works/pi-tui`'s `Component`
  * contract and `ctx.ui.custom()` overlay API.
@@ -79,6 +77,8 @@ export interface MenuConfig {
 	 * Omitting `nextRefreshInMs` from a `PreviewResult` makes the preview static.
 	 */
 	preview?: (values: Record<string, MenuValue>, elapsedMs: number, activeItemId: string | undefined) => string[] | PreviewResult;
+	/** Optional heading for the preview block. Defaults to `Preview`. */
+	previewTitle?: string;
 	/** Fallback delay in ms for legacy `string[]` previews. Default 50. */
 	previewIntervalMs?: number;
 }
@@ -91,6 +91,13 @@ export interface MenuResult<T> {
 const DEFAULT_HINTS = ["\u2191\u2193 move", "\u2423 toggle", "\u23ce apply", "esc cancel"];
 const MAX_WIDTH = 76;
 const ROW_PREFIX_WIDTH = 8; // "  " + marker + " " + "[" + box + "]" + " "
+
+/** Close OSC 8 links truncated by pi-tui's SGR-only truncation reset. */
+function closeTruncatedHyperlink(text: string): string {
+	const lastOpen = text.lastIndexOf("\x1b]8;;");
+	const lastClose = text.lastIndexOf("\x1b]8;;\x1b\\");
+	return lastOpen > lastClose ? `${text}\x1b]8;;\x1b\\` : text;
+}
 
 interface FlatItem {
 	id: string;
@@ -128,6 +135,7 @@ export class MenuComponent implements Component {
 	private readonly title: string;
 	private readonly sections: MenuSection[];
 	private readonly hints: string[];
+	private readonly previewTitle: string;
 	private readonly initialValues: Record<string, MenuValue>;
 	private readonly values: Record<string, MenuValue>;
 	private readonly flat: FlatItem[];
@@ -155,6 +163,7 @@ export class MenuComponent implements Component {
 		this.title = config.title;
 		this.sections = config.sections;
 		this.hints = config.hints ?? DEFAULT_HINTS;
+		this.previewTitle = config.previewTitle ?? "Preview";
 		this.tui = tui;
 		this.values = buildInitialValues(config);
 		this.flat = [];
@@ -320,7 +329,7 @@ export class MenuComponent implements Component {
 
 	private buildPreviewBlock(previewLines: string[] | undefined, innerWidth: number): string[] {
 		if (!previewLines?.length) return [];
-		return [this.renderSectionDivider("Preview", innerWidth), this.renderBlankRow(innerWidth), ...previewLines.map(line => this.renderContentRow(` ${line}`, innerWidth)), this.renderBlankRow(innerWidth)];
+		return [this.renderSectionDivider(this.previewTitle, innerWidth), this.renderBlankRow(innerWidth), ...previewLines.map(line => this.renderContentRow(` ${line}`, innerWidth)), this.renderBlankRow(innerWidth)];
 	}
 
 	/** Render every section from `this.flat`, the single source of truth for row order. */
@@ -361,8 +370,7 @@ export class MenuComponent implements Component {
 	}
 
 	/** Render the scrolling settings body while keeping the selected item in view. */
-	private buildResponsiveToggleSections(innerWidth: number, maxRows: number): string[] {
-		const allLines = this.buildToggleSections(innerWidth);
+	private buildResponsiveToggleSections(innerWidth: number, maxRows: number, allLines: string[]): string[] {
 		if (allLines.length <= maxRows) {
 			this.scrollStart = 0;
 			return allLines;
@@ -415,7 +423,7 @@ export class MenuComponent implements Component {
 		}
 
 		const bodyRows = Math.max(0, maxRows - header.length - footer.length);
-		const body = this.buildResponsiveToggleSections(innerWidth, bodyRows);
+		const body = this.buildResponsiveToggleSections(innerWidth, bodyRows, naturalBody);
 		return [...header, ...body, ...footer].slice(0, maxRows).map(line => truncateToWidth(line, boxWidth, ""));
 	}
 
@@ -476,7 +484,8 @@ export class MenuComponent implements Component {
 
 	/** Pads/truncates an already-styled content string to exactly `innerWidth` and wraps it in border chars. */
 	private renderContentRow(content: string, innerWidth: number): string {
-		const shown = visibleWidth(content) > innerWidth ? truncateToWidth(content, innerWidth) : content;
+		const truncated = visibleWidth(content) > innerWidth;
+		const shown = truncated ? closeTruncatedHyperlink(truncateToWidth(content, innerWidth)) : content;
 		const pad = Math.max(0, innerWidth - visibleWidth(shown));
 		return this.wrap("\u2551", `${shown}${" ".repeat(pad)}`, "\u2551");
 	}

@@ -50,14 +50,31 @@ type TestedEventName = keyof TestedEvents;
 type Handler<K extends TestedEventName> = (event: TestedEvents[K], ctx: ExtensionContext) => Promise<unknown> | unknown;
 type CommandHandler = (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 type RegisteredCommandLike = { description?: string; handler: CommandHandler };
+type RuntimeCommand = { name: string; source: "extension"; sourceInfo: { path: string } };
+type MockExtensionOptions = { getCommands?: () => RuntimeCommand[] };
+
+const DEFAULT_RUNTIME_COMMANDS: RuntimeCommand[] = [
+	{ name: "topping-statusline-settings", source: "extension", sourceInfo: { path: "/extensions/pi-topping-statusline/index.ts" } },
+	{ name: "topping-splash-settings", source: "extension", sourceInfo: { path: "/extensions/pi-topping-splash/index.ts" } },
+	{ name: "persona-audit", source: "extension", sourceInfo: { path: "/extensions/pi-topping-persona-audit/index.ts" } },
+];
 
 class MockExtension {
 	readonly handlers: Partial<{ [K in TestedEventName]: Handler<K> }> = {};
+	readonly #getCommands: () => RuntimeCommand[];
 	readonly commands: Record<string, RegisteredCommandLike> = {};
 	readonly appendedEntries: { customType: string; data: unknown }[] = [];
 	readonly entryRenderers: Record<string, (entry: unknown, options: unknown, theme: unknown) => unknown> = {};
 	readonly messageRenderers: Record<string, (message: unknown, options: unknown, theme: unknown) => unknown> = {};
 	readonly sentMessages: { message: unknown; options: unknown }[] = [];
+
+	constructor(options: MockExtensionOptions = {}) {
+		this.#getCommands = options.getCommands ?? (() => DEFAULT_RUNTIME_COMMANDS);
+	}
+
+	getCommands(): RuntimeCommand[] {
+		return this.#getCommands();
+	}
 
 	on<K extends TestedEventName>(name: K, handler: Handler<K>): void {
 		this.handlers[name] = handler as never;

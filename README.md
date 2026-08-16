@@ -98,6 +98,17 @@ full brightness for 1.5 seconds, then fades through five theme-aware shades to t
 the next 0.25 seconds before returning to the placeholder; a new count restores full brightness and
 restarts the cycle.
 
+## Sibling Toppings
+
+Run `/topping-setup` (TUI only) to install any missing Pi Topping sibling extensions:
+
+- `@underactive/pi-topping-statusline`
+- `@underactive/pi-topping-splash`
+- `@underactive/pi-topping-persona-audit`
+- `@underactive/pi-topping-web-tools`
+
+The setup menu selects every missing topping by default, but you can toggle individual extensions before installing. Pi Topping confirms toppings through their active extension commands and otherwise checks its agent settings and checkout directories. After a successful install, restart Pi to activate the new extension. A one-time session-start warning shows this menu's command whenever toppings are missing. Run `/topping-setup disable-side-toppings-check` to suppress that warning; use `/topping-setup enable-side-toppings-check` to show it again.
+
 ## Install
 
 ```bash
