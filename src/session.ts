@@ -39,7 +39,8 @@ import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type Se
 import { notifyMissingToppingsOnce } from "./toppings.ts";
 import { PreviewRenderer } from "./preview.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, stripControlChars, type PromptBoxDetails } from "./prompt-decorator.ts";
-import { pickRandomWord, pickRawWord } from "./words.ts";
+import { pickCombinedWorkingTextSelection, type WorkingTextSelection } from "./simcity.ts";
+import { pickRawWord } from "./words.ts";
 
 type MessageStartEvent = Extract<ExtensionEvent, { type: "message_start" }>;
 type MessageUpdateEvent = Extract<ExtensionEvent, { type: "message_update" }>;
@@ -60,7 +61,7 @@ interface DoneEntryData {
 
 interface SessionState {
 	startTime: number;
-	currentWord: string;
+	workingText: WorkingTextSelection;
 	confirmTokens: number;
 	liveTokens: number;
 	shimmerOrigin: number;
@@ -92,7 +93,7 @@ function resetTokenRateState(state: SessionState): void {
 function makeFreshState(): SessionState {
 	return {
 		startTime: 0,
-		currentWord: "",
+		workingText: { text: "", pastTense: "Worked", isSimCity: false },
 		confirmTokens: 0,
 		liveTokens: 0,
 		shimmerOrigin: 0,
@@ -214,7 +215,7 @@ export class SessionManager {
 	#onToolExecutionStart = async (_e: ToolExecutionStartEvent, ctx: ExtensionContext): Promise<void> => {
 		this.#currentCtx = ctx;
 		if (this.usable(ctx)) {
-			this.#state.currentWord = pickRandomWord();
+			this.#state.workingText = this.pickWorkingWord();
 			this.#state.shimmerOrigin = Date.now();
 			this.tick();
 		}
@@ -237,7 +238,7 @@ export class SessionManager {
 		this.#state.lastMessage = NOT_SENT;
 		if (this.#settings.features.doneMarker && hadPrompt) {
 			this.#pi.appendEntry<DoneEntryData>(DONE_ENTRY_TYPE, {
-				word: this.#settings.features.randomizeDoneMarker ? pickRawWord().past_tense : "Worked",
+				word: this.#settings.features.randomizeDoneMarker ? this.#state.workingText.pastTense : "Worked",
 				elapsedMs,
 				tokens: this.#state.confirmTokens,
 				midTurnInputs: this.#state.midTurnInputs,
@@ -373,11 +374,17 @@ export class SessionManager {
 		if (interval) this.#state.timer = setInterval(() => this.tick(), interval);
 	}
 
+	private pickWorkingWord(): WorkingTextSelection {
+		if (this.#settings.features.simCityWorkingText) return pickCombinedWorkingTextSelection();
+		const word = pickRawWord();
+		return { text: `${word.present_tense}…`, pastTense: word.past_tense, isSimCity: false };
+	}
+
 	private resetTurn(now: number): void {
 		const state = this.#state;
 		state.startTime = now;
 		state.shimmerOrigin = now;
-		state.currentWord = pickRandomWord();
+		state.workingText = this.pickWorkingWord();
 		state.confirmTokens = 0;
 		state.liveTokens = 0;
 		state.activityMeter.reset();
@@ -419,7 +426,7 @@ export class SessionManager {
 			return;
 		}
 
-		const word = features.substituteDefaultMessage ? state.currentWord : DEFAULT_WORKING_WORD;
+		const word = features.substituteDefaultMessage ? state.workingText.text : DEFAULT_WORKING_WORD;
 		const styled = decorations.shimmer
 			? shimmerString(word, now - state.shimmerOrigin, ctx.ui.theme, decorations.shimmerDirection, decorations.shimmerSpeed, decorations.shimmerInverted)
 			: ctx.ui.theme.fg("text", word);

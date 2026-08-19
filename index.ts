@@ -1,4 +1,3 @@
-/** pi-topping extension entry point. */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { SessionManager } from "./src/session.ts";
 

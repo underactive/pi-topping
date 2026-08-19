@@ -44,8 +44,10 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Options"]);
 	const itemIds = sections.flatMap(section => section.items).map(item => item.id);
 	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
-	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "doneMarker", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
+	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "simCityWorkingText", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "doneMarker", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
+	assert.equal(DEFAULT_SETTINGS.features.simCityWorkingText, false);
+	assert.equal(sections[1]!.items.find(item => item.id === "simCityWorkingText")!.value, false);
 	assert.equal(sections[1]!.items.find(item => item.id === "showTokenRate")!.value, true);
 	assert.equal(DEFAULT_SETTINGS.decorations.meterDirection, "rtl");
 	assert.equal(DEFAULT_SETTINGS.decorations.shimmerInverted, false);
@@ -102,6 +104,7 @@ test("applyMenuResult clones settings and applies known partial values", () => {
 	const original = structuredClone(DEFAULT_SETTINGS);
 	const updated = applyMenuResult(original, {
 		shimmer: false,
+		simCityWorkingText: true,
 		meterDirection: "Right to Left",
 		shimmerSpeed: "Fast",
 		shimmerInverted: true,
@@ -110,6 +113,7 @@ test("applyMenuResult clones settings and applies known partial values", () => {
 
 	assert.deepEqual(original, DEFAULT_SETTINGS);
 	assert.equal(updated.decorations.shimmer, false);
+	assert.equal(updated.features.simCityWorkingText, true);
 	assert.equal(updated.decorations.meterDirection, "rtl");
 	assert.equal(updated.decorations.shimmerSpeed, "fast");
 	assert.equal(updated.decorations.shimmerInverted, true);
@@ -146,13 +150,13 @@ test("loadSettings deep-merges a partial nested file over defaults", () => {
 		mkdirSync(join(settingsPath(), ".."), { recursive: true });
 		writeFileSync(
 			settingsPath(),
-			JSON.stringify({ decorations: { animatedSpinner: false }, features: { outputTokens: false } }),
+			JSON.stringify({ decorations: { animatedSpinner: false }, features: { outputTokens: false, simCityWorkingText: true } }),
 		);
 
 		const loaded = loadSettings();
 		assert.deepEqual(loaded, {
 			decorations: { ...DEFAULT_SETTINGS.decorations, animatedSpinner: false },
-			features: { ...DEFAULT_SETTINGS.features, outputTokens: false },
+			features: { ...DEFAULT_SETTINGS.features, outputTokens: false, simCityWorkingText: true },
 			loaderOrder: [...DEFAULT_SETTINGS.loaderOrder],
 		});
 	});
@@ -192,7 +196,7 @@ test("saveSettings then loadSettings round-trips the full schema", () => {
 	withTempAgentDir(() => {
 		const custom: DecoratorSettings = {
 			decorations: { ...DEFAULT_SETTINGS.decorations, animatedSpinner: false, shimmer: false, tokenActivityMonitor: true, meterDirection: "ltr", decorateUserPrompt: false },
-			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, elapsedTime: true, outputTokens: false, tokenRate: false, doneMarker: true },
+			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, simCityWorkingText: true, elapsedTime: true, outputTokens: false, tokenRate: false, doneMarker: true },
 			loaderOrder: ["meter", "elapsed", "spinner", "tokens", "text", "tokenRate"],
 		};
 		saveSettings(custom);

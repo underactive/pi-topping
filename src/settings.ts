@@ -58,6 +58,7 @@ export interface DecoratorSettings {
 	};
 	features: {
 		substituteDefaultMessage: boolean;
+		simCityWorkingText: boolean;
 		elapsedTime: boolean;
 		outputTokens: boolean;
 		tokenRate: boolean;
@@ -72,7 +73,7 @@ export interface DecoratorSettings {
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
 	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "borderAccent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "borderAccent", spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
-	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
+	features: { substituteDefaultMessage: true, simCityWorkingText: false, elapsedTime: true, outputTokens: true, tokenRate: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 };
 
@@ -173,6 +174,7 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "animatedSpinner", label: "Animated spinner", section: "“Working” Loader", group: "decorations", key: "animatedSpinner" },
 	{ id: "spinnerColor", label: "Animated spinner color", section: "“Working” Loader", group: "decorations", key: "spinnerColor", cycleValues: SETTING_COLOR_VALUES, cycleEnabledBy: "spinnerColorEnabled", cycleDisabledValue: "accent" },
 	{ id: "substituteDefaultMessage", label: "Randomize “Working” text", section: "“Working” Loader", group: "features", key: "substituteDefaultMessage" },
+	{ id: "simCityWorkingText", label: "Mix in SimCity “Working” text", section: "“Working” Loader", group: "features", key: "simCityWorkingText" },
 	{ id: "shimmer", label: "Text shimmer", section: "“Working” Loader", group: "decorations", key: "shimmer" },
 	{ id: "shimmerInverted", label: "Invert shimmer", section: "“Working” Loader", group: "decorations", key: "shimmerInverted" },
 	{ id: "shimmerDirection", label: "Text shimmer direction", section: "“Working” Loader", group: "decorations", key: "shimmerDirection", cycleValues: ["Left to Right", "Right to Left"], cycleEnabledBy: "shimmerDirectionEnabled", cycleDisabledValue: "Left to Right" },

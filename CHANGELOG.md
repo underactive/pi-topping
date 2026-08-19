@@ -8,10 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Added an off-by-default `Mix in SimCity “Working” text` setting that mixes the vendored phrases into the built-in working-text pool. It requires `Randomize “Working” text`; a final selection uses its matching past tense in the completion marker. The phrase list is vendored from [svenstaro/genact](https://github.com/svenstaro/genact), specifically [`data/simcity.txt`](https://github.com/svenstaro/genact/blob/master/data/simcity.txt), under its verified MIT license.
 - `/topping-setup` TUI command to detect and selectively install missing Pi Topping sibling extensions.
 - `/topping-setup` now includes `@underactive/pi-topping-web-tools`.
 - `/topping-setup disable-side-toppings-check` suppresses the one-time missing-toppings warning; `/topping-setup enable-side-toppings-check` restores it.
 - One-time session-start warning banner directing users to `/topping-setup` when sibling toppings are missing.
+
+### Fixed
+- Completion markers now use the matching past-tense entry for the final working text instead of an unrelated random entry, including SimCity selections.
 
 ## [0.5.1] - 2026-08-11
 

@@ -34,6 +34,7 @@ type MessageEndEvent = { type: "message_end"; message: AssistantMessage };
 type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown };
 import { PROMPT_BOX_TYPE } from "../src/prompt-decorator.ts";
 import { buildMenuSections, DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/settings.ts";
+import { WORDS } from "../src/words.ts";
 import workingDecorator from "../index.ts";
 
 type TestedEvents = {
@@ -346,6 +347,35 @@ test("tracks streamed tokens, usage reconciliation, tool words, and settlement",
 	});
 });
 
+test("SimCity working text refreshes on prompt and tool execution", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			features: { ...DEFAULT_SETTINGS.features, simCityWorkingText: true },
+		});
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, []);
+		const randomValues = [0, 0.999999];
+		t.mock.method(Date, "now", () => 1_000);
+		t.mock.method(Math, "random", () => randomValues.shift() ?? 0.999999);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		assert.match(stripAnsi(messages.at(-1)!), /^Accomplishing…/);
+
+		await extension.emit("tool_execution_start", {
+			type: "tool_execution_start",
+			toolCallId: "tool-1",
+			toolName: "read",
+			args: {},
+		}, ctx);
+		assert.match(stripAnsi(messages.at(-1)!), /^Zeroing crime network…/);
+	});
+});
+
 test("live token rate is warning styled and rounded in the default detail group", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
@@ -595,19 +625,19 @@ test("session_start clears an existing timer before resetting state", async (t) 
 
 test("substituteDefaultMessage=false shows a Working\u2026 placeholder but other enabled toggles still apply", async (t) => {
 	await withTempAgentDir(async () => {
-		// Only substituteDefaultMessage is off; elapsedTime/outputTokens/shimmer/
-		// tokenActivityMonitor remain at their (enabled) defaults, so they must
-		// still show up even though the random activity word is replaced by a
-		// plain "Working\u2026" placeholder.
+		// The SimCity source is enabled, but substituteDefaultMessage remains the
+		// master switch. The other enabled toggles still show alongside the plain
+		// "Working\u2026" placeholder.
 		saveSettings({
 			...DEFAULT_SETTINGS,
-			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false },
+			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, simCityWorkingText: true },
 		});
 
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];
 		const ctx = createContext(messages, []);
 		t.mock.method(Date, "now", () => 1_000);
+		t.mock.method(Math, "random", () => 0);
 		mockTimers(t, () => {});
 
 		workingDecorator(extension.asAPI());
@@ -616,6 +646,7 @@ test("substituteDefaultMessage=false shows a Working\u2026 placeholder but other
 		assert.equal(messages.length, 1);
 		const message = messages[0]!;
 		assert.match(stripAnsi(message), /^Working\u2026/);
+		assert.ok(!message.includes("Accomplishing\u2026"));
 		assert.match(message, /--- tok\/s \u00b7 0s \u00b7 \u2193 0 tokens/);
 	});
 });
@@ -942,6 +973,51 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 	});
 });
 
+test("/topping-settings switches to a stable SimCity preview", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		let capturedComponent: { render(width: number): string[]; handleInput?(data: string): void } | undefined;
+		let now = 1_000;
+		let previewTick: (() => void) | undefined;
+		t.mock.method(Date, "now", () => now);
+		const randomValues = [0, 0.999999];
+		t.mock.method(Math, "random", () => randomValues.shift() ?? 0.999999);
+		mockTimers(t, (callback) => {
+			previewTick = callback;
+		});
+
+		const ctx = createContext([], [], (_color, text) => text, {
+			mode: "tui",
+			onCustomComponent: (c) => {
+				capturedComponent = c;
+			},
+		}) as unknown as ExtensionCommandContext;
+
+		workingDecorator(extension.asAPI());
+		const command = extension.commands["topping-settings"];
+		assert.ok(command, "expected /topping-settings to be registered");
+
+		const handlerPromise = command!.handler("", ctx);
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.ok(capturedComponent, "expected the menu component to be captured");
+
+		moveMenuCursor(capturedComponent!, "decorateUserPrompt", "simCityWorkingText");
+		capturedComponent!.handleInput!(" ");
+
+		const phrase = "Zeroing crime network\u2026";
+		const initial = capturedComponent!.render(72).map(stripAnsi).join("\n");
+		assert.ok(initial.includes(phrase));
+
+		now += 1_000;
+		previewTick?.();
+		const refreshed = capturedComponent!.render(72).map(stripAnsi).join("\n");
+		assert.ok(refreshed.includes(phrase));
+
+		capturedComponent!.handleInput!("\x1b");
+		await handlerPromise;
+	});
+});
+
 test("/topping-settings persists toggled values to settings.json on apply", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
@@ -982,6 +1058,7 @@ test("/topping-settings persists toggled values to settings.json on apply", asyn
 		// Untouched toggles keep their defaults.
 		assert.equal(persisted.decorations.tokenActivityMonitor, true);
 		assert.equal(persisted.features.substituteDefaultMessage, true);
+		assert.equal(persisted.features.simCityWorkingText, false);
 		assert.equal(persisted.features.elapsedTime, true);
 		assert.equal(persisted.features.outputTokens, true);
 	});
@@ -1042,6 +1119,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 			persisted.features.substituteDefaultMessage,
 			!DEFAULT_SETTINGS.features.substituteDefaultMessage,
 		);
+		assert.equal(persisted.features.simCityWorkingText, !DEFAULT_SETTINGS.features.simCityWorkingText);
 		assert.equal(persisted.decorations.shimmer, !DEFAULT_SETTINGS.decorations.shimmer);
 		assert.equal(persisted.decorations.shimmerInverted, !DEFAULT_SETTINGS.decorations.shimmerInverted);
 		assert.equal(persisted.decorations.shimmerDirectionEnabled, false);
@@ -1286,8 +1364,12 @@ test("prompt decoration can be disabled", async () => {
 	});
 });
 
-test("agent_settled appends a pi-topping-done entry with the past-tense word and elapsed duration", async (t) => {
+test("agent_settled uses the matching past tense when the final working text is SimCity", async (t) => {
 	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			features: { ...DEFAULT_SETTINGS.features, simCityWorkingText: true },
+		});
 		const extension = new MockExtension();
 		const ctx = createContext([], []);
 		let now = 1_000;
@@ -1306,8 +1388,72 @@ test("agent_settled appends a pi-topping-done entry with the past-tense word and
 		const entry = extension.appendedEntries[0]!;
 		assert.equal(entry.customType, "pi-topping-done");
 		const data = entry.data as { word: string; elapsedMs: number };
-		assert.equal(data.word, "Zigzagged");
+		assert.equal(data.word, "Zeroed");
 		assert.equal(data.elapsedMs, 6 * 60_000 + 41_000);
+	});
+});
+
+test("built-in completion marker matches the final working text", async (t) => {
+	await withTempAgentDir(async () => {
+		const newspaperIndex = WORDS.findIndex((word) => word.present_tense === "Newspapering");
+		assert.ok(newspaperIndex >= 0, "expected Newspapering in the built-in word list");
+		const newspaperRandom = (newspaperIndex + 0.5) / WORDS.length;
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, []);
+		t.mock.method(Date, "now", () => 1_000);
+		t.mock.method(Math, "random", () => newspaperRandom);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		assert.match(stripAnsi(messages.at(-1)!), /^Newspapering…/);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		const data = extension.appendedEntries[0]!.data as { word: string };
+		assert.equal(data.word, "Newspapered");
+	});
+});
+
+test("completion marker follows the last working-text source", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			features: { ...DEFAULT_SETTINGS.features, simCityWorkingText: true },
+		});
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		const randomValues = [0, 0.999999, 0.999999, 0, 0.999999];
+		t.mock.method(Date, "now", () => 1_000);
+		t.mock.method(Math, "random", () => randomValues.shift() ?? 0.999999);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		// First turn: built-in prompt, then SimCity tool text => Zeroed.
+		await extension.emit("input", { type: "input", text: "first", source: "interactive" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("tool_execution_start", {
+			type: "tool_execution_start",
+			toolCallId: "tool-1",
+			toolName: "read",
+			args: {},
+		}, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		// Second turn: SimCity prompt, then built-in tool text => its paired past tense.
+		await extension.emit("input", { type: "input", text: "second", source: "interactive" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("tool_execution_start", {
+			type: "tool_execution_start",
+			toolCallId: "tool-2",
+			toolName: "read",
+			args: {},
+		}, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		const words = extension.appendedEntries.map((entry) => (entry.data as { word: string }).word);
+		assert.deepEqual(words, ["Zeroed", "Accomplished"]);
 	});
 });
 

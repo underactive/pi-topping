@@ -4,6 +4,7 @@ import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
 import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatElapsed, formatTokenRate, formatTokens, isFullyDefaultAppearance, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
 import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderStyle, isSettingColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
+import { pickCombinedWorkingText } from "./simcity.ts";
 import { pickRandomWord } from "./words.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tok/s for the meter,
 // flat 28 tok/s for the token readouts.
@@ -14,7 +15,9 @@ function meterRate(elapsedMs: number): number { return ((1 - Math.cos((2 * Math.
 
 /** Stateful, per-menu preview renderer that follows the active settings section. */
 export class PreviewRenderer {
+	// Keep this order: deterministic preview tests seed the built-in draw, then the combined-pool draw.
 	readonly #word = pickRandomWord();
+	readonly #combinedWord = pickCombinedWorkingText();
 	readonly #meter = new ActivityMeter();
 	#lastMeterUpdate = 0;
 	readonly #ctx: ExtensionContext;
@@ -41,7 +44,7 @@ export class PreviewRenderer {
 			this.#meter.push(rateToLevel(meterRate(elapsedMs)));
 			this.#lastMeterUpdate = elapsedMs;
 		}
-		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false };
+		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, simCityWorkingText: values.simCityWorkingText === true, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false };
 		const decorations = { shimmer: values.shimmer !== false, shimmerInverted: values.shimmerInverted === true, tokenActivityMonitor: values.tokenActivityMonitor !== false };
 		let spinnerColor = DEFAULT_SETTINGS.decorations.spinnerColor;
 		if (values.spinnerColorEnabled !== false && isSettingColor(values.spinnerColor)) {
@@ -57,7 +60,7 @@ export class PreviewRenderer {
 		}
 		let word = DEFAULT_WORKING_WORD;
 		if (features.substituteDefaultMessage) {
-			word = this.#word;
+			word = features.simCityWorkingText ? this.#combinedWord : this.#word;
 		}
 		let styledWord: string;
 		if (decorations.shimmer) {

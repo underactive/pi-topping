@@ -6,11 +6,11 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
-**“Working” Loader** — animated spinner (with color choice), randomized activity word, shimmer (with direction, speed, and invert option), token activity monitor (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate (with color choice and dim toggle) — all arrangeable left to right.
+**“Working” Loader** — animated spinner (with color choice), randomized activity word (with optional SimCity phrases mixed into the pool), shimmer (with direction, speed, and invert option), token activity monitor (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate (with color choice and dim toggle) — all arrangeable left to right.
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
-**Completion Marker** — end-of-turn marker with icon, randomized verb, token consumption display, and optional border-style/color decorations. Border style defaults to `none`; `heavy` renders e.g. `┗━━ π Mustered for 4s (↓ 25 tokens) ━━━━━━ ━━━━ ━━ ━`. If you steered or followed up (`Alt+Enter`) while Pi was working, the marker also tallies those, e.g. `π Whisked for 2s (↓ 55 tokens · 2 mid-turn inputs)`. Hooks into Pi's `agent_settled` event.
+**Completion Marker** — end-of-turn marker with icon, randomized verb (or `Worked`; matching past tense when Randomize "Worked" text is on), token consumption display, and optional border-style/color decorations. Border style defaults to `none`; `heavy` renders e.g. `┗━━ π Mustered for 4s (↓ 25 tokens) ━━━━━━ ━━━━ ━━ ━`. If you steered or followed up (`Alt+Enter`) while Pi was working, the marker also tallies those, e.g. `π Whisked for 2s (↓ 55 tokens · 2 mid-turn inputs)`. Hooks into Pi's `agent_settled` event.
 
 ![Example of pi-topping's completion marker](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_completion_marker.png)
 
@@ -38,6 +38,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Animated spinner                               ON   ║
 ║  ❯ [■] Animated spinner color                   ‹ accent › ║
 ║    [■] Randomize “Working” text                       ON   ║
+║    [ ] Mix in SimCity “Working” text                 OFF   ║
 ║    [■] Text shimmer                                   ON   ║
 ║    [■] Invert shimmer                                OFF   ║
 ║    [■] Text shimmer direction            ‹ Left to Right › ║
@@ -73,7 +74,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
-╚════════════════════════════════════════════════════[ 9/37 ]╝
+╚════════════════════════════════════════════════════[ 9/38 ]╝
 ```
 
 ❯ marks the keyboard cursor, and the selected row is highlighted. The Provider and Model toggles independently control the lower-right label on decorated prompts.
@@ -85,6 +86,11 @@ A cycle row's `[■]` box gates it: `␣` unchecks the box, snaps the setting ba
 The User Prompt and Completion Marker Border color settings, along with the Animated spinner, Token activity monitor, and Token rate colors, cycle through `accent`, `border`, `borderAccent`, `success`, `error`, and `warning`.
 
 Invert shimmer keeps the working text at the default text color and sweeps a dimmed gradient across it.
+
+Mix in SimCity “Working” text is off by default. When enabled, SimCity phrases are
+added to the built-in working-text pool; it requires Randomize “Working” text. When
+Randomize “Worked” text is on, the completion marker uses each selection's matching
+past tense, including SimCity selections; otherwise it defaults to `Worked`.
 
 Under **Elements Order**, press `␣` to grab a row, then `↑`/`↓` to slide that element
 left or right within the loader. Elapsed time, output tokens, and token rate are joined with
