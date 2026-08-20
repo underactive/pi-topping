@@ -2,7 +2,7 @@ import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-c
 import { hyperlink } from "@earendil-works/pi-tui";
 import { showMenu } from "./menu.ts";
 import { type PiInstallResult, spawnPiInstall } from "./pi-installer.ts";
-import { stripControlChars } from "./prompt-decorator.ts";
+import { stripControlChars } from "./util.ts";
 import { setSetupCheckDisabled } from "./setup-check.ts";
 import { findMissingToppings, type ToppingStatus } from "./toppings.ts";
 

@@ -3,6 +3,8 @@ import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "
 import { dirname, join } from "node:path";
 import { DEFAULT_LOADER_ORDER, type LoaderElement } from "./format.ts";
 import type { MenuSection } from "./menu.ts";
+import { isWordPackEnabled, isWordPackId, loadBundledWordPacks, type WordPack } from "./word-packs.ts";
+import { isPlainObject } from "./util.ts";
 
 export const SETTING_COLOR_VALUES = ["accent", "border", "borderAccent", "success", "error", "warning"] as const;
 export type SettingColor = (typeof SETTING_COLOR_VALUES)[number];
@@ -58,7 +60,6 @@ export interface DecoratorSettings {
 	};
 	features: {
 		substituteDefaultMessage: boolean;
-		simCityWorkingText: boolean;
 		elapsedTime: boolean;
 		outputTokens: boolean;
 		tokenRate: boolean;
@@ -69,12 +70,14 @@ export interface DecoratorSettings {
 		doneMarkerInputs: boolean;
 	};
 	loaderOrder: LoaderElement[];
+	wordPacks: Record<string, boolean>;
 }
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
 	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "borderAccent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "borderAccent", spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
-	features: { substituteDefaultMessage: true, simCityWorkingText: false, elapsedTime: true, outputTokens: true, tokenRate: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
+	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
+	wordPacks: { simcity: false, "star-trek": false, "star-wars": false },
 };
 
 /** Menu key carrying the loader element order as a comma-joined list of element ids. */
@@ -105,7 +108,6 @@ export function parseLoaderOrder(value: unknown): LoaderElement[] {
 }
 
 export function settingsPath(): string { return join(getAgentDir(), "pi-topping", "settings.json"); }
-export function isPlainObject(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
 function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, parsed: unknown): T {
 	const merged = { ...defaults };
 	if (!isPlainObject(parsed)) return merged;
@@ -174,7 +176,6 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "animatedSpinner", label: "Animated spinner", section: "“Working” Loader", group: "decorations", key: "animatedSpinner" },
 	{ id: "spinnerColor", label: "Animated spinner color", section: "“Working” Loader", group: "decorations", key: "spinnerColor", cycleValues: SETTING_COLOR_VALUES, cycleEnabledBy: "spinnerColorEnabled", cycleDisabledValue: "accent" },
 	{ id: "substituteDefaultMessage", label: "Randomize “Working” text", section: "“Working” Loader", group: "features", key: "substituteDefaultMessage" },
-	{ id: "simCityWorkingText", label: "Mix in SimCity “Working” text", section: "“Working” Loader", group: "features", key: "simCityWorkingText" },
 	{ id: "shimmer", label: "Text shimmer", section: "“Working” Loader", group: "decorations", key: "shimmer" },
 	{ id: "shimmerInverted", label: "Invert shimmer", section: "“Working” Loader", group: "decorations", key: "shimmerInverted" },
 	{ id: "shimmerDirection", label: "Text shimmer direction", section: "“Working” Loader", group: "decorations", key: "shimmerDirection", cycleValues: ["Left to Right", "Right to Left"], cycleEnabledBy: "shimmerDirectionEnabled", cycleDisabledValue: "Left to Right" },
@@ -244,10 +245,12 @@ function buildSection(title: MenuSectionName, settings: DecoratorSettings): Menu
 	return { title, items: MENU_ENTRIES.filter(entry => entry.section === title).map(entry => menuItem(entry, settings)) };
 }
 
-export function buildMenuSections(settings: DecoratorSettings): MenuSection[] {
+export function buildMenuSections(settings: DecoratorSettings, userPacks: readonly WordPack[] = []): MenuSection[] {
+	const packs = [...loadBundledWordPacks(), ...userPacks];
 	return [
 		buildSection("User Prompt", settings),
 		buildSection("“Working” Loader", settings),
+		{ title: "Word Packs", items: packs.map((pack) => ({ id: `pack:${pack.id}`, label: pack.name, value: isWordPackEnabled(pack.id, settings.wordPacks) })) },
 		{ title: "Elements Order", items: parseLoaderOrder(settings.loaderOrder).map(id => ({ id, label: LOADER_ELEMENT_LABELS[id], value: false, reorderGroup: LOADER_ORDER_ID })) },
 		buildSection("Completion Marker", settings),
 		buildSection("Options", settings),
@@ -268,6 +271,11 @@ export function applyMenuResult(settings: DecoratorSettings, values: Record<stri
 			next.features[entry.key] = value;
 		}
 	}
+	for (const [id, value] of Object.entries(values)) {
+		if (!id.startsWith("pack:") || typeof value !== "boolean") continue;
+		const packId = id.slice("pack:".length);
+		if (isWordPackId(packId)) next.wordPacks[packId] = value;
+	}
 	if (typeof values[LOADER_ORDER_ID] === "string") next.loaderOrder = parseLoaderOrder(values[LOADER_ORDER_ID]);
 	return next;
 }
@@ -282,7 +290,13 @@ export function loadSettings(): DecoratorSettings {
 	try {
 		const parsed = JSON.parse(readFileSync(settingsPath(), "utf8"));
 		if (!isPlainObject(parsed)) return structuredClone(DEFAULT_SETTINGS);
-		const settings = { decorations: mergeGroup(DEFAULT_SETTINGS.decorations, parsed.decorations), features: mergeGroup(DEFAULT_SETTINGS.features, parsed.features), loaderOrder: parseLoaderOrder(parsed.loaderOrder) };
+		const wordPacks: Record<string, boolean> = { ...DEFAULT_SETTINGS.wordPacks };
+		if (isPlainObject(parsed.wordPacks)) {
+			for (const [id, enabled] of Object.entries(parsed.wordPacks)) {
+				if (isWordPackId(id) && typeof enabled === "boolean") wordPacks[id] = enabled;
+			}
+		}
+		const settings = { decorations: mergeGroup(DEFAULT_SETTINGS.decorations, parsed.decorations), features: mergeGroup(DEFAULT_SETTINGS.features, parsed.features), loaderOrder: parseLoaderOrder(parsed.loaderOrder), wordPacks };
 		for (const entry of MENU_ENTRIES) {
 			if (entry.group === "decorations" && entry.cycleEnabledBy && entry.cycleDisabledValue !== undefined && !settings.decorations[entry.cycleEnabledBy]) {
 				setDecorationCycleValue(settings.decorations, entry.key, entry.cycleDisabledValue);

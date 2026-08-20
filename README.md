@@ -6,7 +6,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
-**“Working” Loader** — animated spinner (with color choice), randomized activity word (with optional SimCity phrases mixed into the pool), shimmer (with direction, speed, and invert option), token activity monitor (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate (with color choice and dim toggle) — all arrangeable left to right.
+**“Working” Loader** — animated spinner (with color choice), randomized activity word, optional word packs, shimmer (with direction, speed, and invert option), token activity monitor (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate (with color choice and dim toggle) — all arrangeable left to right.
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
@@ -38,7 +38,6 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Animated spinner                               ON   ║
 ║  ❯ [■] Animated spinner color                   ‹ accent › ║
 ║    [■] Randomize “Working” text                       ON   ║
-║    [ ] Mix in SimCity “Working” text                 OFF   ║
 ║    [■] Text shimmer                                   ON   ║
 ║    [■] Invert shimmer                                OFF   ║
 ║    [■] Text shimmer direction            ‹ Left to Right › ║
@@ -52,6 +51,11 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Token rate                                     ON   ║
 ║    [■] Token rate color                        ‹ warning › ║
 ║    [■] Token rate dimmed                             OFF   ║
+║                                                            ║
+╟─ Word Packs ───────────────────────────────────────────────╢
+║    [ ] SimCity                                       OFF   ║
+║    [ ] Star Trek                                     OFF   ║
+║    [ ] Star Wars                                     OFF   ║
 ║                                                            ║
 ╟─ Elements Order ───────────────────────────────────────────╢
 ║    [ ] Animated spinner                                    ║
@@ -74,7 +78,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
-╚════════════════════════════════════════════════════[ 9/38 ]╝
+╚════════════════════════════════════════════════════[ 9/39 ]╝
 ```
 
 ❯ marks the keyboard cursor, and the selected row is highlighted. The Provider and Model toggles independently control the lower-right label on decorated prompts.
@@ -87,10 +91,23 @@ The User Prompt and Completion Marker Border color settings, along with the Anim
 
 Invert shimmer keeps the working text at the default text color and sweeps a dimmed gradient across it.
 
-Mix in SimCity “Working” text is off by default. When enabled, SimCity phrases are
-added to the built-in working-text pool; it requires Randomize “Working” text. When
-Randomize “Worked” text is on, the completion marker uses each selection's matching
-past tense, including SimCity selections; otherwise it defaults to `Worked`.
+### Word packs
+
+Base activity words are always available. All word packs, including the shipped **SimCity**, **Star Trek**, and **Star Wars** packs and custom packs, are disabled by default. Enable packs in `/topping-settings` to add their entries to the same uniformly selected pool. When Randomize “Worked” text is on, the completion marker uses the selected entry’s matching past tense; otherwise it uses `Worked`.
+
+Bundled packs live in [`wordpacks/`](wordpacks/). Copy `wordpacks/simcity.json`, `wordpacks/star-trek.json`, or `wordpacks/star-wars.json` to `~/.pi/agent/pi-topping/word-packs.json`, then change the pack `id` (the bundled `simcity`, `star-trek`, and `star-wars` IDs are reserved), name, and words:
+
+```json
+{
+  "packs": [{
+    "id": "cooking",
+    "name": "Cooking",
+    "words": [{ "present_tense": "Sautéing onions", "past_tense": "Sautéed" }]
+  }]
+}
+```
+
+Pack IDs must start with a lowercase letter and contain only lowercase letters, digits, and `-`. Each pack needs a non-empty `name` and at least one word with non-empty `present_tense` and `past_tense` strings. Invalid entries are ignored. Packs reload when a session starts and whenever `/topping-settings` opens, not while a turn is running. Preferences for missing packs are retained so they apply when the pack returns.
 
 Under **Elements Order**, press `␣` to grab a row, then `↑`/`↓` to slide that element
 left or right within the loader. Elapsed time, output tokens, and token rate are joined with

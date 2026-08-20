@@ -4,7 +4,7 @@ import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
 import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatElapsed, formatTokenRate, formatTokens, isFullyDefaultAppearance, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
 import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderStyle, isSettingColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
-import { pickCombinedWorkingText } from "./simcity.ts";
+import { isWordPackEnabled, selectWorkingTextSelection, wordPacksPath, type WordPack } from "./word-packs.ts";
 import { pickRandomWord } from "./words.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tok/s for the meter,
 // flat 28 tok/s for the token readouts.
@@ -15,17 +15,22 @@ function meterRate(elapsedMs: number): number { return ((1 - Math.cos((2 * Math.
 
 /** Stateful, per-menu preview renderer that follows the active settings section. */
 export class PreviewRenderer {
-	// Keep this order: deterministic preview tests seed the built-in draw, then the combined-pool draw.
+	// Preserve constructor-time randomness so rendering never changes the preview phrase.
 	readonly #word = pickRandomWord();
-	readonly #combinedWord = pickCombinedWorkingText();
+	readonly #poolFraction = Math.random();
+	readonly #packs: readonly WordPack[];
 	readonly #meter = new ActivityMeter();
 	#lastMeterUpdate = 0;
 	readonly #ctx: ExtensionContext;
-	constructor(ctx: ExtensionContext) { this.#ctx = ctx; }
+	constructor(ctx: ExtensionContext, packs: readonly WordPack[] = []) {
+		this.#ctx = ctx;
+		this.#packs = packs;
+	}
 	render(values: Record<string, boolean | string>, elapsedMs: number, activeItemId?: string): PreviewResult {
 		if (PROMPT_IDS.has(activeItemId ?? "")) return this.promptPreview(values);
 		if (MARKER_IDS.has(activeItemId ?? "")) return this.markerPreview(values);
 		if (activeItemId === "useNerdFont") return { lines: [`Icon preview: ${values.useNerdFont ? "" : "π"}`] };
+		if (activeItemId?.startsWith("pack:")) return this.packPreview(activeItemId.slice("pack:".length), values);
 		let nextRefreshInMs: number | undefined;
 		if (values.shimmer !== false) {
 			nextRefreshInMs = SHIMMER_INTERVAL_MS;
@@ -44,7 +49,7 @@ export class PreviewRenderer {
 			this.#meter.push(rateToLevel(meterRate(elapsedMs)));
 			this.#lastMeterUpdate = elapsedMs;
 		}
-		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, simCityWorkingText: values.simCityWorkingText === true, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false };
+		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false };
 		const decorations = { shimmer: values.shimmer !== false, shimmerInverted: values.shimmerInverted === true, tokenActivityMonitor: values.tokenActivityMonitor !== false };
 		let spinnerColor = DEFAULT_SETTINGS.decorations.spinnerColor;
 		if (values.spinnerColorEnabled !== false && isSettingColor(values.spinnerColor)) {
@@ -60,7 +65,8 @@ export class PreviewRenderer {
 		}
 		let word = DEFAULT_WORKING_WORD;
 		if (features.substituteDefaultMessage) {
-			word = features.simCityWorkingText ? this.#combinedWord : this.#word;
+			const enabledPacks = this.#packs.filter((pack) => isWordPackEnabled(pack.id, this.packValues(values)));
+			word = enabledPacks.length ? selectWorkingTextSelection(this.packValues(values), this.#packs, this.#poolFraction).text : this.#word;
 		}
 		let styledWord: string;
 		if (decorations.shimmer) {
@@ -108,6 +114,21 @@ export class PreviewRenderer {
 			tokens,
 			tokenRate,
 		}, order);
+	}
+	private packValues(values: Record<string, boolean | string>): Record<string, boolean> {
+		const enabled: Record<string, boolean> = {};
+		for (const pack of this.#packs) {
+			const value = values[`pack:${pack.id}`];
+			if (typeof value === "boolean") enabled[pack.id] = value;
+		}
+		return enabled;
+	}
+	private packPreview(id: string, values: Record<string, boolean | string>): PreviewResult {
+		const pack = this.#packs.find((candidate) => candidate.id === id);
+		if (!pack) return { lines: ["This word pack is unavailable."] };
+		const enabled = isWordPackEnabled(id, this.packValues(values));
+		const source = pack.bundled ? "Shipped example" : `Custom: ${wordPacksPath()}`;
+		return { lines: [`${pack.name}: ${enabled ? "enabled" : "disabled"}`, `${pack.words.length} phrases · ${source}`, ...(pack.description ? ["", pack.description] : [])] };
 	}
 	private promptPreview(values: Record<string, boolean | string>): PreviewResult {
 		if (values.decorateUserPrompt !== true) return { lines: ["User prompt decoration is disabled."] };

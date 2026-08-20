@@ -38,9 +38,9 @@ import { registerSetupCommand } from "./setup-command.ts";
 import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type SettingColor } from "./settings.ts";
 import { notifyMissingToppingsOnce } from "./toppings.ts";
 import { PreviewRenderer } from "./preview.ts";
-import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, stripControlChars, type PromptBoxDetails } from "./prompt-decorator.ts";
-import { pickCombinedWorkingTextSelection, type WorkingTextSelection } from "./simcity.ts";
-import { pickRawWord } from "./words.ts";
+import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
+import { stripControlChars } from "./util.ts";
+import { loadBundledWordPacks, loadUserWordPacks, pickWorkingTextSelection, type WorkingTextSelection, type WordPack } from "./word-packs.ts";
 
 type MessageStartEvent = Extract<ExtensionEvent, { type: "message_start" }>;
 type MessageUpdateEvent = Extract<ExtensionEvent, { type: "message_update" }>;
@@ -93,7 +93,7 @@ function resetTokenRateState(state: SessionState): void {
 function makeFreshState(): SessionState {
 	return {
 		startTime: 0,
-		workingText: { text: "", pastTense: "Worked", isSimCity: false },
+		workingText: { text: "", pastTense: "Worked" },
 		confirmTokens: 0,
 		liveTokens: 0,
 		shimmerOrigin: 0,
@@ -115,6 +115,8 @@ export class SessionManager {
 	#counter = new StreamingWordCounter();
 	#state = makeFreshState();
 	#settings = loadSettings();
+	#userPacks: WordPack[] = [];
+	#bundledPacks = loadBundledWordPacks();
 	#currentCtx: ExtensionContext | null = null;
 	readonly #pi: ExtensionAPI;
 
@@ -127,6 +129,7 @@ export class SessionManager {
 		this.#counter.reset();
 		this.#state = makeFreshState();
 		this.#settings = loadSettings();
+		this.#userPacks = loadUserWordPacks();
 		this.#state.activityMeter.setDirection(this.#settings.decorations.meterDirection);
 		this.#currentCtx = ctx;
 		if (this.usable(ctx)) {
@@ -375,9 +378,7 @@ export class SessionManager {
 	}
 
 	private pickWorkingWord(): WorkingTextSelection {
-		if (this.#settings.features.simCityWorkingText) return pickCombinedWorkingTextSelection();
-		const word = pickRawWord();
-		return { text: `${word.present_tense}…`, pastTense: word.past_tense, isSimCity: false };
+		return pickWorkingTextSelection(this.#settings.wordPacks, [...this.#bundledPacks, ...this.#userPacks]);
 	}
 
 	private resetTurn(now: number): void {
@@ -489,11 +490,12 @@ export class SessionManager {
 			return;
 		}
 
+		this.#userPacks = loadUserWordPacks();
 		const before = this.indicatorFingerprint();
-		const preview = new PreviewRenderer(ctx);
+		const preview = new PreviewRenderer(ctx, [...this.#bundledPacks, ...this.#userPacks]);
 		const result = await showMenu<Record<string, boolean | string>>(ctx, {
 			title: "Pi Topping: Settings",
-			sections: buildMenuSections(this.#settings),
+			sections: buildMenuSections(this.#settings, this.#userPacks),
 			hints: ["↑↓ move", "←→ select", "␣ toggle", "⏎ apply", "esc cancel"],
 			preview: preview.render.bind(preview),
 		});

@@ -1,6 +1,7 @@
 import type { MessageRenderer, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { DEFAULT_SETTINGS, isBorderStyle, isSettingColor, type BorderStyle, type DoneMarkerBorderStyle, type SettingColor } from "./settings.ts";
+import { stripControlChars } from "./util.ts";
 
 export const PROMPT_BOX_TYPE = "pi-topping-prompt";
 
@@ -31,11 +32,6 @@ export interface PromptBoxDetails {
 type PromptTheme = { fg(color: string, text: string): string };
 
 const COMPLETION_MARKER_TRAIL_RUNS = [6, 4, 2, 1] as const;
-
-/** Strip control and formatting characters (bidi overrides, zero-width joiners, etc.) from untrusted single-line text. */
-export function stripControlChars(text: string): string {
-	return text.replace(/[\p{Cc}\p{Cf}]/gu, "");
-}
 
 /** Assemble the completion-marker content: an optional icon, then the dim `word for elapsed (details)` summary. */
 export function buildCompletionMarkerContent(

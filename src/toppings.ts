@@ -2,7 +2,7 @@ import { getAgentDir, type ExtensionAPI, type ExtensionUIContext } from "@earend
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isSetupCheckDisabled } from "./setup-check.ts";
-import { isPlainObject } from "./settings.ts";
+import { isPlainObject } from "./util.ts";
 
 export interface Topping {
 	readonly pkg: string;

@@ -1,0 +1,283 @@
+{
+  "packs": [
+    {
+      "id": "star-trek",
+      "name": "Star Trek",
+      "description": "Starfleet operations from the final frontier.",
+      "words": [
+        {
+          "present_tense": "Aligning the warp coils",
+          "past_tense": "Aligned"
+        },
+        {
+          "present_tense": "Analyzing sensor telemetry",
+          "past_tense": "Analyzed"
+        },
+        {
+          "present_tense": "Arming photon torpedoes",
+          "past_tense": "Armed"
+        },
+        {
+          "present_tense": "Beaming up the landing party",
+          "past_tense": "Beamed"
+        },
+        {
+          "present_tense": "Calibrating the deflector dish",
+          "past_tense": "Calibrated"
+        },
+        {
+          "present_tense": "Charging the phaser banks",
+          "past_tense": "Charged"
+        },
+        {
+          "present_tense": "Charting a course for Vulcan",
+          "past_tense": "Charted"
+        },
+        {
+          "present_tense": "Closing the shuttlebay doors",
+          "past_tense": "Closed"
+        },
+        {
+          "present_tense": "Consulting Starfleet regulations",
+          "past_tense": "Consulted"
+        },
+        {
+          "present_tense": "Decrypting a subspace transmission",
+          "past_tense": "Decrypted"
+        },
+        {
+          "present_tense": "Diverting power to the shields",
+          "past_tense": "Diverted"
+        },
+        {
+          "present_tense": "Docking at the starbase",
+          "past_tense": "Docked"
+        },
+        {
+          "present_tense": "Engaging the warp drive",
+          "past_tense": "Engaged"
+        },
+        {
+          "present_tense": "Establishing standard orbit",
+          "past_tense": "Established"
+        },
+        {
+          "present_tense": "Evacuating the saucer section",
+          "past_tense": "Evacuated"
+        },
+        {
+          "present_tense": "Focusing the main deflector",
+          "past_tense": "Focused"
+        },
+        {
+          "present_tense": "Hailing the nearest starship",
+          "past_tense": "Hailed"
+        },
+        {
+          "present_tense": "Initiating saucer separation",
+          "past_tense": "Initiated"
+        },
+        {
+          "present_tense": "Inspecting the warp core",
+          "past_tense": "Inspected"
+        },
+        {
+          "present_tense": "Isolating a hull breach",
+          "past_tense": "Isolated"
+        },
+        {
+          "present_tense": "Launching a class-9 probe",
+          "past_tense": "Launched"
+        },
+        {
+          "present_tense": "Locking phasers on target",
+          "past_tense": "Locked"
+        },
+        {
+          "present_tense": "Modulating the shield harmonics",
+          "past_tense": "Modulated"
+        },
+        {
+          "present_tense": "Navigating an ion storm",
+          "past_tense": "Navigated"
+        },
+        {
+          "present_tense": "Opening hailing frequencies",
+          "past_tense": "Opened"
+        },
+        {
+          "present_tense": "Plotting a course to the Neutral Zone",
+          "past_tense": "Plotted"
+        },
+        {
+          "present_tense": "Polarizing the hull plating",
+          "past_tense": "Polarized"
+        },
+        {
+          "present_tense": "Preparing the holodeck",
+          "past_tense": "Prepared"
+        },
+        {
+          "present_tense": "Recalibrating the inertial dampers",
+          "past_tense": "Recalibrated"
+        },
+        {
+          "present_tense": "Replicating a cup of tea",
+          "past_tense": "Replicated"
+        },
+        {
+          "present_tense": "Rerouting power to the emitters",
+          "past_tense": "Rerouted"
+        },
+        {
+          "present_tense": "Scanning for life signs",
+          "past_tense": "Scanned"
+        },
+        {
+          "present_tense": "Sealing a hull breach",
+          "past_tense": "Sealed"
+        },
+        {
+          "present_tense": "Stabilizing the warp field",
+          "past_tense": "Stabilized"
+        },
+        {
+          "present_tense": "Targeting the lead vessel",
+          "past_tense": "Targeted"
+        },
+        {
+          "present_tense": "Transferring to the transporter room",
+          "past_tense": "Transferred"
+        },
+        {
+          "present_tense": "Tuning the subspace transceiver",
+          "past_tense": "Tuned"
+        },
+        {
+          "present_tense": "Updating the star charts",
+          "past_tense": "Updated"
+        },
+        {
+          "present_tense": "Venting plasma from the nacelles",
+          "past_tense": "Vented"
+        },
+        {
+          "present_tense": "Avoiding a temporal paradox",
+          "past_tense": "Avoided"
+        },
+        {
+          "present_tense": "Boarding the shuttlecraft",
+          "past_tense": "Boarded"
+        },
+        {
+          "present_tense": "Broadcasting a distress signal",
+          "past_tense": "Broadcast"
+        },
+        {
+          "present_tense": "Calculating intercept coordinates",
+          "past_tense": "Calculated"
+        },
+        {
+          "present_tense": "Crossing the Neutral Zone",
+          "past_tense": "Crossed"
+        },
+        {
+          "present_tense": "Decontaminating the away team",
+          "past_tense": "Decontaminated"
+        },
+        {
+          "present_tense": "Deflecting incoming fire",
+          "past_tense": "Deflected"
+        },
+        {
+          "present_tense": "Deploying the emergency bulkheads",
+          "past_tense": "Deployed"
+        },
+        {
+          "present_tense": "Diagnosing a warp-core fluctuation",
+          "past_tense": "Diagnosed"
+        },
+        {
+          "present_tense": "Escaping a collapsing star",
+          "past_tense": "Escaped"
+        },
+        {
+          "present_tense": "Exploring a class-M planet",
+          "past_tense": "Explored"
+        },
+        {
+          "present_tense": "Infiltrating a Romulan outpost",
+          "past_tense": "Infiltrated"
+        },
+        {
+          "present_tense": "Loading the torpedo tubes",
+          "past_tense": "Loaded"
+        },
+        {
+          "present_tense": "Mapping an uncharted nebula",
+          "past_tense": "Mapped"
+        },
+        {
+          "present_tense": "Recovering a lost probe",
+          "past_tense": "Recovered"
+        },
+        {
+          "present_tense": "Rescuing the away team",
+          "past_tense": "Rescued"
+        },
+        {
+          "present_tense": "Routing around a spatial anomaly",
+          "past_tense": "Routed"
+        },
+        {
+          "present_tense": "Surviving a Kobayashi Maru",
+          "past_tense": "Survived"
+        },
+        {
+          "present_tense": "Tracking a cloaked vessel",
+          "past_tense": "Tracked"
+        },
+        {
+          "present_tense": "Translating a Klingon transmission",
+          "past_tense": "Translated"
+        },
+        {
+          "present_tense": "Visiting Ten Forward",
+          "past_tense": "Visited"
+        },
+        {
+          "present_tense": "Waiting for Starfleet Command",
+          "past_tense": "Waited"
+        },
+        {
+          "present_tense": "Breaking orbit",
+          "past_tense": "Broke"
+        },
+        {
+          "present_tense": "Finding new life",
+          "past_tense": "Found"
+        },
+        {
+          "present_tense": "Going to warp",
+          "past_tense": "Went"
+        },
+        {
+          "present_tense": "Holding position",
+          "past_tense": "Held"
+        },
+        {
+          "present_tense": "Leaving spacedock",
+          "past_tense": "Left"
+        },
+        {
+          "present_tense": "Making it so",
+          "past_tense": "Made"
+        },
+        {
+          "present_tense": "Taking the conn",
+          "past_tense": "Took"
+        }
+      ]
+    }
+  ]
+}

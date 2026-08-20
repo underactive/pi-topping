@@ -351,7 +351,8 @@ test("SimCity working text refreshes on prompt and tool execution", async (t) =>
 	await withTempAgentDir(async () => {
 		saveSettings({
 			...DEFAULT_SETTINGS,
-			features: { ...DEFAULT_SETTINGS.features, simCityWorkingText: true },
+			features: { ...DEFAULT_SETTINGS.features },
+			wordPacks: { simcity: true },
 		});
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];
@@ -630,7 +631,8 @@ test("substituteDefaultMessage=false shows a Working\u2026 placeholder but other
 		// "Working\u2026" placeholder.
 		saveSettings({
 			...DEFAULT_SETTINGS,
-			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, simCityWorkingText: true },
+			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false },
+			wordPacks: { simcity: true },
 		});
 
 		const extension = new MockExtension();
@@ -703,6 +705,7 @@ test("fully-default settings (nothing customized) restore pi's untouched default
 				tokenRate: false,
 			},
 			loaderOrder: [...DEFAULT_SETTINGS.loaderOrder],
+			wordPacks: { ...DEFAULT_SETTINGS.wordPacks },
 		});
 
 		const extension = new MockExtension();
@@ -973,7 +976,7 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 	});
 });
 
-test("/topping-settings switches to a stable SimCity preview", async (t) => {
+test("/topping-settings shows SimCity pack metadata", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		let capturedComponent: { render(width: number): string[]; handleInput?(data: string): void } | undefined;
@@ -1001,32 +1004,33 @@ test("/topping-settings switches to a stable SimCity preview", async (t) => {
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
-		moveMenuCursor(capturedComponent!, "decorateUserPrompt", "simCityWorkingText");
+		moveMenuCursor(capturedComponent!, "decorateUserPrompt", "pack:simcity");
 		capturedComponent!.handleInput!(" ");
 
-		const phrase = "Zeroing crime network\u2026";
 		const initial = capturedComponent!.render(72).map(stripAnsi).join("\n");
-		assert.ok(initial.includes(phrase));
+		assert.ok(initial.includes("SimCity: enabled"));
+		assert.ok(initial.includes("105 phrases · Shipped example"));
 
 		now += 1_000;
 		previewTick?.();
 		const refreshed = capturedComponent!.render(72).map(stripAnsi).join("\n");
-		assert.ok(refreshed.includes(phrase));
+		assert.ok(refreshed.includes("SimCity: enabled"));
 
 		capturedComponent!.handleInput!("\x1b");
 		await handlerPromise;
 	});
 });
 
-test("/topping-settings persists toggled values to settings.json on apply", async (t) => {
+test("/topping-settings applies enabled packs to the live session", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
 		let capturedComponent: { render(width: number): string[]; handleInput?(data: string): void } | undefined;
 		t.mock.method(Date, "now", () => 1_000);
-		t.mock.method(Math, "random", () => 0);
+		t.mock.method(Math, "random", () => 0.999999);
 		mockTimers(t, () => {});
 
-		const ctx = createContext([], [], (_color, text) => text, {
+		const ctx = createContext(messages, [], (_color, text) => text, {
 			mode: "tui",
 			onCustomComponent: (c) => {
 				capturedComponent = c;
@@ -1047,6 +1051,8 @@ test("/topping-settings persists toggled values to settings.json on apply", asyn
 		capturedComponent!.handleInput!(" ");
 		moveMenuCursor(capturedComponent!, "animatedSpinner", "shimmer");
 		capturedComponent!.handleInput!(" ");
+		moveMenuCursor(capturedComponent!, "shimmer", "pack:simcity");
+		capturedComponent!.handleInput!(" ");
 
 		// Apply.
 		capturedComponent!.handleInput!("\r");
@@ -1058,8 +1064,12 @@ test("/topping-settings persists toggled values to settings.json on apply", asyn
 		// Untouched toggles keep their defaults.
 		assert.equal(persisted.decorations.tokenActivityMonitor, true);
 		assert.equal(persisted.features.substituteDefaultMessage, true);
-		assert.equal(persisted.features.simCityWorkingText, false);
+		assert.equal(persisted.wordPacks.simcity, true);
 		assert.equal(persisted.features.elapsedTime, true);
+
+		const sessionCtx = createContext(messages, []);
+		await extension.emit("agent_start", { type: "agent_start" }, sessionCtx);
+		assert.match(stripAnsi(messages.at(-1)!), /^Zeroing crime network…/);
 		assert.equal(persisted.features.outputTokens, true);
 	});
 });
@@ -1119,7 +1129,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 			persisted.features.substituteDefaultMessage,
 			!DEFAULT_SETTINGS.features.substituteDefaultMessage,
 		);
-		assert.equal(persisted.features.simCityWorkingText, !DEFAULT_SETTINGS.features.simCityWorkingText);
+		assert.equal(persisted.wordPacks.simcity, !DEFAULT_SETTINGS.wordPacks.simcity);
 		assert.equal(persisted.decorations.shimmer, !DEFAULT_SETTINGS.decorations.shimmer);
 		assert.equal(persisted.decorations.shimmerInverted, !DEFAULT_SETTINGS.decorations.shimmerInverted);
 		assert.equal(persisted.decorations.shimmerDirectionEnabled, false);
@@ -1368,7 +1378,8 @@ test("agent_settled uses the matching past tense when the final working text is 
 	await withTempAgentDir(async () => {
 		saveSettings({
 			...DEFAULT_SETTINGS,
-			features: { ...DEFAULT_SETTINGS.features, simCityWorkingText: true },
+			features: { ...DEFAULT_SETTINGS.features },
+			wordPacks: { simcity: true },
 		});
 		const extension = new MockExtension();
 		const ctx = createContext([], []);
@@ -1420,7 +1431,8 @@ test("completion marker follows the last working-text source", async (t) => {
 	await withTempAgentDir(async () => {
 		saveSettings({
 			...DEFAULT_SETTINGS,
-			features: { ...DEFAULT_SETTINGS.features, simCityWorkingText: true },
+			features: { ...DEFAULT_SETTINGS.features },
+			wordPacks: { simcity: true },
 		});
 		const extension = new MockExtension();
 		const ctx = createContext([], []);

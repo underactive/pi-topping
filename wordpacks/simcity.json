@@ -1,0 +1,432 @@
+{
+  "packs": [
+    {
+      "id": "simcity",
+      "name": "SimCity",
+      "description": "Classic city-simulation status phrases.",
+      "attribution": "Source: genact data/simcity.txt (MIT), Copyright 2020 Sven-Hendrik Haase. https://github.com/svenstaro/genact",
+      "words": [
+        {
+          "present_tense": "Adding hidden agendas",
+          "past_tense": "Added"
+        },
+        {
+          "present_tense": "Adjusting bell curves",
+          "past_tense": "Adjusted"
+        },
+        {
+          "present_tense": "Aesthesizing industrial areas",
+          "past_tense": "Aesthesized"
+        },
+        {
+          "present_tense": "Aligning covariance matrices",
+          "past_tense": "Aligned"
+        },
+        {
+          "present_tense": "Applying Feng Shui shaders",
+          "past_tense": "Applied"
+        },
+        {
+          "present_tense": "Applying theatre soda layer",
+          "past_tense": "Applied"
+        },
+        {
+          "present_tense": "Asserting packed exemplars",
+          "past_tense": "Asserted"
+        },
+        {
+          "present_tense": "Attempting to lock back-buffer",
+          "past_tense": "Attempted"
+        },
+        {
+          "present_tense": "Binding sapling root system",
+          "past_tense": "Bound"
+        },
+        {
+          "present_tense": "Breeding fauna",
+          "past_tense": "Bred"
+        },
+        {
+          "present_tense": "Building data trees",
+          "past_tense": "Built"
+        },
+        {
+          "present_tense": "Bureacritizing bureaucracies",
+          "past_tense": "Bureacritized"
+        },
+        {
+          "present_tense": "Calculating inverse probability matrices",
+          "past_tense": "Calculated"
+        },
+        {
+          "present_tense": "Calculating llama expectoration trajectory",
+          "past_tense": "Calculated"
+        },
+        {
+          "present_tense": "Calibrating blue skies",
+          "past_tense": "Calibrated"
+        },
+        {
+          "present_tense": "Charging ozone layer",
+          "past_tense": "Charged"
+        },
+        {
+          "present_tense": "Coalescing cloud formations",
+          "past_tense": "Coalesced"
+        },
+        {
+          "present_tense": "Cohorting exemplars",
+          "past_tense": "Cohorted"
+        },
+        {
+          "present_tense": "Collecting meteor particles",
+          "past_tense": "Collected"
+        },
+        {
+          "present_tense": "Compounding inert tessellations",
+          "past_tense": "Compounded"
+        },
+        {
+          "present_tense": "Compressing fish files",
+          "past_tense": "Compressed"
+        },
+        {
+          "present_tense": "Computing optimal bin packing",
+          "past_tense": "Computed"
+        },
+        {
+          "present_tense": "Concatenating sub-contractors",
+          "past_tense": "Concatenated"
+        },
+        {
+          "present_tense": "Containing existential buffer",
+          "past_tense": "Contained"
+        },
+        {
+          "present_tense": "Debarking ark ramp",
+          "past_tense": "Debarked"
+        },
+        {
+          "present_tense": "Debunching unionized commercial services",
+          "past_tense": "Debunched"
+        },
+        {
+          "present_tense": "Deciding what message to display next",
+          "past_tense": "Decided"
+        },
+        {
+          "present_tense": "Decomposing singular values",
+          "past_tense": "Decomposed"
+        },
+        {
+          "present_tense": "Decrementing tectonic plates",
+          "past_tense": "Decremented"
+        },
+        {
+          "present_tense": "Deleting ferry routes",
+          "past_tense": "Deleted"
+        },
+        {
+          "present_tense": "Depixelating inner mountain surface back faces",
+          "past_tense": "Depixelated"
+        },
+        {
+          "present_tense": "Depositing slush funds",
+          "past_tense": "Deposited"
+        },
+        {
+          "present_tense": "Destabilizing economic indicators",
+          "past_tense": "Destabilized"
+        },
+        {
+          "present_tense": "Determining width of blast fronts",
+          "past_tense": "Determined"
+        },
+        {
+          "present_tense": "Deunionizing bulldozers",
+          "past_tense": "Deunionized"
+        },
+        {
+          "present_tense": "Dicing models",
+          "past_tense": "Diced"
+        },
+        {
+          "present_tense": "Diluting livestock nutrition variables",
+          "past_tense": "Diluted"
+        },
+        {
+          "present_tense": "Downloading satellite terrain data",
+          "past_tense": "Downloaded"
+        },
+        {
+          "present_tense": "Exposing flash variables to streak system",
+          "past_tense": "Exposed"
+        },
+        {
+          "present_tense": "Extracting resources",
+          "past_tense": "Extracted"
+        },
+        {
+          "present_tense": "Factoring pay scale",
+          "past_tense": "Factored"
+        },
+        {
+          "present_tense": "Fixing election outcome matrix",
+          "past_tense": "Fixed"
+        },
+        {
+          "present_tense": "Flood-filling ground water",
+          "past_tense": "Flood-Filled"
+        },
+        {
+          "present_tense": "Flushing pipe network",
+          "past_tense": "Flushed"
+        },
+        {
+          "present_tense": "Gathering particle sources",
+          "past_tense": "Gathered"
+        },
+        {
+          "present_tense": "Generating jobs",
+          "past_tense": "Generated"
+        },
+        {
+          "present_tense": "Gesticulating mimes",
+          "past_tense": "Gesticulated"
+        },
+        {
+          "present_tense": "Graphing whale migration",
+          "past_tense": "Graphed"
+        },
+        {
+          "present_tense": "Hiding Willio Webnet mask",
+          "past_tense": "Hid"
+        },
+        {
+          "present_tense": "Implementing impeachment routine",
+          "past_tense": "Implemented"
+        },
+        {
+          "present_tense": "Increasing accuracy of RCI simulators",
+          "past_tense": "Increased"
+        },
+        {
+          "present_tense": "Increasing magmafacation",
+          "past_tense": "Increased"
+        },
+        {
+          "present_tense": "Initializing my Sim tracking mechanism",
+          "past_tense": "Initialized"
+        },
+        {
+          "present_tense": "Initializing rhinoceros breeding timetable",
+          "past_tense": "Initialized"
+        },
+        {
+          "present_tense": "Initializing robotic click-path AI",
+          "past_tense": "Initialized"
+        },
+        {
+          "present_tense": "Inserting sublimated messages",
+          "past_tense": "Inserted"
+        },
+        {
+          "present_tense": "Integrating curves",
+          "past_tense": "Integrated"
+        },
+        {
+          "present_tense": "Integrating illumination form factors",
+          "past_tense": "Integrated"
+        },
+        {
+          "present_tense": "Integrating population graphs",
+          "past_tense": "Integrated"
+        },
+        {
+          "present_tense": "Iterating cellular automata",
+          "past_tense": "Iterated"
+        },
+        {
+          "present_tense": "Lecturing errant subsystems",
+          "past_tense": "Lectured"
+        },
+        {
+          "present_tense": "Mixing genetic pool",
+          "past_tense": "Mixed"
+        },
+        {
+          "present_tense": "Modeling object components",
+          "past_tense": "Modeled"
+        },
+        {
+          "present_tense": "Mopping occupant leaks",
+          "past_tense": "Mopped"
+        },
+        {
+          "present_tense": "Normalizing power",
+          "past_tense": "Normalized"
+        },
+        {
+          "present_tense": "Obfuscating Quigley matrix",
+          "past_tense": "Obfuscated"
+        },
+        {
+          "present_tense": "Overconstraining dirty industry calculations",
+          "past_tense": "Overconstrained"
+        },
+        {
+          "present_tense": "Partitioning city grid singularities",
+          "past_tense": "Partitioned"
+        },
+        {
+          "present_tense": "Perturbing matrices",
+          "past_tense": "Perturbed"
+        },
+        {
+          "present_tense": "Pixelating nude patch",
+          "past_tense": "Pixelated"
+        },
+        {
+          "present_tense": "Polishing water highlights",
+          "past_tense": "Polished"
+        },
+        {
+          "present_tense": "Populating lot templates",
+          "past_tense": "Populated"
+        },
+        {
+          "present_tense": "Preparing sprites for random walks",
+          "past_tense": "Prepared"
+        },
+        {
+          "present_tense": "Prioritizing landmarks",
+          "past_tense": "Prioritized"
+        },
+        {
+          "present_tense": "Projecting law enforcement pastry intake",
+          "past_tense": "Projected"
+        },
+        {
+          "present_tense": "Realigning alternate time frames",
+          "past_tense": "Realigned"
+        },
+        {
+          "present_tense": "Reconfiguring user mental processes",
+          "past_tense": "Reconfigured"
+        },
+        {
+          "present_tense": "Relaxing splines",
+          "past_tense": "Relaxed"
+        },
+        {
+          "present_tense": "Removing road network speed bumps",
+          "past_tense": "Removed"
+        },
+        {
+          "present_tense": "Removing texture gradients",
+          "past_tense": "Removed"
+        },
+        {
+          "present_tense": "Removing vehicle avoidance behavior",
+          "past_tense": "Removed"
+        },
+        {
+          "present_tense": "Resolving GUID conflict",
+          "past_tense": "Resolved"
+        },
+        {
+          "present_tense": "Reticulating splines",
+          "past_tense": "Reticulated"
+        },
+        {
+          "present_tense": "Retracting Phong shader",
+          "past_tense": "Retracted"
+        },
+        {
+          "present_tense": "Retrieving from back store",
+          "past_tense": "Retrieved"
+        },
+        {
+          "present_tense": "Reverse engineering image consultant",
+          "past_tense": "Engineered"
+        },
+        {
+          "present_tense": "Routing neural network infrastructure",
+          "past_tense": "Routed"
+        },
+        {
+          "present_tense": "Scattering rhino food sources",
+          "past_tense": "Scattered"
+        },
+        {
+          "present_tense": "Scrubbing terrain",
+          "past_tense": "Scrubbed"
+        },
+        {
+          "present_tense": "Searching for llamas",
+          "past_tense": "Searched"
+        },
+        {
+          "present_tense": "Seeding architecture simulation parameters",
+          "past_tense": "Seeded"
+        },
+        {
+          "present_tense": "Sequencing particles",
+          "past_tense": "Sequenced"
+        },
+        {
+          "present_tense": "Setting advisor moods",
+          "past_tense": "Set"
+        },
+        {
+          "present_tense": "Setting inner deity indicators",
+          "past_tense": "Set"
+        },
+        {
+          "present_tense": "Setting universal physical constants",
+          "past_tense": "Set"
+        },
+        {
+          "present_tense": "Sonically enhancing occupant-free timber",
+          "past_tense": "Enhanced"
+        },
+        {
+          "present_tense": "Speculating stock market indices",
+          "past_tense": "Speculated"
+        },
+        {
+          "present_tense": "Splatting transforms",
+          "past_tense": "Splatted"
+        },
+        {
+          "present_tense": "Stratifying ground layers",
+          "past_tense": "Stratified"
+        },
+        {
+          "present_tense": "Sub-sampling water data",
+          "past_tense": "Sub-Sampled"
+        },
+        {
+          "present_tense": "Synthesizing gravity",
+          "past_tense": "Synthesized"
+        },
+        {
+          "present_tense": "Synthesizing wavelets",
+          "past_tense": "Synthesized"
+        },
+        {
+          "present_tense": "Time-compressing simulator clock",
+          "past_tense": "Time-Compressed"
+        },
+        {
+          "present_tense": "Weathering buildings",
+          "past_tense": "Weathered"
+        },
+        {
+          "present_tense": "Zeroing crime network",
+          "past_tense": "Zeroed"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,283 @@
+{
+  "packs": [
+    {
+      "id": "star-wars",
+      "name": "Star Wars",
+      "description": "Galactic operations from a galaxy far, far away.",
+      "words": [
+        {
+          "present_tense": "Calibrating hyperdrive",
+          "past_tense": "Calibrated"
+        },
+        {
+          "present_tense": "Charting a course through hyperspace",
+          "past_tense": "Charted"
+        },
+        {
+          "present_tense": "Charging the power converters",
+          "past_tense": "Charged"
+        },
+        {
+          "present_tense": "Consulting the Jedi archives",
+          "past_tense": "Consulted"
+        },
+        {
+          "present_tense": "Deflecting blaster fire",
+          "past_tense": "Deflected"
+        },
+        {
+          "present_tense": "Deploying probe droids",
+          "past_tense": "Deployed"
+        },
+        {
+          "present_tense": "Docking at the spaceport",
+          "past_tense": "Docked"
+        },
+        {
+          "present_tense": "Engaging the hyperdrive",
+          "past_tense": "Engaged"
+        },
+        {
+          "present_tense": "Evading TIE fighters",
+          "past_tense": "Evaded"
+        },
+        {
+          "present_tense": "Feeling the Force",
+          "past_tense": "Felt"
+        },
+        {
+          "present_tense": "Focusing on the living Force",
+          "past_tense": "Focused"
+        },
+        {
+          "present_tense": "Hailing the Millennium Falcon",
+          "past_tense": "Hailed"
+        },
+        {
+          "present_tense": "Igniting a lightsaber",
+          "past_tense": "Ignited"
+        },
+        {
+          "present_tense": "Inspecting the droid motivator",
+          "past_tense": "Inspected"
+        },
+        {
+          "present_tense": "Jumping to hyperspace",
+          "past_tense": "Jumped"
+        },
+        {
+          "present_tense": "Locating the hidden rebel base",
+          "past_tense": "Located"
+        },
+        {
+          "present_tense": "Locking the S-foils in attack position",
+          "past_tense": "Locked"
+        },
+        {
+          "present_tense": "Maneuvering through an asteroid field",
+          "past_tense": "Maneuvered"
+        },
+        {
+          "present_tense": "Navigating the Kessel Run",
+          "past_tense": "Navigated"
+        },
+        {
+          "present_tense": "Opening the blast doors",
+          "past_tense": "Opened"
+        },
+        {
+          "present_tense": "Plotting a course to Tatooine",
+          "past_tense": "Plotted"
+        },
+        {
+          "present_tense": "Practicing lightsaber forms",
+          "past_tense": "Practiced"
+        },
+        {
+          "present_tense": "Recalibrating the targeting computer",
+          "past_tense": "Recalibrated"
+        },
+        {
+          "present_tense": "Recharging the deflector shields",
+          "past_tense": "Recharged"
+        },
+        {
+          "present_tense": "Repairing the astromech",
+          "past_tense": "Repaired"
+        },
+        {
+          "present_tense": "Scanning for life forms",
+          "past_tense": "Scanned"
+        },
+        {
+          "present_tense": "Searching the galaxy for signals",
+          "past_tense": "Searched"
+        },
+        {
+          "present_tense": "Setting the navicomputer",
+          "past_tense": "Set"
+        },
+        {
+          "present_tense": "Shielding the cockpit",
+          "past_tense": "Shielded"
+        },
+        {
+          "present_tense": "Smuggling coaxium",
+          "past_tense": "Smuggled"
+        },
+        {
+          "present_tense": "Stabilizing the reactor",
+          "past_tense": "Stabilized"
+        },
+        {
+          "present_tense": "Summoning the Force",
+          "past_tense": "Summoned"
+        },
+        {
+          "present_tense": "Tracking a bounty",
+          "past_tense": "Tracked"
+        },
+        {
+          "present_tense": "Translating binary",
+          "past_tense": "Translated"
+        },
+        {
+          "present_tense": "Tuning the tractor beam",
+          "past_tense": "Tuned"
+        },
+        {
+          "present_tense": "Upgrading the hyperdrive",
+          "past_tense": "Upgraded"
+        },
+        {
+          "present_tense": "Using the Force",
+          "past_tense": "Used"
+        },
+        {
+          "present_tense": "Venturing into the Unknown Regions",
+          "past_tense": "Ventured"
+        },
+        {
+          "present_tense": "Waking the droid",
+          "past_tense": "Woke"
+        },
+        {
+          "present_tense": "Weaving through the blockade",
+          "past_tense": "Wove"
+        },
+        {
+          "present_tense": "Wielding a lightsaber",
+          "past_tense": "Wielded"
+        },
+        {
+          "present_tense": "Assembling a protocol droid",
+          "past_tense": "Assembled"
+        },
+        {
+          "present_tense": "Avoiding Imperial entanglements",
+          "past_tense": "Avoided"
+        },
+        {
+          "present_tense": "Broadcasting a distress signal",
+          "past_tense": "Broadcast"
+        },
+        {
+          "present_tense": "Calculating the odds",
+          "past_tense": "Calculated"
+        },
+        {
+          "present_tense": "Commandeering a star destroyer",
+          "past_tense": "Commandeered"
+        },
+        {
+          "present_tense": "Defusing a thermal detonator",
+          "past_tense": "Defused"
+        },
+        {
+          "present_tense": "Disabling the tractor beam",
+          "past_tense": "Disabled"
+        },
+        {
+          "present_tense": "Escaping the trash compactor",
+          "past_tense": "Escaped"
+        },
+        {
+          "present_tense": "Exploring the Outer Rim",
+          "past_tense": "Explored"
+        },
+        {
+          "present_tense": "Hiding in an asteroid field",
+          "past_tense": "Hid"
+        },
+        {
+          "present_tense": "Infiltrating the detention block",
+          "past_tense": "Infiltrated"
+        },
+        {
+          "present_tense": "Loading the cargo hold",
+          "past_tense": "Loaded"
+        },
+        {
+          "present_tense": "Outrunning an Imperial patrol",
+          "past_tense": "Outran"
+        },
+        {
+          "present_tense": "Persuading a rancor",
+          "past_tense": "Persuaded"
+        },
+        {
+          "present_tense": "Preparing the shield generator",
+          "past_tense": "Prepared"
+        },
+        {
+          "present_tense": "Recovering a stolen droid",
+          "past_tense": "Recovered"
+        },
+        {
+          "present_tense": "Rescuing a princess",
+          "past_tense": "Rescued"
+        },
+        {
+          "present_tense": "Routing the Imperial fleet",
+          "past_tense": "Routed"
+        },
+        {
+          "present_tense": "Slicing the security terminal",
+          "past_tense": "Sliced"
+        },
+        {
+          "present_tense": "Surviving a Sarlacc encounter",
+          "past_tense": "Survived"
+        },
+        {
+          "present_tense": "Taking the high ground",
+          "past_tense": "Took"
+        },
+        {
+          "present_tense": "Tracking rebel transmissions",
+          "past_tense": "Tracked"
+        },
+        {
+          "present_tense": "Unfreezing carbonite",
+          "past_tense": "Unfroze"
+        },
+        {
+          "present_tense": "Using a Jedi mind trick",
+          "past_tense": "Used"
+        },
+        {
+          "present_tense": "Visiting the cantina",
+          "past_tense": "Visited"
+        },
+        {
+          "present_tense": "Waiting for the signal",
+          "past_tense": "Waited"
+        },
+        {
+          "present_tense": "Wriggling free of binders",
+          "past_tense": "Wriggled"
+        }
+      ]
+    }
+  ]
+}
