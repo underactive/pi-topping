@@ -386,18 +386,25 @@ export class MenuComponent implements Component {
 		if (this.cursor < this.scrollStart) this.scrollStart = this.cursor;
 		this.scrollStart = Math.max(0, Math.min(this.scrollStart, this.flat.length - 1));
 
-		let window = this.buildToggleWindow(innerWidth, this.scrollStart, contentRows);
-		while (window.end < this.cursor && this.scrollStart < this.cursor) {
-			this.scrollStart++;
-			window = this.buildToggleWindow(innerWidth, this.scrollStart, contentRows);
+		// Walk backward from cursor to find the lowest scrollStart that fits in contentRows.
+		{
+			let rowsUsed = 2; // 1 for cursor item + 1 for first-section divider
+			let section = this.flat[this.cursor]!.sectionIndex;
+			this.scrollStart = this.cursor;
+			for (let i = this.cursor - 1; i >= 0; i--) {
+				const sec = this.flat[i]!.sectionIndex;
+				if (sec !== section) {
+					if (rowsUsed + 3 > contentRows) break;
+					rowsUsed += 3;
+					section = sec;
+				} else {
+					if (rowsUsed + 1 > contentRows) break;
+					rowsUsed += 1;
+				}
+				this.scrollStart = i;
+			}
 		}
-		// Backfill from above whenever more context fits without hiding the cursor.
-		while (this.scrollStart > 0) {
-			const candidate = this.buildToggleWindow(innerWidth, this.scrollStart - 1, contentRows);
-			if (candidate.end < this.cursor) break;
-			this.scrollStart--;
-			window = candidate;
-		}
+		const window = this.buildToggleWindow(innerWidth, this.scrollStart, contentRows);
 
 		const rows = [...window.lines];
 		while (rows.length < contentRows) rows.push(this.renderBlankRow(innerWidth));
