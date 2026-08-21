@@ -495,7 +495,7 @@ export class SessionManager {
 		const preview = new PreviewRenderer(ctx, [...this.#bundledPacks, ...this.#userPacks]);
 		const result = await showMenu<Record<string, boolean | string>>(ctx, {
 			title: "Pi Topping: Settings",
-			sections: buildMenuSections(this.#settings, this.#userPacks),
+			sections: buildMenuSections(this.#settings, this.#bundledPacks, this.#userPacks),
 			hints: ["↑↓ move", "←→ select", "␣ toggle", "⏎ apply", "esc cancel"],
 			preview: preview.render.bind(preview),
 		});

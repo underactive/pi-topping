@@ -19,6 +19,7 @@ import {
 	DONE_MARKER_BORDER_STYLE_VALUES,
 	settingsPath,
 } from "../src/settings.ts";
+import { isWordPackEnabled, loadBundledWordPacks } from "../src/word-packs.ts";
 
 function withTempAgentDir<T>(fn: (dir: string) => T): T {
 	const dir = mkdtempSync(join(tmpdir(), "pi-topping-test-"));
@@ -41,34 +42,34 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 		wordPacks: { ...DEFAULT_SETTINGS.wordPacks },
 	};
 
-	const sections = buildMenuSections(settings);
-	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Word Packs", "Elements Order", "Completion Marker", "Options"]);
+	const sections = buildMenuSections(settings, loadBundledWordPacks());
+	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Word Packs", "Options"]);
 	const itemIds = sections.flatMap(section => section.items).map(item => item.id);
 	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
-	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "pack:simcity", "pack:star-trek", "pack:star-wars", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "doneMarker", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "useNerdFont"]);
+	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "doneMarker", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "pack:simcity", "pack:star-trek", "pack:star-wars", "useNerdFont"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
-	assert.equal(DEFAULT_SETTINGS.wordPacks.simcity, false);
-	assert.equal(sections[2]!.items.find(item => item.id === "pack:simcity")!.value, false);
-	assert.equal(sections[2]!.items.find(item => item.id === "pack:star-trek")!.value, false);
-	assert.equal(sections[2]!.items.find(item => item.id === "pack:star-wars")!.value, false);
+	assert.equal(isWordPackEnabled("simcity", DEFAULT_SETTINGS.wordPacks), false);
+	assert.equal(sections[4]!.items.find(item => item.id === "pack:simcity")!.value, false);
+	assert.equal(sections[4]!.items.find(item => item.id === "pack:star-trek")!.value, false);
+	assert.equal(sections[4]!.items.find(item => item.id === "pack:star-wars")!.value, false);
 	assert.equal(sections[1]!.items.find(item => item.id === "showTokenRate")!.value, true);
 	assert.equal(DEFAULT_SETTINGS.decorations.meterDirection, "rtl");
 	assert.equal(DEFAULT_SETTINGS.decorations.shimmerInverted, false);
 	assert.equal(DEFAULT_SETTINGS.decorations.doneMarkerBorderStyle, "none");
 	assert.equal(DEFAULT_SETTINGS.decorations.doneMarkerBorderColor, "borderAccent");
-	assert.deepEqual(sections[4]!.items.find(item => item.id === "doneMarkerBorderStyle")!.cycleValues, DONE_MARKER_BORDER_STYLE_VALUES);
-	assert.deepEqual(sections[4]!.items.find(item => item.id === "doneMarkerBorderColor")!.cycleValues, SETTING_COLOR_VALUES);
+	assert.deepEqual(sections[3]!.items.find(item => item.id === "doneMarkerBorderStyle")!.cycleValues, DONE_MARKER_BORDER_STYLE_VALUES);
+	assert.deepEqual(sections[3]!.items.find(item => item.id === "doneMarkerBorderColor")!.cycleValues, SETTING_COLOR_VALUES);
 	const tokenRateColor = sections[1]!.items.find(item => item.id === "tokenRateColor")!;
 	assert.equal(tokenRateColor.value, "warning");
 	assert.deepEqual(tokenRateColor.cycleValues, SETTING_COLOR_VALUES);
 	for (const id of ["borderColor", "spinnerColor", "meterColor"]) {
 		assert.deepEqual(sections.flatMap(section => section.items).find(item => item.id === id)!.cycleValues, SETTING_COLOR_VALUES);
 	}
-	assert.equal(sections[4]!.items[0]!.value, false);
+	assert.equal(sections[3]!.items[0]!.value, false);
 });
 
 test("buildMenuSections appends tokenRate to legacy five-element orders", () => {
-	const sections = buildMenuSections({ ...DEFAULT_SETTINGS, loaderOrder: ["text", "tokens", "spinner", "meter", "elapsed"] });
+	const sections = buildMenuSections({ ...DEFAULT_SETTINGS, loaderOrder: ["text", "tokens", "spinner", "meter", "elapsed"] }, loadBundledWordPacks());
 	const reorderSection = sections.find(section => section.title === "Elements Order")!;
 	assert.deepEqual(reorderSection.items.map(item => item.id), ["text", "tokens", "spinner", "meter", "elapsed", "tokenRate"]);
 	assert.ok(reorderSection.items.every(item => item.reorderGroup === LOADER_ORDER_ID && item.value === false));
@@ -160,7 +161,7 @@ test("loadSettings deep-merges a partial nested file over defaults", () => {
 		assert.deepEqual(loaded, {
 			decorations: { ...DEFAULT_SETTINGS.decorations, animatedSpinner: false },
 			features: { ...DEFAULT_SETTINGS.features, outputTokens: false },
-			wordPacks: { simcity: true, "star-trek": false, "star-wars": false },
+			wordPacks: { simcity: true },
 			loaderOrder: [...DEFAULT_SETTINGS.loaderOrder],
 		});
 	});

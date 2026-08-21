@@ -85,6 +85,13 @@ export function loadBundledWordPacks(): WordPack[] {
 		}
 	}
 	if (!packs.some((pack) => pack.id === "simcity")) throw new Error("Missing bundled SimCity word pack");
+	const bundledIds = new Set(packs.map((pack) => pack.id));
+	for (const id of RESERVED_BUNDLED_PACK_IDS) {
+		if (!bundledIds.has(id)) throw new Error(`Missing bundled word pack: ${id}`);
+	}
+	for (const id of bundledIds) {
+		if (!RESERVED_BUNDLED_PACK_IDS.has(id)) throw new Error(`Bundled word pack "${id}" must be listed in RESERVED_BUNDLED_PACK_IDS to prevent user-pack shadowing`);
+	}
 	return packs;
 }
 
@@ -98,12 +105,12 @@ export function loadUserWordPacks(): WordPack[] {
 }
 
 export function isWordPackEnabled(id: string, enabled: Record<string, boolean>): boolean {
-	return typeof enabled[id] === "boolean" ? enabled[id] : false;
+	return enabled[id] === true;
 }
 
 export function selectWorkingTextSelection(enabled: Record<string, boolean>, packs: readonly WordPack[], fraction: number): WorkingTextSelection {
 	const pool = [...WORDS, ...packs.filter((pack) => isWordPackEnabled(pack.id, enabled)).flatMap((pack) => pack.words)];
-	const entry = pool[Math.floor(fraction * pool.length)]!;
+	const entry = pool[Math.min(pool.length - 1, Math.floor(fraction * pool.length))]!;
 	return { text: `${entry.present_tense}…`, pastTense: entry.past_tense };
 }
 

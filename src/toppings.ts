@@ -8,7 +8,6 @@ export interface Topping {
 	readonly pkg: string;
 	readonly matches: RegExp;
 	readonly dir: string;
-	readonly command: string;
 	readonly provides: string;
 }
 
@@ -23,28 +22,24 @@ export const TOPPINGS: readonly Topping[] = [
 		pkg: "@underactive/pi-topping-statusline",
 		matches: /pi-topping-statusline/i,
 		dir: "pi-topping-statusline",
-		command: "topping-statusline-settings",
 		provides: "status line customization",
 	},
 	{
 		pkg: "@underactive/pi-topping-splash",
 		matches: /pi-topping-splash/i,
 		dir: "pi-topping-splash",
-		command: "topping-splash-settings",
 		provides: "startup splash screen",
 	},
 	{
 		pkg: "@underactive/pi-topping-persona-audit",
 		matches: /pi-topping-persona-audit/i,
 		dir: "pi-topping-persona-audit",
-		command: "persona-audit",
 		provides: "persona audit tools",
 	},
 	{
 		pkg: "@underactive/pi-topping-web-tools",
 		matches: /pi-topping-web-tools/i,
 		dir: "pi-topping-web-tools",
-		command: "browser",
 		provides: "web research and browser automation",
 	},
 ];

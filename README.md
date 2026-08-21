@@ -10,7 +10,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
-**Completion Marker** — end-of-turn marker with icon, randomized verb (or `Worked`; matching past tense when Randomize "Worked" text is on), token consumption display, and optional border-style/color decorations. Border style defaults to `none`; `heavy` renders e.g. `┗━━ π Mustered for 4s (↓ 25 tokens) ━━━━━━ ━━━━ ━━ ━`. If you steered or followed up (`Alt+Enter`) while Pi was working, the marker also tallies those, e.g. `π Whisked for 2s (↓ 55 tokens · 2 mid-turn inputs)`. Hooks into Pi's `agent_settled` event.
+**Completion Marker** — end-of-turn marker with icon, randomized verb (or `Worked`; matching past tense when Randomize "Worked" text is on), token consumption display, and optional border-style/color decorations. Hooks into Pi's `agent_settled` event.
 
 ![Example of pi-topping's completion marker](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_completion_marker.png)
 
@@ -23,7 +23,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╔═[ Pi Topping: Settings ]═══════════════════════════════════╗
 ╟─ Preview ──────────────────────────────────────────────────╢
 ║                                                            ║
-║ ⠋ Crafting… ⣠⣤⣶⣶⣤⣠⣀⢀ 28 tok/s · 3s · ↓ 84 tokens           ║
+║ ⠋ Crafting… ⣠⣤⣶⣶⣤⣠⣀⢀ 28 tok/s · 3s · ↓ 84 tokens          ║
 ║                                                            ║
 ╟─ User Prompt ──────────────────────────────────────────────╢
 ║    [■] High-vis prompt                                ON   ║
@@ -52,11 +52,6 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Token rate color                        ‹ warning › ║
 ║    [■] Token rate dimmed                             OFF   ║
 ║                                                            ║
-╟─ Word Packs ───────────────────────────────────────────────╢
-║    [ ] SimCity                                       OFF   ║
-║    [ ] Star Trek                                     OFF   ║
-║    [ ] Star Wars                                     OFF   ║
-║                                                            ║
 ╟─ Elements Order ───────────────────────────────────────────╢
 ║    [ ] Animated spinner                                    ║
 ║    [ ] “Working” text                                      ║
@@ -74,22 +69,17 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Tokens spent                                   ON   ║
 ║    [■] Mid-turn inputs                                ON   ║
 ║                                                            ║
+╟─ Word Packs ───────────────────────────────────────────────╢
+║    [ ] SimCity                                       OFF   ║
+║    [ ] Star Trek                                     OFF   ║
+║    [ ] Star Wars                                     OFF   ║
+║                                                            ║
 ╟─ Options ──────────────────────────────────────────────────╢
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
 ╚════════════════════════════════════════════════════[ 9/39 ]╝
 ```
-
-❯ marks the keyboard cursor, and the selected row is highlighted. The Provider and Model toggles independently control the lower-right label on decorated prompts.
-
-The User Prompt Border style cycles through `double`, `single`, `rounded`, and `heavy` box-drawing sets; the Border color row sits directly beneath it. The Completion Marker Border style offers those same choices plus `none`; `none` leaves the marker undecorated, and its Border color row sits directly beneath it.
-
-A cycle row's `[■]` box gates it: `␣` unchecks the box, snaps the setting back to its default, and stops `←`/`→` from cycling. The Completion Marker Border style and Border color rows, and Token rate color, have no gate — their box stays `[■]` and `␣` does nothing.
-
-The User Prompt and Completion Marker Border color settings, along with the Animated spinner, Token activity monitor, and Token rate colors, cycle through `accent`, `border`, `borderAccent`, `success`, `error`, and `warning`.
-
-Invert shimmer keeps the working text at the default text color and sweeps a dimmed gradient across it.
 
 ### Word packs
 

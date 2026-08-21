@@ -6,7 +6,7 @@
 
 Let users add their own working-text themes (e.g., "Star Trek", "cooking", "wizardry") alongside the built-in and SimCity pools, with per-pack toggles. Keeps the existing picker architecture but makes it extensible.
 
-**Value:** Users can personalize the idle text without waiting for upstream additions. Fits naturally into the existing `WordEntry` + `pickCombinedWorkingTextSelection()` pipeline — just extend the word list source to read from a user-supplied packs file (e.g., `~/.pi/agent/pi-topping/word-packs.json`).
+**Value:** Users can personalize the idle text without waiting for upstream additions. Fits naturally into the existing `WordEntry` + `pickWorkingTextSelection()` pipeline — just extend the word list source to read from a user-supplied packs file (e.g., `~/.pi/agent/pi-topping/word-packs.json`).
 
 **Effort:** Low. Add a new settings key, a packs loader, and per-pack toggles in the settings menu sections.
 

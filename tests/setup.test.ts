@@ -53,11 +53,12 @@ class MockExtension {
 }
 
 function runtimeCommands(): RuntimeCommand[] {
-	return TOPPINGS.map((topping) => ({
-		name: topping.command,
-		source: "extension",
-		sourceInfo: { path: `/extensions/${topping.dir}/index.ts` },
-	}));
+	return [
+		{ name: "topping-statusline-settings", source: "extension", sourceInfo: { path: "/extensions/pi-topping-statusline/index.ts" } },
+		{ name: "topping-splash-settings", source: "extension", sourceInfo: { path: "/extensions/pi-topping-splash/index.ts" } },
+		{ name: "persona-audit", source: "extension", sourceInfo: { path: "/extensions/pi-topping-persona-audit/index.ts" } },
+		{ name: "browser", source: "extension", sourceInfo: { path: "/extensions/pi-topping-web-tools/index.ts" } },
+	];
 }
 
 function createContext(notifications: Notification[], options?: { mode?: "tui" | "print"; onCustomComponent?: (component: CustomComponent) => void }): ExtensionCommandContext {

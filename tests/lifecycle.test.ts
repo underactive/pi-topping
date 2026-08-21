@@ -34,6 +34,7 @@ type MessageEndEvent = { type: "message_end"; message: AssistantMessage };
 type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown };
 import { PROMPT_BOX_TYPE } from "../src/prompt-decorator.ts";
 import { buildMenuSections, DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/settings.ts";
+import { loadBundledWordPacks } from "../src/word-packs.ts";
 import { WORDS } from "../src/words.ts";
 import workingDecorator from "../index.ts";
 
@@ -214,7 +215,7 @@ function stripAnsi(text: string): string {
 }
 
 function moveMenuCursor(component: { handleInput?(data: string): void }, fromId: string, toId: string): void {
-	const ids = buildMenuSections(DEFAULT_SETTINGS).flatMap((section) => section.items.map((item) => item.id));
+	const ids = buildMenuSections(DEFAULT_SETTINGS, loadBundledWordPacks()).flatMap((section) => section.items.map((item) => item.id));
 	const fromIndex = ids.indexOf(fromId);
 	const toIndex = ids.indexOf(toId);
 	assert.ok(fromIndex >= 0, `unknown menu item: ${fromId}`);
@@ -1102,7 +1103,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		// newly added control. Reorder rows are stepped over rather than pressed:
 		// space would grab one, and the following downs would sort it instead of
 		// advancing the cursor.
-		const rows = buildMenuSections(DEFAULT_SETTINGS).flatMap((section) => section.items);
+		const rows = buildMenuSections(DEFAULT_SETTINGS, loadBundledWordPacks()).flatMap((section) => section.items);
 		for (const [index, row] of rows.entries()) {
 			if (index > 0) capturedComponent!.handleInput!("\x1b[B");
 			if (!row.reorderGroup) capturedComponent!.handleInput!(" ");
@@ -1176,7 +1177,7 @@ test("grabbing an Elements Order row reorders the preview and persists the new o
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
-		const rows = buildMenuSections(DEFAULT_SETTINGS).flatMap((section) => section.items);
+		const rows = buildMenuSections(DEFAULT_SETTINGS, loadBundledWordPacks()).flatMap((section) => section.items);
 		const firstReorderRow = rows.findIndex((row) => row.reorderGroup);
 		for (let i = 0; i < firstReorderRow; i++) capturedComponent!.handleInput!("\x1b[B");
 

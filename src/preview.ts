@@ -65,8 +65,9 @@ export class PreviewRenderer {
 		}
 		let word = DEFAULT_WORKING_WORD;
 		if (features.substituteDefaultMessage) {
-			const enabledPacks = this.#packs.filter((pack) => isWordPackEnabled(pack.id, this.packValues(values)));
-			word = enabledPacks.length ? selectWorkingTextSelection(this.packValues(values), this.#packs, this.#poolFraction).text : this.#word;
+			const packValues = this.packValues(values);
+			const enabledPacks = this.#packs.filter((pack) => isWordPackEnabled(pack.id, packValues));
+			word = enabledPacks.length ? selectWorkingTextSelection(packValues, this.#packs, this.#poolFraction).text : this.#word;
 		}
 		let styledWord: string;
 		if (decorations.shimmer) {

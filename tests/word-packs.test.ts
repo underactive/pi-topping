@@ -89,12 +89,12 @@ test("selection is uniform across base and enabled pack entries and retains its 
 test("menu includes custom packs and settings retain unavailable pack preferences", () => withTempAgentDir(() => {
 	const custom = { id: "cooking", name: "Cooking", words: [{ present_tense: "Making", past_tense: "Made" }], bundled: false };
 	const wordPackSection = buildMenuSections(DEFAULT_SETTINGS, [custom]).find((section) => section.title === "Word Packs");
-	assert.deepEqual(wordPackSection?.items.map((item) => [item.id, item.value]), [["pack:simcity", false], ["pack:star-trek", false], ["pack:star-wars", false], ["pack:cooking", false]]);
+	assert.deepEqual(wordPackSection?.items.map((item) => [item.id, item.value]), [["pack:cooking", false]]);
 	const updated = applyMenuResult(DEFAULT_SETTINGS, { "pack:cooking": false, "pack:restored": true, "pack:__proto__": true });
-	assert.deepEqual(updated.wordPacks, { simcity: false, "star-trek": false, "star-wars": false, cooking: false, restored: true });
+	assert.deepEqual(updated.wordPacks, { cooking: false, restored: true });
 	saveSettings(updated);
 	assert.deepEqual(loadSettings().wordPacks, updated.wordPacks);
 	mkdirSync(join(settingsPath(), ".."), { recursive: true });
 	writeFileSync(settingsPath(), JSON.stringify({ features: { simCityWorkingText: true } }));
-	assert.equal(loadSettings().wordPacks.simcity, false);
+	assert.equal(loadSettings().wordPacks.simcity, true);
 }));

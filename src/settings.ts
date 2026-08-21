@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "
 import { dirname, join } from "node:path";
 import { DEFAULT_LOADER_ORDER, type LoaderElement } from "./format.ts";
 import type { MenuSection } from "./menu.ts";
-import { isWordPackEnabled, isWordPackId, loadBundledWordPacks, type WordPack } from "./word-packs.ts";
+import { isWordPackEnabled, isWordPackId, type WordPack } from "./word-packs.ts";
 import { isPlainObject } from "./util.ts";
 
 export const SETTING_COLOR_VALUES = ["accent", "border", "borderAccent", "success", "error", "warning"] as const;
@@ -77,7 +77,7 @@ export const DEFAULT_SETTINGS: DecoratorSettings = {
 	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "borderAccent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "borderAccent", spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
 	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
-	wordPacks: { simcity: false, "star-trek": false, "star-wars": false },
+	wordPacks: {},
 };
 
 /** Menu key carrying the loader element order as a comma-joined list of element ids. */
@@ -245,14 +245,14 @@ function buildSection(title: MenuSectionName, settings: DecoratorSettings): Menu
 	return { title, items: MENU_ENTRIES.filter(entry => entry.section === title).map(entry => menuItem(entry, settings)) };
 }
 
-export function buildMenuSections(settings: DecoratorSettings, userPacks: readonly WordPack[] = []): MenuSection[] {
-	const packs = [...loadBundledWordPacks(), ...userPacks];
+export function buildMenuSections(settings: DecoratorSettings, bundledPacks: readonly WordPack[], userPacks: readonly WordPack[] = []): MenuSection[] {
+	const packs = [...bundledPacks, ...userPacks];
 	return [
 		buildSection("User Prompt", settings),
 		buildSection("“Working” Loader", settings),
-		{ title: "Word Packs", items: packs.map((pack) => ({ id: `pack:${pack.id}`, label: pack.name, value: isWordPackEnabled(pack.id, settings.wordPacks) })) },
 		{ title: "Elements Order", items: parseLoaderOrder(settings.loaderOrder).map(id => ({ id, label: LOADER_ELEMENT_LABELS[id], value: false, reorderGroup: LOADER_ORDER_ID })) },
 		buildSection("Completion Marker", settings),
+		{ title: "Word Packs", items: packs.map((pack) => ({ id: `pack:${pack.id}`, label: pack.name, value: isWordPackEnabled(pack.id, settings.wordPacks) })) },
 		buildSection("Options", settings),
 	];
 }
@@ -295,6 +295,9 @@ export function loadSettings(): DecoratorSettings {
 			for (const [id, enabled] of Object.entries(parsed.wordPacks)) {
 				if (isWordPackId(id) && typeof enabled === "boolean") wordPacks[id] = enabled;
 			}
+		}
+		if (isPlainObject(parsed.features) && parsed.features.simCityWorkingText === true && !("simcity" in wordPacks)) {
+			wordPacks.simcity = true;
 		}
 		const settings = { decorations: mergeGroup(DEFAULT_SETTINGS.decorations, parsed.decorations), features: mergeGroup(DEFAULT_SETTINGS.features, parsed.features), loaderOrder: parseLoaderOrder(parsed.loaderOrder), wordPacks };
 		for (const entry of MENU_ENTRIES) {
