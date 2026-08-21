@@ -1,6 +1,6 @@
 import type { MessageRenderer, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import { DEFAULT_SETTINGS, isBorderStyle, isSettingColor, type BorderStyle, type DoneMarkerBorderStyle, type SettingColor } from "./settings.ts";
+import { DEFAULT_SETTINGS, isBorderStyle, isSettingColor, type BorderStyle, type DoneMarkerBorderStyle, type DoneMarkerStyle, type SettingColor } from "./settings.ts";
 import { stripControlChars } from "./util.ts";
 
 export const PROMPT_BOX_TYPE = "pi-topping-prompt";
@@ -52,6 +52,7 @@ export function buildCompletionMarkerLine(
 	theme: PromptTheme,
 	borderStyle: DoneMarkerBorderStyle,
 	borderColor: SettingColor,
+	markerStyle: DoneMarkerStyle = "elite",
 ): string {
 	const safeWidth = Math.max(0, Math.floor(width));
 	if (safeWidth === 0) return "";
@@ -59,8 +60,16 @@ export function buildCompletionMarkerLine(
 
 	const g = BORDER_GLYPHS[borderStyle];
 	const border = (text: string) => theme.fg(borderColor, text);
+	const prefix = `${g.bl}${g.h.repeat(2)} `;
+
+	if (markerStyle === "bookend") {
+		const fillLength = Math.max(0, safeWidth - visibleWidth(prefix) - visibleWidth(content) - 2);
+		const line = `${border(prefix)}${content}${border(` ${g.h.repeat(fillLength)}${g.br}`)}`;
+		return visibleWidth(line) > safeWidth ? truncateToWidth(line, safeWidth) : line;
+	}
+
 	const trail = ` ${COMPLETION_MARKER_TRAIL_RUNS.map(length => g.h.repeat(length)).join(" ")}`;
-	const line = `${border(`${g.bl}${g.h.repeat(2)} `)}${content}${border(trail)}`;
+	const line = `${border(prefix)}${content}${border(trail)}`;
 	return visibleWidth(line) > safeWidth ? truncateToWidth(line, safeWidth) : line;
 }
 

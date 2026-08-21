@@ -13,6 +13,8 @@ export const BORDER_STYLE_VALUES = ["double", "single", "rounded", "heavy"] as c
 export type BorderStyle = (typeof BORDER_STYLE_VALUES)[number];
 export const DONE_MARKER_BORDER_STYLE_VALUES = [...BORDER_STYLE_VALUES, "none"] as const;
 export type DoneMarkerBorderStyle = (typeof DONE_MARKER_BORDER_STYLE_VALUES)[number];
+export const DONE_MARKER_STYLE_VALUES = ["elite", "bookend"] as const;
+export type DoneMarkerStyle = (typeof DONE_MARKER_STYLE_VALUES)[number];
 
 export function isBorderStyle(value: unknown): value is BorderStyle {
 	return typeof value === "string" && BORDER_STYLE_VALUES.some(style => style === value);
@@ -20,6 +22,10 @@ export function isBorderStyle(value: unknown): value is BorderStyle {
 
 export function isDoneMarkerBorderStyle(value: unknown): value is DoneMarkerBorderStyle {
 	return typeof value === "string" && DONE_MARKER_BORDER_STYLE_VALUES.some(style => style === value);
+}
+
+export function isDoneMarkerStyle(value: unknown): value is DoneMarkerStyle {
+	return typeof value === "string" && DONE_MARKER_STYLE_VALUES.some(style => style === value);
 }
 
 export function isSettingColor(value: unknown): value is SettingColor {
@@ -45,6 +51,7 @@ export interface DecoratorSettings {
 		borderStyleEnabled: boolean;
 		doneMarkerBorderStyle: DoneMarkerBorderStyle;
 		doneMarkerBorderColor: SettingColor;
+		doneMarkerStyle: DoneMarkerStyle;
 		spinnerColor: SettingColor;
 		spinnerColorEnabled: boolean;
 		meterColor: SettingColor;
@@ -74,7 +81,7 @@ export interface DecoratorSettings {
 }
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
-	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "borderAccent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "borderAccent", spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
+	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "borderAccent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "borderAccent", doneMarkerStyle: "elite", spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
 	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 	wordPacks: {},
@@ -120,6 +127,7 @@ function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, par
 		else if (key.endsWith("Color") && isSettingColor(value)) valid = value;
 		else if (key === "borderStyle" && isBorderStyle(value)) valid = value;
 		else if (key === "doneMarkerBorderStyle" && isDoneMarkerBorderStyle(value)) valid = value;
+		else if (key === "doneMarkerStyle" && isDoneMarkerStyle(value)) valid = value;
 		if (valid !== undefined) (merged as Record<string, boolean | string>)[key] = valid;
 	}
 	return merged;
@@ -191,6 +199,7 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "tokenRateColor", label: "Token rate color", section: "“Working” Loader", group: "decorations", key: "tokenRateColor", cycleValues: SETTING_COLOR_VALUES },
 	{ id: "tokenRateDimmed", label: "Token rate dimmed", section: "“Working” Loader", group: "decorations", key: "tokenRateDimmed" },
 	{ id: "doneMarker", label: "Show completion marker", section: "Completion Marker", group: "features", key: "doneMarker" },
+	{ id: "doneMarkerStyle", label: "Marker style", section: "Completion Marker", group: "decorations", key: "doneMarkerStyle", cycleValues: DONE_MARKER_STYLE_VALUES },
 	{ id: "doneMarkerBorderStyle", label: "Border style", section: "Completion Marker", group: "decorations", key: "doneMarkerBorderStyle", cycleValues: DONE_MARKER_BORDER_STYLE_VALUES },
 	{ id: "doneMarkerBorderColor", label: "Border color", section: "Completion Marker", group: "decorations", key: "doneMarkerBorderColor", cycleValues: SETTING_COLOR_VALUES },
 	{ id: "doneMarkerIcon", label: "Pi icon", section: "Completion Marker", group: "features", key: "doneMarkerIcon" },
@@ -227,6 +236,9 @@ function setDecorationCycleValue(decorations: DecorationSettings, key: keyof Dec
 			return;
 		case "doneMarkerBorderStyle":
 			if (isDoneMarkerBorderStyle(stored)) decorations[key] = stored;
+			return;
+		case "doneMarkerStyle":
+			if (isDoneMarkerStyle(stored)) decorations[key] = stored;
 			return;
 		case "shimmerDirection":
 		case "meterDirection":

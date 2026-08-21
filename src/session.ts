@@ -268,6 +268,7 @@ export class SessionManager {
 		const markerContent = buildCompletionMarkerContent(theme, icon, word, formatElapsed(elapsedMs), details);
 		const borderStyle = this.#settings.decorations.doneMarkerBorderStyle;
 		const borderColor = this.#settings.decorations.doneMarkerBorderColor;
+		const markerStyle = this.#settings.decorations.doneMarkerStyle;
 		if (borderStyle === "none") return new Text(markerContent);
 
 		let cachedWidth: number | undefined;
@@ -276,7 +277,7 @@ export class SessionManager {
 			render(width: number): string[] {
 				if (cachedWidth !== width) {
 					cachedWidth = width;
-					cachedLines = ["", ` ${buildCompletionMarkerLine(markerContent, width - 2, theme, borderStyle, borderColor)}`, ""];
+					cachedLines = ["", ` ${buildCompletionMarkerLine(markerContent, width - 2, theme, borderStyle, borderColor, markerStyle)}`, ""];
 				}
 				return cachedLines!;
 			},
