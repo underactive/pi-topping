@@ -72,15 +72,13 @@ export interface MenuConfig {
 	 * since the menu opened. Lines may contain ANSI styling and are truncated/
 	 * padded to fit automatically.
 	 *
-	 * Return `string[]` for legacy interval-based animation (see
-	 * `previewIntervalMs`), or a `PreviewResult` to declare the next refresh.
+	 * Return `string[]` for legacy interval-based animation (defaults to 50ms
+	 * refresh), or a `PreviewResult` to declare the next refresh interval.
 	 * Omitting `nextRefreshInMs` from a `PreviewResult` makes the preview static.
 	 */
 	preview?: (values: Record<string, MenuValue>, elapsedMs: number, activeItemId: string | undefined, width: number) => string[] | PreviewResult;
 	/** Optional heading for the preview block. Defaults to `Preview`. */
 	previewTitle?: string;
-	/** Fallback delay in ms for legacy `string[]` previews. Default 50. */
-	previewIntervalMs?: number;
 }
 
 export interface MenuResult<T> {
@@ -90,7 +88,7 @@ export interface MenuResult<T> {
 
 const DEFAULT_HINTS = ["\u2191\u2193 move", "\u2423 toggle", "\u23ce apply", "esc cancel"];
 const OVERLAY_WIDTH = "86%";
-const DEFAULT_PREVIEW_WIDTH = 76;
+export const DEFAULT_PREVIEW_WIDTH = 76;
 const ROW_PREFIX_WIDTH = 8; // "  " + marker + " " + "[" + box + "]" + " "
 
 /** Close OSC 8 links truncated by pi-tui's SGR-only truncation reset. */
@@ -141,7 +139,6 @@ export class MenuComponent implements Component {
 	private readonly values: Record<string, MenuValue>;
 	private readonly flat: FlatItem[];
 	private readonly previewFn: MenuConfig["preview"];
-	private readonly previewIntervalMs: number | undefined;
 	private readonly previewOrigin: number | undefined;
 	private readonly tui: TUI | undefined;
 	private previewTimer: ReturnType<typeof setTimeout> | undefined;
@@ -176,7 +173,6 @@ export class MenuComponent implements Component {
 		this.initialValues = { ...this.values };
 
 		this.previewFn = config.preview;
-		this.previewIntervalMs = config.previewIntervalMs;
 		if (this.previewFn) {
 			this.previewOrigin = Date.now();
 			if (tui) {
@@ -306,7 +302,7 @@ export class MenuComponent implements Component {
 			width,
 		);
 		if (Array.isArray(result)) {
-			this.previewNextRefreshMs = this.previewIntervalMs ?? 50;
+			this.previewNextRefreshMs = 50;
 			return result;
 		}
 
