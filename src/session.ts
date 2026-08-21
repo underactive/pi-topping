@@ -277,7 +277,7 @@ export class SessionManager {
 			render(width: number): string[] {
 				if (cachedWidth !== width) {
 					cachedWidth = width;
-					cachedLines = ["", ` ${buildCompletionMarkerLine(markerContent, width - 2, theme, borderStyle, borderColor, markerStyle)}`, ""];
+					cachedLines = ["", buildCompletionMarkerLine(markerContent, width, theme, borderStyle, borderColor, markerStyle), ""];
 				}
 				return cachedLines!;
 			},

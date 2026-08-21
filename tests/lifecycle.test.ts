@@ -1550,7 +1550,7 @@ test("completion marker border style renders the selected decoration", async () 
 
 		const lines = component.render(54);
 		assert.equal(lines.length, 3);
-		assert.equal(lines[1], " ┗━━  Mustered for 4s (↓ 25 tokens) ━━━━━━ ━━━━ ━━ ━");
+		assert.equal(lines[1], "┗━━  Mustered for 4s (↓ 25 tokens) ━━━━━━ ━━━━ ━━ ━");
 	});
 });
 
