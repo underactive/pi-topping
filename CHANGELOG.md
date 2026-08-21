@@ -10,9 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added custom working-text packs from `~/.pi/agent/pi-topping/word-packs.json`, with per-pack settings, validation, and matching completion-marker tenses. Word packs default off; preferences persist while a pack is unavailable.
 - Added modular bundled word packs under `wordpacks/`, including the off-by-default SimCity, Star Trek, and Star Wars packs. SimCity phrases are vendored from [svenstaro/genact](https://github.com/svenstaro/genact), specifically [`data/simcity.txt`](https://github.com/svenstaro/genact/blob/master/data/simcity.txt), under its verified MIT license.
-- `/topping-setup` TUI command to detect and selectively install missing Pi Topping sibling extensions, including `@underactive/pi-topping-web-tools`.
-- `/topping-setup disable-side-toppings-check` suppresses the one-time missing-toppings warning; `/topping-setup enable-side-toppings-check` restores it.
-- One-time session-start warning banner directing users to `/topping-setup` when sibling toppings are missing.
 
 ### Changed
 - Replaced the fixed `Mix in SimCity “Working” text` feature toggle with the Word Packs settings section.

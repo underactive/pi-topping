@@ -33,6 +33,7 @@ import {
 	TOKEN_RATE_PLACEHOLDER,
 	StreamingWordCounter,
 } from "./format.ts";
+import { isSiblingSetupEnabled } from "./flags.ts";
 import { showMenu } from "./menu.ts";
 import { registerSetupCommand } from "./setup-command.ts";
 import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type SettingColor } from "./settings.ts";
@@ -134,7 +135,7 @@ export class SessionManager {
 		this.#currentCtx = ctx;
 		if (this.usable(ctx)) {
 			this.applyIndicator(ctx);
-			notifyMissingToppingsOnce(this.#pi, ctx.ui);
+			if (isSiblingSetupEnabled()) notifyMissingToppingsOnce(this.#pi, ctx.ui);
 		}
 	};
 
@@ -304,7 +305,7 @@ export class SessionManager {
 			description: "Configure prompt decoration, working-loader features/order, and completion-marker settings.",
 			handler: async (_a, ctx) => this.showSettings(ctx),
 		});
-		registerSetupCommand(this.#pi);
+		if (isSiblingSetupEnabled()) registerSetupCommand(this.#pi);
 	}
 
 	private usable(ctx: ExtensionContext): boolean {
