@@ -6,7 +6,7 @@
       "description": "Starfleet operations from the final frontier.",
       "words": [
         {
-          "present_tense": "Aligning the warp coils",
+          "present_tense": "Aligning warp coils",
           "past_tense": "Aligned"
         },
         {
@@ -18,15 +18,15 @@
           "past_tense": "Armed"
         },
         {
-          "present_tense": "Beaming up the landing party",
+          "present_tense": "Beaming up landing party",
           "past_tense": "Beamed"
         },
         {
-          "present_tense": "Calibrating the deflector dish",
+          "present_tense": "Calibrating deflector dish",
           "past_tense": "Calibrated"
         },
         {
-          "present_tense": "Charging the phaser banks",
+          "present_tense": "Charging phaser banks",
           "past_tense": "Charged"
         },
         {
@@ -34,7 +34,7 @@
           "past_tense": "Charted"
         },
         {
-          "present_tense": "Closing the shuttlebay doors",
+          "present_tense": "Closing shuttlebay doors",
           "past_tense": "Closed"
         },
         {
@@ -54,7 +54,7 @@
           "past_tense": "Docked"
         },
         {
-          "present_tense": "Engaging the warp drive",
+          "present_tense": "Engaging warp drive",
           "past_tense": "Engaged"
         },
         {
@@ -62,15 +62,15 @@
           "past_tense": "Established"
         },
         {
-          "present_tense": "Evacuating the saucer section",
+          "present_tense": "Evacuating saucer section",
           "past_tense": "Evacuated"
         },
         {
-          "present_tense": "Focusing the main deflector",
+          "present_tense": "Focusing main deflector",
           "past_tense": "Focused"
         },
         {
-          "present_tense": "Hailing the nearest starship",
+          "present_tense": "Hailing nearest starship",
           "past_tense": "Hailed"
         },
         {
@@ -78,7 +78,7 @@
           "past_tense": "Initiated"
         },
         {
-          "present_tense": "Inspecting the warp core",
+          "present_tense": "Inspecting warp core",
           "past_tense": "Inspected"
         },
         {
@@ -94,7 +94,7 @@
           "past_tense": "Locked"
         },
         {
-          "present_tense": "Modulating the shield harmonics",
+          "present_tense": "Modulating shield harmonics",
           "past_tense": "Modulated"
         },
         {
@@ -110,15 +110,15 @@
           "past_tense": "Plotted"
         },
         {
-          "present_tense": "Polarizing the hull plating",
+          "present_tense": "Polarizing hull plating",
           "past_tense": "Polarized"
         },
         {
-          "present_tense": "Preparing the holodeck",
+          "present_tense": "Preparing holodeck",
           "past_tense": "Prepared"
         },
         {
-          "present_tense": "Recalibrating the inertial dampers",
+          "present_tense": "Recalibrating inertial dampers",
           "past_tense": "Recalibrated"
         },
         {
@@ -138,11 +138,11 @@
           "past_tense": "Sealed"
         },
         {
-          "present_tense": "Stabilizing the warp field",
+          "present_tense": "Stabilizing warp field",
           "past_tense": "Stabilized"
         },
         {
-          "present_tense": "Targeting the lead vessel",
+          "present_tense": "Targeting lead vessel",
           "past_tense": "Targeted"
         },
         {
@@ -150,11 +150,11 @@
           "past_tense": "Transferred"
         },
         {
-          "present_tense": "Tuning the subspace transceiver",
+          "present_tense": "Tuning subspace transceiver",
           "past_tense": "Tuned"
         },
         {
-          "present_tense": "Updating the star charts",
+          "present_tense": "Updating star charts",
           "past_tense": "Updated"
         },
         {
@@ -166,7 +166,7 @@
           "past_tense": "Avoided"
         },
         {
-          "present_tense": "Boarding the shuttlecraft",
+          "present_tense": "Boarding shuttlecraft",
           "past_tense": "Boarded"
         },
         {
@@ -182,7 +182,7 @@
           "past_tense": "Crossed"
         },
         {
-          "present_tense": "Decontaminating the away team",
+          "present_tense": "Decontaminating away team",
           "past_tense": "Decontaminated"
         },
         {
@@ -190,7 +190,7 @@
           "past_tense": "Deflected"
         },
         {
-          "present_tense": "Deploying the emergency bulkheads",
+          "present_tense": "Deploying emergency bulkheads",
           "past_tense": "Deployed"
         },
         {
@@ -210,7 +210,7 @@
           "past_tense": "Infiltrated"
         },
         {
-          "present_tense": "Loading the torpedo tubes",
+          "present_tense": "Loading torpedo tubes",
           "past_tense": "Loaded"
         },
         {
@@ -222,7 +222,7 @@
           "past_tense": "Recovered"
         },
         {
-          "present_tense": "Rescuing the away team",
+          "present_tense": "Rescuing away team",
           "past_tense": "Rescued"
         },
         {
