@@ -8,7 +8,7 @@ import { isWordPackEnabled, selectWorkingTextSelection, wordPacksPath, type Word
 import { pickRandomWord } from "./words.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tok/s for the meter,
 // flat 28 tok/s for the token readouts.
-const METER_PERIOD_MS = 2400, METER_PEAK_RATE = 46, TOKEN_RATE_PER_SEC = 28, PREVIEW_WIDTH = 70;
+const METER_PERIOD_MS = 2400, METER_PEAK_RATE = 46, TOKEN_RATE_PER_SEC = 28, DEFAULT_PREVIEW_WIDTH = 76;
 const PROMPT_IDS = new Set(MENU_ENTRIES.filter(entry => entry.section === "User Prompt").map(entry => entry.id));
 const MARKER_IDS = new Set(MENU_ENTRIES.filter(entry => entry.section === "Completion Marker").map(entry => entry.id));
 function meterRate(elapsedMs: number): number { return ((1 - Math.cos((2 * Math.PI * elapsedMs) / METER_PERIOD_MS)) / 2) * METER_PEAK_RATE; }
@@ -26,9 +26,9 @@ export class PreviewRenderer {
 		this.#ctx = ctx;
 		this.#packs = packs;
 	}
-	render(values: Record<string, boolean | string>, elapsedMs: number, activeItemId?: string): PreviewResult {
-		if (PROMPT_IDS.has(activeItemId ?? "")) return this.promptPreview(values);
-		if (MARKER_IDS.has(activeItemId ?? "")) return this.markerPreview(values);
+	render(values: Record<string, boolean | string>, elapsedMs: number, activeItemId?: string, width: number = DEFAULT_PREVIEW_WIDTH): PreviewResult {
+		if (PROMPT_IDS.has(activeItemId ?? "")) return this.promptPreview(values, width);
+		if (MARKER_IDS.has(activeItemId ?? "")) return this.markerPreview(values, width);
 		if (activeItemId === "useNerdFont") return { lines: ["", `Icon preview: ${values.useNerdFont ? "" : "π"}`, ""] };
 		if (activeItemId?.startsWith("pack:")) return this.packPreview(activeItemId.slice("pack:".length), values);
 		let nextRefreshInMs: number | undefined;
@@ -131,13 +131,13 @@ export class PreviewRenderer {
 		const source = pack.bundled ? "Shipped example" : `Custom: ${wordPacksPath()}`;
 		return { lines: [`${pack.name}: ${enabled ? "enabled" : "disabled"}`, `${pack.words.length} phrases · ${source}`, ...(pack.description ? [pack.description] : [])] };
 	}
-	private promptPreview(values: Record<string, boolean | string>): PreviewResult {
+	private promptPreview(values: Record<string, boolean | string>, width: number): PreviewResult {
 		if (values.decorateUserPrompt !== true) return { lines: ["User prompt decoration is disabled."] };
 
 		const borderColor = values.borderColor;
 		const borderStyle = values.borderStyle;
 		const timestamp = values.promptTimestamp === true ? Date.now() : undefined;
-		const lines = buildPromptBoxLines("ping", timestamp, PREVIEW_WIDTH, this.#ctx.ui.theme, {
+		const lines = buildPromptBoxLines("ping", timestamp, width, this.#ctx.ui.theme, {
 			showIcon: values.promptIcon === true,
 			showTimestamp: values.promptTimestamp === true,
 			showProvider: values.promptProvider === true,
@@ -152,7 +152,7 @@ export class PreviewRenderer {
 			? { lines }
 			: { lines, nextRefreshInMs: 1_000 - (timestamp % 1_000) };
 	}
-	private markerPreview(values: Record<string, boolean | string>): PreviewResult {
+	private markerPreview(values: Record<string, boolean | string>, width: number): PreviewResult {
 		if (values.doneMarker !== true) return { lines: ["Completion marker is disabled."] };
 		const theme = this.#ctx.ui.theme;
 		const icon = values.doneMarkerIcon === true ? theme.fg("text", values.useNerdFont === true ? "" : "π") : "";
@@ -164,7 +164,7 @@ export class PreviewRenderer {
 		const borderStyle = isDoneMarkerBorderStyle(values.doneMarkerBorderStyle) ? values.doneMarkerBorderStyle : "none";
 		const borderColor = isSettingColor(values.doneMarkerBorderColor) ? values.doneMarkerBorderColor : DEFAULT_SETTINGS.decorations.doneMarkerBorderColor;
 		const markerStyle = isDoneMarkerStyle(values.doneMarkerStyle) ? values.doneMarkerStyle : DEFAULT_SETTINGS.decorations.doneMarkerStyle;
-		const marker = buildCompletionMarkerLine(content, PREVIEW_WIDTH, theme, borderStyle, borderColor, markerStyle);
+		const marker = buildCompletionMarkerLine(content, width, theme, borderStyle, borderColor, markerStyle);
 		return { lines: ["", marker, ""] };
 	}
 }

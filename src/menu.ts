@@ -76,7 +76,7 @@ export interface MenuConfig {
 	 * `previewIntervalMs`), or a `PreviewResult` to declare the next refresh.
 	 * Omitting `nextRefreshInMs` from a `PreviewResult` makes the preview static.
 	 */
-	preview?: (values: Record<string, MenuValue>, elapsedMs: number, activeItemId: string | undefined) => string[] | PreviewResult;
+	preview?: (values: Record<string, MenuValue>, elapsedMs: number, activeItemId: string | undefined, width: number) => string[] | PreviewResult;
 	/** Optional heading for the preview block. Defaults to `Preview`. */
 	previewTitle?: string;
 	/** Fallback delay in ms for legacy `string[]` previews. Default 50. */
@@ -89,7 +89,8 @@ export interface MenuResult<T> {
 }
 
 const DEFAULT_HINTS = ["\u2191\u2193 move", "\u2423 toggle", "\u23ce apply", "esc cancel"];
-const MAX_WIDTH = 76;
+const OVERLAY_WIDTH = "86%";
+const DEFAULT_PREVIEW_WIDTH = 76;
 const ROW_PREFIX_WIDTH = 8; // "  " + marker + " " + "[" + box + "]" + " "
 
 /** Close OSC 8 links truncated by pi-tui's SGR-only truncation reset. */
@@ -295,13 +296,14 @@ export class MenuComponent implements Component {
 		this.invalidate();
 	}
 
-	private samplePreview(): string[] | undefined {
+	private samplePreview(width: number = DEFAULT_PREVIEW_WIDTH): string[] | undefined {
 		if (!this.previewFn) return undefined;
 
 		const result = this.previewFn(
 			this.values,
 			this.previewOrigin !== undefined ? Date.now() - this.previewOrigin : 0,
 			this.flat[this.cursor]?.id,
+			width,
 		);
 		if (Array.isArray(result)) {
 			this.previewNextRefreshMs = this.previewIntervalMs ?? 50;
@@ -411,9 +413,10 @@ export class MenuComponent implements Component {
 	}
 
 	private buildLines(maxWidth: number, maxRows?: number): string[] {
-		const previewLines = this.samplePreview();
-		const boxWidth = Math.max(0, Math.min(MAX_WIDTH, maxWidth));
+		const boxWidth = Math.max(0, maxWidth);
 		const innerWidth = Math.max(0, boxWidth - 2);
+		// Preview rows are prefixed with a leading space by buildPreviewBlock/renderContentRow.
+		const previewLines = this.samplePreview(Math.max(0, innerWidth - 1));
 		const header = [this.renderTopBorder(innerWidth), ...this.buildPreviewBlock(previewLines, innerWidth)];
 		const footer = this.buildFooter(innerWidth);
 		const naturalBody = this.buildToggleSections(innerWidth);
@@ -562,6 +565,6 @@ export async function showMenu<T extends Record<string, MenuValue>>(
 	return ctx.ui.custom<MenuResult<T>>(
 		(tui, theme, _keybindings, done) =>
 			new MenuComponent(config, theme, done as (result: MenuResult<Record<string, MenuValue>>) => void, tui),
-		{ overlay: true, overlayOptions: { width: MAX_WIDTH, maxHeight: "100%" } },
+		{ overlay: true, overlayOptions: { width: OVERLAY_WIDTH, maxHeight: "100%" } },
 	);
 }
