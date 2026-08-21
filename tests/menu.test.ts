@@ -135,6 +135,33 @@ test("scrolls the item body to fit a 24-row terminal while keeping chrome and cu
 	assert.ok(!lines.some((line) => line.includes("more above") || line.includes("more below")));
 });
 
+test("a section starting near the window bottom keeps its heading instead of folding into the previous section", (t) => {
+	const terminal = { rows: 10 };
+	const tui = { terminal, requestRender: () => {} } as unknown as TUI;
+	const menu = new MenuComponent({
+		title: "TEST",
+		sections: [
+			{ title: "Alpha", items: Array.from({ length: 4 }, (_, i) => ({ id: `a${i}`, label: `Alpha ${i}`, value: true })) },
+			{ title: "Beta", items: [{ id: "b", label: "Use NerdFont icons", value: true }] },
+		],
+	}, fakeTheme(), () => {}, tui);
+	t.after(() => menu.dispose());
+
+	// Park the cursor on the lone final-section item with only one body row left
+	// for it; the old behavior dropped the divider and folded it in.
+	for (let i = 0; i < 4; i++) menu.handleInput(KEY.down);
+	const lines = menu.render(64).map(stripTags);
+
+	assert.equal(lines.length, 10);
+	const betaDividerIndex = lines.findIndex((l) => l.includes("\u255f\u2500 Beta "));
+	const itemIndex = lines.findIndex((l) => l.includes("Use NerdFont icons"));
+	assert.ok(itemIndex >= 0, "the selected Beta item must be visible");
+	assert.ok(betaDividerIndex >= 0, "the Beta heading must not disappear");
+	assert.ok(betaDividerIndex < itemIndex, "the Beta heading must sit above its item");
+	assert.match(lines[betaDividerIndex - 1]!, /^\u2551\s+\u2551$/, "a blank row must separate the Beta heading from the section above");
+	assert.ok(lines[itemIndex]!.includes("\u276f"), "cursor stays on the Beta item");
+});
+
 test("arrow keys move the cursor with wrap-around in both directions", () => {
 	const menu = makeMenu(() => {});
 

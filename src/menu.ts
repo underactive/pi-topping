@@ -355,6 +355,12 @@ export class MenuComponent implements Component {
 			const flat = this.flat[index]!;
 			if (flat.sectionIndex !== currentSection) {
 				const remaining = maxRows - lines.length;
+				// A section continued from above needs room for a blank separator
+				// row, its divider, and at least one item row; otherwise end the
+				// window here rather than crowd the divider against the previous
+				// section or fold the section into it. The window's first section
+				// always renders (a degenerate window may drop its divider).
+				if (lines.length > 0 && remaining < 3) break;
 				if (lines.length > 0 && remaining >= 3) lines.push(this.renderBlankRow(innerWidth));
 				if (maxRows - lines.length >= 2) lines.push(this.renderSectionDivider(this.sections[flat.sectionIndex]!.title, innerWidth));
 				currentSection = flat.sectionIndex;
