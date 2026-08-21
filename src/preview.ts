@@ -1,5 +1,5 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { PreviewResult } from "./menu.ts";
+import { DEFAULT_PREVIEW_WIDTH, type PreviewResult } from "./menu.ts";
 import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
 import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatElapsed, formatTokenRate, formatTokens, isFullyDefaultAppearance, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
@@ -8,7 +8,7 @@ import { isWordPackEnabled, selectWorkingTextSelection, wordPacksPath, type Word
 import { pickRandomWord } from "./words.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tok/s for the meter,
 // flat 28 tok/s for the token readouts.
-const METER_PERIOD_MS = 2400, METER_PEAK_RATE = 46, TOKEN_RATE_PER_SEC = 28, DEFAULT_PREVIEW_WIDTH = 76;
+const METER_PERIOD_MS = 2400, METER_PEAK_RATE = 46, TOKEN_RATE_PER_SEC = 28;
 const PROMPT_IDS = new Set(MENU_ENTRIES.filter(entry => entry.section === "User Prompt").map(entry => entry.id));
 const MARKER_IDS = new Set(MENU_ENTRIES.filter(entry => entry.section === "Completion Marker").map(entry => entry.id));
 function meterRate(elapsedMs: number): number { return ((1 - Math.cos((2 * Math.PI * elapsedMs) / METER_PERIOD_MS)) / 2) * METER_PEAK_RATE; }
@@ -21,6 +21,8 @@ export class PreviewRenderer {
 	readonly #packs: readonly WordPack[];
 	readonly #meter = new ActivityMeter();
 	#lastMeterUpdate = 0;
+	#cachedPackWord = "";
+	#cachedPackSignature = "";
 	readonly #ctx: ExtensionContext;
 	constructor(ctx: ExtensionContext, packs: readonly WordPack[] = []) {
 		this.#ctx = ctx;
@@ -66,8 +68,13 @@ export class PreviewRenderer {
 		let word = DEFAULT_WORKING_WORD;
 		if (features.substituteDefaultMessage) {
 			const packValues = this.packValues(values);
-			const enabledPacks = this.#packs.filter((pack) => isWordPackEnabled(pack.id, packValues));
-			word = enabledPacks.length ? selectWorkingTextSelection(packValues, this.#packs, this.#poolFraction).text : this.#word;
+			const signature = JSON.stringify(Object.keys(packValues).sort().map(k => `${k}=${packValues[k]}`));
+			if (signature !== this.#cachedPackSignature) {
+				const enabledPacks = this.#packs.filter((pack) => isWordPackEnabled(pack.id, packValues));
+				this.#cachedPackWord = enabledPacks.length ? selectWorkingTextSelection(packValues, this.#packs, this.#poolFraction).text : this.#word;
+				this.#cachedPackSignature = signature;
+			}
+			word = this.#cachedPackWord;
 		}
 		let styledWord: string;
 		if (decorations.shimmer) {
