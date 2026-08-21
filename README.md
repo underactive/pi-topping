@@ -10,7 +10,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
-**Completion Marker** — end-of-turn marker with icon, randomized verb (or `Worked`; matching past tense when Randomize "Worked" text is on), token consumption display, and optional border-style/color decorations. Hooks into Pi's `agent_settled` event.
+**Completion Marker** — end-of-turn marker with icon, randomized verb (or `Worked`; matching past tense when Randomize "Worked" text is on), token consumption display, and optional marker-style, border-style, and border-color decorations spanning the full terminal width. The default `elite` style trails the summary with tapering dashes; `bookend` fills the remaining width to a closing corner glyph. Hooks into Pi's `agent_settled` event.
 
 ![Example of pi-topping's completion marker](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_completion_marker.png)
 
@@ -62,6 +62,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║                                                            ║
 ╟─ Completion Marker ────────────────────────────────────────╢
 ║    [■] Show completion marker                         ON   ║
+║    [■] Marker style                              ‹ elite › ║
 ║    [■] Border style                               ‹ none › ║
 ║    [■] Border color                       ‹ borderAccent › ║
 ║    [■] Pi icon                                        ON   ║
@@ -78,7 +79,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
-╚════════════════════════════════════════════════════[ 9/39 ]╝
+╚════════════════════════════════════════════════════[ 9/41 ]╝
 ```
 
 ### Word packs

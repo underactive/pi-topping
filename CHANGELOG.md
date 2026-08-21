@@ -5,17 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 2026-08-21
 
 ### Added
-- Added custom working-text packs from `~/.pi/agent/pi-topping/word-packs.json`, with per-pack settings, validation, and matching completion-marker tenses. Word packs default off; preferences persist while a pack is unavailable.
-- Added modular bundled word packs under `wordpacks/`, including the off-by-default SimCity, Star Trek, and Star Wars packs. SimCity phrases are vendored from [svenstaro/genact](https://github.com/svenstaro/genact), specifically [`data/simcity.txt`](https://github.com/svenstaro/genact/blob/master/data/simcity.txt), under its verified MIT license.
-
-### Changed
-- Replaced the fixed `Mix in SimCity “Working” text` feature toggle with the Word Packs settings section.
+- Added word packs: custom working-text packs from `~/.pi/agent/pi-topping/word-packs.json`, with per-pack settings, validation, and matching completion-marker tenses. Word packs default off; preferences persist while a pack is unavailable.
+- Added modular bundled word packs under `wordpacks/` — SimCity, Star Trek, and Star Wars, all off by default — managed in a new Word Packs section of `/topping-settings`. SimCity phrases are vendored from [svenstaro/genact](https://github.com/svenstaro/genact), specifically [`data/simcity.txt`](https://github.com/svenstaro/genact/blob/master/data/simcity.txt), under its verified MIT license.
+- “Marker style” setting in `/topping-settings` cycling the decorated completion marker between `elite` (default; trailing dashes taper off after the summary) and `bookend` (dashes fill the remaining width to a closing corner glyph).
 
 ### Fixed
 - Completion markers now use the matching past-tense entry for the final working text instead of an unrelated random entry, including word-pack selections.
+- Decorated completion markers now span the full terminal width instead of starting one column in.
+- The settings menu overlay sizes to 86% of the terminal width (was a fixed 76 columns), and section previews render at the overlay's inner width so they are no longer truncated or misaligned on wide terminals.
 
 ## [0.5.1] - 2026-08-11
 
