@@ -29,7 +29,7 @@ export class PreviewRenderer {
 	render(values: Record<string, boolean | string>, elapsedMs: number, activeItemId?: string): PreviewResult {
 		if (PROMPT_IDS.has(activeItemId ?? "")) return this.promptPreview(values);
 		if (MARKER_IDS.has(activeItemId ?? "")) return this.markerPreview(values);
-		if (activeItemId === "useNerdFont") return { lines: [`Icon preview: ${values.useNerdFont ? "" : "π"}`] };
+		if (activeItemId === "useNerdFont") return { lines: ["", `Icon preview: ${values.useNerdFont ? "" : "π"}`, ""] };
 		if (activeItemId?.startsWith("pack:")) return this.packPreview(activeItemId.slice("pack:".length), values);
 		let nextRefreshInMs: number | undefined;
 		if (values.shimmer !== false) {
@@ -129,7 +129,7 @@ export class PreviewRenderer {
 		if (!pack) return { lines: ["This word pack is unavailable."] };
 		const enabled = isWordPackEnabled(id, this.packValues(values));
 		const source = pack.bundled ? "Shipped example" : `Custom: ${wordPacksPath()}`;
-		return { lines: [`${pack.name}: ${enabled ? "enabled" : "disabled"}`, `${pack.words.length} phrases · ${source}`, ...(pack.description ? ["", pack.description] : [])] };
+		return { lines: [`${pack.name}: ${enabled ? "enabled" : "disabled"}`, `${pack.words.length} phrases · ${source}`, ...(pack.description ? [pack.description] : [])] };
 	}
 	private promptPreview(values: Record<string, boolean | string>): PreviewResult {
 		if (values.decorateUserPrompt !== true) return { lines: ["User prompt decoration is disabled."] };
