@@ -52,7 +52,7 @@ export function buildCompletionMarkerLine(
 	theme: PromptTheme,
 	borderStyle: DoneMarkerBorderStyle,
 	borderColor: SettingColor,
-	markerStyle: DoneMarkerStyle = "elite",
+	markerStyle: DoneMarkerStyle = DEFAULT_SETTINGS.decorations.doneMarkerStyle,
 ): string {
 	const safeWidth = Math.max(0, Math.floor(width));
 	if (safeWidth === 0) return "";
@@ -62,14 +62,10 @@ export function buildCompletionMarkerLine(
 	const border = (text: string) => theme.fg(borderColor, text);
 	const prefix = `${g.bl}${g.h.repeat(2)} `;
 
-	if (markerStyle === "bookend") {
-		const fillLength = Math.max(0, safeWidth - visibleWidth(prefix) - visibleWidth(content) - 2);
-		const line = `${border(prefix)}${content}${border(` ${g.h.repeat(fillLength)}${g.br}`)}`;
-		return visibleWidth(line) > safeWidth ? truncateToWidth(line, safeWidth) : line;
-	}
-
-	const trail = ` ${COMPLETION_MARKER_TRAIL_RUNS.map(length => g.h.repeat(length)).join(" ")}`;
-	const line = `${border(prefix)}${content}${border(trail)}`;
+	const suffix = markerStyle === "bookend"
+		? ` ${g.h.repeat(Math.max(0, safeWidth - visibleWidth(prefix) - visibleWidth(content) - 2))}${g.br}`
+		: ` ${COMPLETION_MARKER_TRAIL_RUNS.map(length => g.h.repeat(length)).join(" ")}`;
+	const line = `${border(prefix)}${content}${border(suffix)}`;
 	return visibleWidth(line) > safeWidth ? truncateToWidth(line, safeWidth) : line;
 }
 

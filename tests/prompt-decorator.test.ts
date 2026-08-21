@@ -119,6 +119,13 @@ test("completion marker uses the selected border glyphs and requested trail", ()
 	);
 });
 
+test("completion marker bookend style fills width and ends with the corner glyph", () => {
+	const content = " Mustered for 4s (↓ 25 tokens)";
+	const line = buildCompletionMarkerLine(content, 52, theme, "double", "accent", "bookend");
+	assert.equal(visibleWidth(line), 52);
+	assert.ok(line.endsWith("╝"));
+});
+
 test("none leaves completion marker content undecorated and narrow widths clip it", () => {
 	const content = " Mustered for 4s (↓ 25 tokens)";
 	assert.equal(buildCompletionMarkerLine(content, 52, theme, "none", "accent"), content);
