@@ -6,7 +6,7 @@ import { isPlainObject, stripControlChars } from "./util.ts";
 import { WORDS, type WordEntry } from "./words.ts";
 
 const PACK_ID_PATTERN = /^[a-z][a-z0-9-]{0,63}$/;
-const RESERVED_BUNDLED_PACK_IDS = new Set(["simcity", "star-trek", "star-wars"]);
+const RESERVED_BUNDLED_PACK_IDS = new Set(["doctor-who", "firefly", "hitchhikers-guide", "lord-of-the-rings", "matrix", "portal", "simcity", "star-trek", "star-wars"]);
 
 export function isWordPackId(value: string): boolean { return PACK_ID_PATTERN.test(value); }
 const BUNDLED_PACK_DIRECTORY = fileURLToPath(new URL("../wordpacks/", import.meta.url));

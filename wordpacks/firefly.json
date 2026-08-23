@@ -1,0 +1,135 @@
+{
+  "packs": [
+    {
+      "id": "firefly",
+      "name": "Firefly",
+      "description": "Independent crew running jobs on the raggedy edge.",
+      "words": [
+        {
+          "present_tense": "Accepting payment in chickens",
+          "past_tense": "Accepted"
+        },
+        {
+          "present_tense": "Aiming to misbehave",
+          "past_tense": "Aimed"
+        },
+        {
+          "present_tense": "Avoiding Reavers",
+          "past_tense": "Avoided"
+        },
+        {
+          "present_tense": "Bringing Vera",
+          "past_tense": "Brought"
+        },
+        {
+          "present_tense": "Coaxing ailing engines",
+          "past_tense": "Coaxed"
+        },
+        {
+          "present_tense": "Cursing sudden inevitable betrayal",
+          "past_tense": "Cursed"
+        },
+        {
+          "present_tense": "Debating theology with Book",
+          "past_tense": "Debated"
+        },
+        {
+          "present_tense": "Docking at Persephone",
+          "past_tense": "Docked"
+        },
+        {
+          "present_tense": "Evading Alliance patrols",
+          "past_tense": "Evaded"
+        },
+        {
+          "present_tense": "Executing crazy Ivan",
+          "past_tense": "Executed"
+        },
+        {
+          "present_tense": "Fighting losing war",
+          "past_tense": "Fought"
+        },
+        {
+          "present_tense": "Fleeing blue-gloved agents",
+          "past_tense": "Fled"
+        },
+        {
+          "present_tense": "Haggling with clients",
+          "past_tense": "Haggled"
+        },
+        {
+          "present_tense": "Inspiring folk ballads",
+          "past_tense": "Inspired"
+        },
+        {
+          "present_tense": "Judging stranger's hat",
+          "past_tense": "Judged"
+        },
+        {
+          "present_tense": "Keeping flying",
+          "past_tense": "Kept"
+        },
+        {
+          "present_tense": "Negotiating with Niska",
+          "past_tense": "Negotiated"
+        },
+        {
+          "present_tense": "Opting for thrilling heroics",
+          "past_tense": "Opted"
+        },
+        {
+          "present_tense": "Performing big damn rescue",
+          "past_tense": "Performed"
+        },
+        {
+          "present_tense": "Playing dinosaur games",
+          "past_tense": "Played"
+        },
+        {
+          "present_tense": "Reading minds unexpectedly",
+          "past_tense": "Read"
+        },
+        {
+          "present_tense": "Retreating to bunk",
+          "past_tense": "Retreated"
+        },
+        {
+          "present_tense": "Smuggling goods past customs",
+          "past_tense": "Smuggled"
+        },
+        {
+          "present_tense": "Soaring like leaf on wind",
+          "past_tense": "Soared"
+        },
+        {
+          "present_tense": "Splitting thin profits",
+          "past_tense": "Split"
+        },
+        {
+          "present_tense": "Staying shiny",
+          "past_tense": "Stayed"
+        },
+        {
+          "present_tense": "Stealing medicine from train",
+          "past_tense": "Stole"
+        },
+        {
+          "present_tense": "Swearing in Mandarin",
+          "past_tense": "Swore"
+        },
+        {
+          "present_tense": "Taking passengers",
+          "past_tense": "Took"
+        },
+        {
+          "present_tense": "Warning about special hell",
+          "past_tense": "Warned"
+        },
+        {
+          "present_tense": "Wearing browncoat proudly",
+          "past_tense": "Wore"
+        }
+      ]
+    }
+  ]
+}

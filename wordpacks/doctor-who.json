@@ -1,0 +1,283 @@
+{
+  "packs": [
+    {
+      "id": "doctor-who",
+      "name": "Doctor Who",
+      "description": "Time Lord operations across all of time and space.",
+      "words": [
+        {
+          "present_tense": "Answering TARDIS phone",
+          "past_tense": "Answered"
+        },
+        {
+          "present_tense": "Asking oldest question",
+          "past_tense": "Asked"
+        },
+        {
+          "present_tense": "Avoiding spoilers",
+          "past_tense": "Avoided"
+        },
+        {
+          "present_tense": "Baking impossible soufflé",
+          "past_tense": "Baked"
+        },
+        {
+          "present_tense": "Becoming Bad Wolf",
+          "past_tense": "Became"
+        },
+        {
+          "present_tense": "Befriending Ood",
+          "past_tense": "Befriended"
+        },
+        {
+          "present_tense": "Bootstrapping paradox",
+          "past_tense": "Bootstrapped"
+        },
+        {
+          "present_tense": "Breaking time lock",
+          "past_tense": "Broke"
+        },
+        {
+          "present_tense": "Brewing tea",
+          "past_tense": "Brewed"
+        },
+        {
+          "present_tense": "Calibrating chameleon circuit",
+          "past_tense": "Calibrated"
+        },
+        {
+          "present_tense": "Charging sonic screwdriver",
+          "past_tense": "Charged"
+        },
+        {
+          "present_tense": "Counting shadows",
+          "past_tense": "Counted"
+        },
+        {
+          "present_tense": "Crossing own timeline",
+          "past_tense": "Crossed"
+        },
+        {
+          "present_tense": "Dematerializing TARDIS",
+          "past_tense": "Dematerialized"
+        },
+        {
+          "present_tense": "Detecting temporal anomaly",
+          "past_tense": "Detected"
+        },
+        {
+          "present_tense": "Dodging Dalek plunger",
+          "past_tense": "Dodged"
+        },
+        {
+          "present_tense": "Donning fez",
+          "past_tense": "Donned"
+        },
+        {
+          "present_tense": "Eating fish fingers and custard",
+          "past_tense": "Ate"
+        },
+        {
+          "present_tense": "Escaping collapsed star",
+          "past_tense": "Escaped"
+        },
+        {
+          "present_tense": "Evading Cybermen",
+          "past_tense": "Evaded"
+        },
+        {
+          "present_tense": "Explaining wibbly-wobbly timey-wimey",
+          "past_tense": "Explained"
+        },
+        {
+          "present_tense": "Exterminating bugs",
+          "past_tense": "Exterminated"
+        },
+        {
+          "present_tense": "Flashing psychic paper",
+          "past_tense": "Flashed"
+        },
+        {
+          "present_tense": "Flying TARDIS solo",
+          "past_tense": "Flew"
+        },
+        {
+          "present_tense": "Forgetting Silence",
+          "past_tense": "Forgot"
+        },
+        {
+          "present_tense": "Growing new hand",
+          "past_tense": "Grew"
+        },
+        {
+          "present_tense": "Guarding Pandorica",
+          "past_tense": "Guarded"
+        },
+        {
+          "present_tense": "Hacking UNIT database",
+          "past_tense": "Hacked"
+        },
+        {
+          "present_tense": "Hearing drums",
+          "past_tense": "Heard"
+        },
+        {
+          "present_tense": "Hiding from Weeping Angels",
+          "past_tense": "Hid"
+        },
+        {
+          "present_tense": "Improvising escape plan",
+          "past_tense": "Improvised"
+        },
+        {
+          "present_tense": "Jamming Cybermen signal",
+          "past_tense": "Jammed"
+        },
+        {
+          "present_tense": "Knitting impossibly long scarf",
+          "past_tense": "Knitted"
+        },
+        {
+          "present_tense": "Knocking four times",
+          "past_tense": "Knocked"
+        },
+        {
+          "present_tense": "Landing in wrong century",
+          "past_tense": "Landed"
+        },
+        {
+          "present_tense": "Leaving brakes on",
+          "past_tense": "Left"
+        },
+        {
+          "present_tense": "Materializing in Victorian London",
+          "past_tense": "Materialized"
+        },
+        {
+          "present_tense": "Meeting past selves",
+          "past_tense": "Met"
+        },
+        {
+          "present_tense": "Monitoring crack in time",
+          "past_tense": "Monitored"
+        },
+        {
+          "present_tense": "Navigating time vortex",
+          "past_tense": "Navigated"
+        },
+        {
+          "present_tense": "Negotiating with Zygons",
+          "past_tense": "Negotiated"
+        },
+        {
+          "present_tense": "Offering jelly babies",
+          "past_tense": "Offered"
+        },
+        {
+          "present_tense": "Outrunning Daleks",
+          "past_tense": "Outran"
+        },
+        {
+          "present_tense": "Parking TARDIS",
+          "past_tense": "Parked"
+        },
+        {
+          "present_tense": "Playing guitar on tank",
+          "past_tense": "Played"
+        },
+        {
+          "present_tense": "Practicing Venusian aikido",
+          "past_tense": "Practiced"
+        },
+        {
+          "present_tense": "Pressing big friendly button",
+          "past_tense": "Pressed"
+        },
+        {
+          "present_tense": "Priming vortex manipulator",
+          "past_tense": "Primed"
+        },
+        {
+          "present_tense": "Pulling wibbly lever",
+          "past_tense": "Pulled"
+        },
+        {
+          "present_tense": "Reading Gallifreyan",
+          "past_tense": "Read"
+        },
+        {
+          "present_tense": "Rebooting universe",
+          "past_tense": "Rebooted"
+        },
+        {
+          "present_tense": "Refueling at Cardiff rift",
+          "past_tense": "Refueled"
+        },
+        {
+          "present_tense": "Refusing to blink",
+          "past_tense": "Refused"
+        },
+        {
+          "present_tense": "Regenerating",
+          "past_tense": "Regenerated"
+        },
+        {
+          "present_tense": "Rerouting temporal circuits",
+          "past_tense": "Rerouted"
+        },
+        {
+          "present_tense": "Rescuing companions",
+          "past_tense": "Rescued"
+        },
+        {
+          "present_tense": "Resetting time loop",
+          "past_tense": "Reset"
+        },
+        {
+          "present_tense": "Reversing polarity of neutron flow",
+          "past_tense": "Reversed"
+        },
+        {
+          "present_tense": "Rewinding timeline",
+          "past_tense": "Rewound"
+        },
+        {
+          "present_tense": "Rewiring TARDIS console",
+          "past_tense": "Rewired"
+        },
+        {
+          "present_tense": "Saving Gallifrey",
+          "past_tense": "Saved"
+        },
+        {
+          "present_tense": "Setting coordinates for Gallifrey",
+          "past_tense": "Set"
+        },
+        {
+          "present_tense": "Snapping fingers to open TARDIS",
+          "past_tense": "Snapped"
+        },
+        {
+          "present_tense": "Speaking baby",
+          "past_tense": "Spoke"
+        },
+        {
+          "present_tense": "Straightening bow tie",
+          "past_tense": "Straightened"
+        },
+        {
+          "present_tense": "Waving sonic screwdriver",
+          "past_tense": "Waved"
+        },
+        {
+          "present_tense": "Wearing celery",
+          "past_tense": "Wore"
+        },
+        {
+          "present_tense": "Whacking console with mallet",
+          "past_tense": "Whacked"
+        }
+      ]
+    }
+  ]
+}

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Bundled **Doctor Who** word pack (68 entries, off by default) in the Word Packs section of `/topping-settings`.
+- Bundled **Firefly** word pack (31 entries, off by default) in the Word Packs section of `/topping-settings`.
+- Bundled **Hitchhiker's Guide** word pack (47 entries, off by default) in the Word Packs section of `/topping-settings`.
+- Bundled **The Matrix** word pack (58 entries, off by default) in the Word Packs section of `/topping-settings`.
+- Bundled **The Lord of the Rings** word pack (66 entries, off by default) in the Word Packs section of `/topping-settings`.
+- Bundled **Portal** word pack (40 entries, off by default) in the Word Packs section of `/topping-settings`.
+
+### Changed
+- Star Trek and Star Wars word packs drop generic articles from verb-object phrases (e.g. “Igniting lightsaber”), keeping iconic quotes like “Feeling the Force” intact; Star Wars gains six new entries.
+
 ## [0.6.1] - 2026-08-21
 
 ### Fixed

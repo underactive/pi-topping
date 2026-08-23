@@ -1,0 +1,243 @@
+{
+  "packs": [
+    {
+      "id": "matrix",
+      "name": "The Matrix",
+      "description": "Resistance operations inside the simulation.",
+      "words": [
+        {
+          "present_tense": "Accepting Oracle cookie",
+          "past_tense": "Accepted"
+        },
+        {
+          "present_tense": "Adjusting sunglasses",
+          "past_tense": "Adjusted"
+        },
+        {
+          "present_tense": "Answering ringing phone",
+          "past_tense": "Answered"
+        },
+        {
+          "present_tense": "Bargaining with Merovingian",
+          "past_tense": "Bargained"
+        },
+        {
+          "present_tense": "Battling Smith horde",
+          "past_tense": "Battled"
+        },
+        {
+          "present_tense": "Believing prophecy",
+          "past_tense": "Believed"
+        },
+        {
+          "present_tense": "Bending spoon",
+          "past_tense": "Bent"
+        },
+        {
+          "present_tense": "Boarding Nebuchadnezzar",
+          "past_tense": "Boarded"
+        },
+        {
+          "present_tense": "Breaking out of simulation",
+          "past_tense": "Broke"
+        },
+        {
+          "present_tense": "Broadcasting pirate signal",
+          "past_tense": "Broadcast"
+        },
+        {
+          "present_tense": "Brokering machine truce",
+          "past_tense": "Brokered"
+        },
+        {
+          "present_tense": "Calling operator",
+          "past_tense": "Called"
+        },
+        {
+          "present_tense": "Charging EMP",
+          "past_tense": "Charged"
+        },
+        {
+          "present_tense": "Choosing red pill",
+          "past_tense": "Chose"
+        },
+        {
+          "present_tense": "Climbing office ledge",
+          "past_tense": "Climbed"
+        },
+        {
+          "present_tense": "Cloning Agent Smith",
+          "past_tense": "Cloned"
+        },
+        {
+          "present_tense": "Compiling residual self-image",
+          "past_tense": "Compiled"
+        },
+        {
+          "present_tense": "Consulting Oracle",
+          "past_tense": "Consulted"
+        },
+        {
+          "present_tense": "Decoding digital rain",
+          "past_tense": "Decoded"
+        },
+        {
+          "present_tense": "Deleting rogue programs",
+          "past_tense": "Deleted"
+        },
+        {
+          "present_tense": "Dodging bullets",
+          "past_tense": "Dodged"
+        },
+        {
+          "present_tense": "Downloading kung fu",
+          "past_tense": "Downloaded"
+        },
+        {
+          "present_tense": "Dueling in subway",
+          "past_tense": "Dueled"
+        },
+        {
+          "present_tense": "Entering Construct",
+          "past_tense": "Entered"
+        },
+        {
+          "present_tense": "Exiting through phone booth",
+          "past_tense": "Exited"
+        },
+        {
+          "present_tense": "Extracting bug",
+          "past_tense": "Extracted"
+        },
+        {
+          "present_tense": "Following white rabbit",
+          "past_tense": "Followed"
+        },
+        {
+          "present_tense": "Freeing mind",
+          "past_tense": "Freed"
+        },
+        {
+          "present_tense": "Hacking simulation",
+          "past_tense": "Hacked"
+        },
+        {
+          "present_tense": "Hiding from Sentinels",
+          "past_tense": "Hid"
+        },
+        {
+          "present_tense": "Jacking in",
+          "past_tense": "Jacked"
+        },
+        {
+          "present_tense": "Jumping between rooftops",
+          "past_tense": "Jumped"
+        },
+        {
+          "present_tense": "Learning jiu jitsu",
+          "past_tense": "Learned"
+        },
+        {
+          "present_tense": "Loading jump program",
+          "past_tense": "Loaded"
+        },
+        {
+          "present_tense": "Locating exit",
+          "past_tense": "Located"
+        },
+        {
+          "present_tense": "Mastering bullet time",
+          "past_tense": "Mastered"
+        },
+        {
+          "present_tense": "Meeting Architect",
+          "past_tense": "Met"
+        },
+        {
+          "present_tense": "Navigating sewer tunnels",
+          "past_tense": "Navigated"
+        },
+        {
+          "present_tense": "Opening backdoors",
+          "past_tense": "Opened"
+        },
+        {
+          "present_tense": "Outrunning agents",
+          "past_tense": "Outran"
+        },
+        {
+          "present_tense": "Questioning reality",
+          "past_tense": "Questioned"
+        },
+        {
+          "present_tense": "Reading Matrix code",
+          "past_tense": "Read"
+        },
+        {
+          "present_tense": "Refusing blue pill",
+          "past_tense": "Refused"
+        },
+        {
+          "present_tense": "Reloading simulation",
+          "past_tense": "Reloaded"
+        },
+        {
+          "present_tense": "Rescuing Morpheus",
+          "past_tense": "Rescued"
+        },
+        {
+          "present_tense": "Retrieving Keymaker",
+          "past_tense": "Retrieved"
+        },
+        {
+          "present_tense": "Running up walls",
+          "past_tense": "Ran"
+        },
+        {
+          "present_tense": "Searching for Neo",
+          "past_tense": "Searched"
+        },
+        {
+          "present_tense": "Seeing black cat twice",
+          "past_tense": "Saw"
+        },
+        {
+          "present_tense": "Sparring with Morpheus",
+          "past_tense": "Sparred"
+        },
+        {
+          "present_tense": "Spotting woman in red dress",
+          "past_tense": "Spotted"
+        },
+        {
+          "present_tense": "Stopping bullets",
+          "past_tense": "Stopped"
+        },
+        {
+          "present_tense": "Storming lobby",
+          "past_tense": "Stormed"
+        },
+        {
+          "present_tense": "Taking flight",
+          "past_tense": "Took"
+        },
+        {
+          "present_tense": "Tapping phone line",
+          "past_tense": "Tapped"
+        },
+        {
+          "present_tense": "Tracing call",
+          "past_tense": "Traced"
+        },
+        {
+          "present_tense": "Unplugging",
+          "past_tense": "Unplugged"
+        },
+        {
+          "present_tense": "Waking in pod",
+          "past_tense": "Woke"
+        }
+      ]
+    }
+  ]
+}

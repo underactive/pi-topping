@@ -21,7 +21,55 @@ function withTempAgentDir<T>(fn: () => T): T {
 
 test("loads every modular bundled pack with matching irregular tenses", () => {
 	const packs = loadBundledWordPacks();
-	assert.deepEqual(packs.map((pack) => pack.id), ["simcity", "star-trek", "star-wars"]);
+	assert.deepEqual(packs.map((pack) => pack.id), ["doctor-who", "firefly", "hitchhikers-guide", "lord-of-the-rings", "matrix", "portal", "simcity", "star-trek", "star-wars"]);
+
+	const firefly = packs.find((candidate) => candidate.id === "firefly");
+	assert.ok(firefly);
+	assert.equal(firefly.name, "Firefly");
+	assert.equal(firefly.bundled, true);
+	assert.equal(firefly.words.length, 31);
+	assert.deepEqual(firefly.words.find((word) => word.present_tense === "Aiming to misbehave"), { present_tense: "Aiming to misbehave", past_tense: "Aimed" });
+	assert.deepEqual(firefly.words.find((word) => word.present_tense === "Accepting payment in chickens"), { present_tense: "Accepting payment in chickens", past_tense: "Accepted" });
+
+	const hitchhikersGuide = packs.find((candidate) => candidate.id === "hitchhikers-guide");
+	assert.ok(hitchhikersGuide);
+	assert.equal(hitchhikersGuide.name, "Hitchhiker's Guide");
+	assert.equal(hitchhikersGuide.bundled, true);
+	assert.equal(hitchhikersGuide.words.length, 47);
+	assert.deepEqual(hitchhikersGuide.words.find((word) => word.present_tense === "Activating SEP field"), { present_tense: "Activating SEP field", past_tense: "Activated" });
+	assert.deepEqual(hitchhikersGuide.words.find((word) => word.present_tense === "Adjusting improbability factor"), { present_tense: "Adjusting improbability factor", past_tense: "Adjusted" });
+
+	const portal = packs.find((candidate) => candidate.id === "portal");
+	assert.ok(portal);
+	assert.equal(portal.name, "Portal");
+	assert.equal(portal.bundled, true);
+	assert.equal(portal.words.length, 40);
+	assert.deepEqual(portal.words.find((word) => word.present_tense === "Activating aerial faith plate"), { present_tense: "Activating aerial faith plate", past_tense: "Activated" });
+	assert.deepEqual(portal.words.find((word) => word.present_tense === "Avoiding emancipation grill"), { present_tense: "Avoiding emancipation grill", past_tense: "Avoided" });
+
+	const lordOfTheRings = packs.find((candidate) => candidate.id === "lord-of-the-rings");
+	assert.ok(lordOfTheRings);
+	assert.equal(lordOfTheRings.name, "The Lord of the Rings");
+	assert.equal(lordOfTheRings.bundled, true);
+	assert.equal(lordOfTheRings.words.length, 66);
+	assert.deepEqual(lordOfTheRings.words.find((word) => word.present_tense === "Taking hobbits to Isengard"), { present_tense: "Taking hobbits to Isengard", past_tense: "Took" });
+	assert.deepEqual(lordOfTheRings.words.find((word) => word.present_tense === "Eating second breakfast"), { present_tense: "Eating second breakfast", past_tense: "Ate" });
+
+	const matrix = packs.find((candidate) => candidate.id === "matrix");
+	assert.ok(matrix);
+	assert.equal(matrix.name, "The Matrix");
+	assert.equal(matrix.bundled, true);
+	assert.equal(matrix.words.length, 58);
+	assert.deepEqual(matrix.words.find((word) => word.present_tense === "Choosing red pill"), { present_tense: "Choosing red pill", past_tense: "Chose" });
+	assert.deepEqual(matrix.words.find((word) => word.present_tense === "Taking flight"), { present_tense: "Taking flight", past_tense: "Took" });
+
+	const doctorWho = packs.find((candidate) => candidate.id === "doctor-who");
+	assert.ok(doctorWho);
+	assert.equal(doctorWho.name, "Doctor Who");
+	assert.equal(doctorWho.bundled, true);
+	assert.equal(doctorWho.words.length, 68);
+	assert.deepEqual(doctorWho.words.find((word) => word.present_tense === "Forgetting Silence"), { present_tense: "Forgetting Silence", past_tense: "Forgot" });
+	assert.deepEqual(doctorWho.words.find((word) => word.present_tense === "Wearing celery"), { present_tense: "Wearing celery", past_tense: "Wore" });
 
 	const pack = packs.find((candidate) => candidate.id === "simcity");
 	assert.ok(pack);
@@ -42,13 +90,19 @@ test("loads every modular bundled pack with matching irregular tenses", () => {
 	assert.ok(starWars);
 	assert.equal(starWars.name, "Star Wars");
 	assert.equal(starWars.bundled, true);
-	assert.equal(starWars.words.length, 68);
+	assert.equal(starWars.words.length, 74);
 	assert.deepEqual(starWars.words.find((word) => word.present_tense === "Feeling the Force"), { present_tense: "Feeling the Force", past_tense: "Felt" });
 	assert.deepEqual(starWars.words.find((word) => word.present_tense === "Taking the high ground"), { present_tense: "Taking the high ground", past_tense: "Took" });
 });
 
 test("parser discards invalid, duplicate, reserved, and empty custom packs", () => {
 	const packs = parseWordPacks({ packs: [
+		{ id: "doctor-who", name: "Reserved", words: [{ present_tense: "x", past_tense: "y" }] },
+		{ id: "firefly", name: "Reserved", words: [{ present_tense: "x", past_tense: "y" }] },
+		{ id: "hitchhikers-guide", name: "Reserved", words: [{ present_tense: "x", past_tense: "y" }] },
+		{ id: "lord-of-the-rings", name: "Reserved", words: [{ present_tense: "x", past_tense: "y" }] },
+		{ id: "matrix", name: "Reserved", words: [{ present_tense: "x", past_tense: "y" }] },
+		{ id: "portal", name: "Reserved", words: [{ present_tense: "x", past_tense: "y" }] },
 		{ id: "simcity", name: "Reserved", words: [{ present_tense: "x", past_tense: "y" }] },
 		{ id: "star-trek", name: "Reserved", words: [{ present_tense: "x", past_tense: "y" }] },
 		{ id: "star-wars", name: "Reserved", words: [{ present_tense: "x", past_tense: "y" }] },
@@ -74,6 +128,9 @@ test("enablement defaults every pack off while respecting overrides", () => {
 	assert.equal(isWordPackEnabled("custom", {}), false);
 	assert.equal(isWordPackEnabled("star-trek", {}), false);
 	assert.equal(isWordPackEnabled("star-wars", {}), false);
+	assert.equal(isWordPackEnabled("doctor-who", {}), false);
+	assert.equal(isWordPackEnabled("matrix", {}), false);
+	assert.equal(isWordPackEnabled("lord-of-the-rings", {}), false);
 	assert.equal(isWordPackEnabled("custom", { custom: false }), false);
 	assert.equal(isWordPackEnabled("simcity", { simcity: true }), true);
 });

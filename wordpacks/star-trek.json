@@ -30,7 +30,7 @@
           "past_tense": "Charged"
         },
         {
-          "present_tense": "Charting a course for Vulcan",
+          "present_tense": "Charting course for Vulcan",
           "past_tense": "Charted"
         },
         {
@@ -42,15 +42,15 @@
           "past_tense": "Consulted"
         },
         {
-          "present_tense": "Decrypting a subspace transmission",
+          "present_tense": "Decrypting subspace transmission",
           "past_tense": "Decrypted"
         },
         {
-          "present_tense": "Diverting power to the shields",
+          "present_tense": "Diverting power to shields",
           "past_tense": "Diverted"
         },
         {
-          "present_tense": "Docking at the starbase",
+          "present_tense": "Docking at starbase",
           "past_tense": "Docked"
         },
         {
@@ -82,11 +82,11 @@
           "past_tense": "Inspected"
         },
         {
-          "present_tense": "Isolating a hull breach",
+          "present_tense": "Isolating hull breach",
           "past_tense": "Isolated"
         },
         {
-          "present_tense": "Launching a class-9 probe",
+          "present_tense": "Launching class-9 probe",
           "past_tense": "Launched"
         },
         {
@@ -98,7 +98,7 @@
           "past_tense": "Modulated"
         },
         {
-          "present_tense": "Navigating an ion storm",
+          "present_tense": "Navigating ion storm",
           "past_tense": "Navigated"
         },
         {
@@ -106,7 +106,7 @@
           "past_tense": "Opened"
         },
         {
-          "present_tense": "Plotting a course to the Neutral Zone",
+          "present_tense": "Plotting course to Neutral Zone",
           "past_tense": "Plotted"
         },
         {
@@ -122,11 +122,11 @@
           "past_tense": "Recalibrated"
         },
         {
-          "present_tense": "Replicating a cup of tea",
+          "present_tense": "Replicating cup of tea",
           "past_tense": "Replicated"
         },
         {
-          "present_tense": "Rerouting power to the emitters",
+          "present_tense": "Rerouting power to emitters",
           "past_tense": "Rerouted"
         },
         {
@@ -134,7 +134,7 @@
           "past_tense": "Scanned"
         },
         {
-          "present_tense": "Sealing a hull breach",
+          "present_tense": "Sealing hull breach",
           "past_tense": "Sealed"
         },
         {
@@ -146,7 +146,7 @@
           "past_tense": "Targeted"
         },
         {
-          "present_tense": "Transferring to the transporter room",
+          "present_tense": "Transferring to transporter room",
           "past_tense": "Transferred"
         },
         {
@@ -158,11 +158,11 @@
           "past_tense": "Updated"
         },
         {
-          "present_tense": "Venting plasma from the nacelles",
+          "present_tense": "Venting plasma from nacelles",
           "past_tense": "Vented"
         },
         {
-          "present_tense": "Avoiding a temporal paradox",
+          "present_tense": "Avoiding temporal paradox",
           "past_tense": "Avoided"
         },
         {
@@ -170,7 +170,7 @@
           "past_tense": "Boarded"
         },
         {
-          "present_tense": "Broadcasting a distress signal",
+          "present_tense": "Broadcasting distress signal",
           "past_tense": "Broadcast"
         },
         {
@@ -178,7 +178,7 @@
           "past_tense": "Calculated"
         },
         {
-          "present_tense": "Crossing the Neutral Zone",
+          "present_tense": "Crossing Neutral Zone",
           "past_tense": "Crossed"
         },
         {
@@ -194,19 +194,19 @@
           "past_tense": "Deployed"
         },
         {
-          "present_tense": "Diagnosing a warp-core fluctuation",
+          "present_tense": "Diagnosing warp-core fluctuation",
           "past_tense": "Diagnosed"
         },
         {
-          "present_tense": "Escaping a collapsing star",
+          "present_tense": "Escaping collapsing star",
           "past_tense": "Escaped"
         },
         {
-          "present_tense": "Exploring a class-M planet",
+          "present_tense": "Exploring class-M planet",
           "past_tense": "Explored"
         },
         {
-          "present_tense": "Infiltrating a Romulan outpost",
+          "present_tense": "Infiltrating Romulan outpost",
           "past_tense": "Infiltrated"
         },
         {
@@ -214,11 +214,11 @@
           "past_tense": "Loaded"
         },
         {
-          "present_tense": "Mapping an uncharted nebula",
+          "present_tense": "Mapping uncharted nebula",
           "past_tense": "Mapped"
         },
         {
-          "present_tense": "Recovering a lost probe",
+          "present_tense": "Recovering lost probe",
           "past_tense": "Recovered"
         },
         {
@@ -226,19 +226,19 @@
           "past_tense": "Rescued"
         },
         {
-          "present_tense": "Routing around a spatial anomaly",
+          "present_tense": "Routing around spatial anomaly",
           "past_tense": "Routed"
         },
         {
-          "present_tense": "Surviving a Kobayashi Maru",
+          "present_tense": "Surviving Kobayashi Maru",
           "past_tense": "Survived"
         },
         {
-          "present_tense": "Tracking a cloaked vessel",
+          "present_tense": "Tracking cloaked vessel",
           "past_tense": "Tracked"
         },
         {
-          "present_tense": "Translating a Klingon transmission",
+          "present_tense": "Translating Klingon transmission",
           "past_tense": "Translated"
         },
         {

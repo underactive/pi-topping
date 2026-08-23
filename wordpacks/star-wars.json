@@ -10,7 +10,7 @@
           "past_tense": "Calibrated"
         },
         {
-          "present_tense": "Charting a course through hyperspace",
+          "present_tense": "Charting course through hyperspace",
           "past_tense": "Charted"
         },
         {
@@ -30,7 +30,7 @@
           "past_tense": "Deployed"
         },
         {
-          "present_tense": "Docking at the spaceport",
+          "present_tense": "Docking at spaceport",
           "past_tense": "Docked"
         },
         {
@@ -46,15 +46,11 @@
           "past_tense": "Felt"
         },
         {
-          "present_tense": "Focusing on the living Force",
-          "past_tense": "Focused"
-        },
-        {
           "present_tense": "Hailing Millennium Falcon",
           "past_tense": "Hailed"
         },
         {
-          "present_tense": "Igniting a lightsaber",
+          "present_tense": "Igniting lightsaber",
           "past_tense": "Ignited"
         },
         {
@@ -74,7 +70,7 @@
           "past_tense": "Locked"
         },
         {
-          "present_tense": "Maneuvering through an asteroid field",
+          "present_tense": "Maneuvering through asteroid field",
           "past_tense": "Maneuvered"
         },
         {
@@ -134,7 +130,7 @@
           "past_tense": "Summoned"
         },
         {
-          "present_tense": "Tracking a bounty",
+          "present_tense": "Tracking bounty",
           "past_tense": "Tracked"
         },
         {
@@ -154,7 +150,7 @@
           "past_tense": "Used"
         },
         {
-          "present_tense": "Venturing into the Unknown Regions",
+          "present_tense": "Venturing into Unknown Regions",
           "past_tense": "Ventured"
         },
         {
@@ -162,15 +158,15 @@
           "past_tense": "Woke"
         },
         {
-          "present_tense": "Weaving through the blockade",
+          "present_tense": "Weaving through blockade",
           "past_tense": "Wove"
         },
         {
-          "present_tense": "Wielding a lightsaber",
+          "present_tense": "Wielding lightsaber",
           "past_tense": "Wielded"
         },
         {
-          "present_tense": "Assembling a protocol droid",
+          "present_tense": "Assembling protocol droid",
           "past_tense": "Assembled"
         },
         {
@@ -178,7 +174,7 @@
           "past_tense": "Avoided"
         },
         {
-          "present_tense": "Broadcasting a distress signal",
+          "present_tense": "Broadcasting distress signal",
           "past_tense": "Broadcast"
         },
         {
@@ -186,11 +182,11 @@
           "past_tense": "Calculated"
         },
         {
-          "present_tense": "Commandeering a star destroyer",
+          "present_tense": "Commandeering star destroyer",
           "past_tense": "Commandeered"
         },
         {
-          "present_tense": "Defusing a thermal detonator",
+          "present_tense": "Defusing thermal detonator",
           "past_tense": "Defused"
         },
         {
@@ -202,11 +198,11 @@
           "past_tense": "Escaped"
         },
         {
-          "present_tense": "Exploring the Outer Rim",
+          "present_tense": "Exploring Outer Rim",
           "past_tense": "Explored"
         },
         {
-          "present_tense": "Hiding in an asteroid field",
+          "present_tense": "Hiding in asteroid field",
           "past_tense": "Hid"
         },
         {
@@ -218,11 +214,11 @@
           "past_tense": "Loaded"
         },
         {
-          "present_tense": "Outrunning an Imperial patrol",
+          "present_tense": "Outrunning Imperial patrol",
           "past_tense": "Outran"
         },
         {
-          "present_tense": "Persuading a rancor",
+          "present_tense": "Persuading rancor",
           "past_tense": "Persuaded"
         },
         {
@@ -230,11 +226,11 @@
           "past_tense": "Prepared"
         },
         {
-          "present_tense": "Recovering a stolen droid",
+          "present_tense": "Recovering stolen droid",
           "past_tense": "Recovered"
         },
         {
-          "present_tense": "Rescuing a princess",
+          "present_tense": "Rescuing princess",
           "past_tense": "Rescued"
         },
         {
@@ -246,7 +242,7 @@
           "past_tense": "Sliced"
         },
         {
-          "present_tense": "Surviving a Sarlacc encounter",
+          "present_tense": "Surviving Sarlacc encounter",
           "past_tense": "Survived"
         },
         {
@@ -262,7 +258,7 @@
           "past_tense": "Unfroze"
         },
         {
-          "present_tense": "Using a Jedi mind trick",
+          "present_tense": "Using Jedi mind trick",
           "past_tense": "Used"
         },
         {
@@ -270,8 +266,36 @@
           "past_tense": "Visited"
         },
         {
-          "present_tense": "Waiting for the signal",
+          "present_tense": "Waiting for droid",
           "past_tense": "Waited"
+        },
+        {
+          "present_tense": "Wielding double-bladed lightsaber",
+          "past_tense": "Wielded"
+        },
+        {
+          "present_tense": "Breaking out of detention block",
+          "past_tense": "Broke"
+        },
+        {
+          "present_tense": "Finding hidden Jedi temple",
+          "past_tense": "Found"
+        },
+        {
+          "present_tense": "Going to lightspeed",
+          "past_tense": "Went"
+        },
+        {
+          "present_tense": "Holding off Imperial forces",
+          "past_tense": "Held"
+        },
+        {
+          "present_tense": "Hunting down bounty",
+          "past_tense": "Hunted"
+        },
+        {
+          "present_tense": "Jamming Imperial communications",
+          "past_tense": "Jammed"
         },
         {
           "present_tense": "Wriggling free of binders",

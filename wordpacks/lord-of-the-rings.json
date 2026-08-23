@@ -1,0 +1,275 @@
+{
+  "packs": [
+    {
+      "id": "lord-of-the-rings",
+      "name": "The Lord of the Rings",
+      "description": "Fellowship operations across Middle-earth.",
+      "words": [
+        {
+          "present_tense": "Answering call of Gondor",
+          "past_tense": "Answered"
+        },
+        {
+          "present_tense": "Avoiding Eye of Sauron",
+          "past_tense": "Avoided"
+        },
+        {
+          "present_tense": "Bearing One Ring",
+          "past_tense": "Bore"
+        },
+        {
+          "present_tense": "Blowing Horn of Gondor",
+          "past_tense": "Blew"
+        },
+        {
+          "present_tense": "Boiling taters",
+          "past_tense": "Boiled"
+        },
+        {
+          "present_tense": "Bowing to no one",
+          "past_tense": "Bowed"
+        },
+        {
+          "present_tense": "Braving Caradhras pass",
+          "past_tense": "Braved"
+        },
+        {
+          "present_tense": "Calling eagles",
+          "past_tense": "Called"
+        },
+        {
+          "present_tense": "Carrying Frodo up Mount Doom",
+          "past_tense": "Carried"
+        },
+        {
+          "present_tense": "Charging with Rohirrim",
+          "past_tense": "Charged"
+        },
+        {
+          "present_tense": "Climbing stairs of Cirith Ungol",
+          "past_tense": "Climbed"
+        },
+        {
+          "present_tense": "Consulting Elrond",
+          "past_tense": "Consulted"
+        },
+        {
+          "present_tense": "Counting kills with Gimli",
+          "past_tense": "Counted"
+        },
+        {
+          "present_tense": "Coveting precious",
+          "past_tense": "Coveted"
+        },
+        {
+          "present_tense": "Crossing Bridge of Khazad-dûm",
+          "past_tense": "Crossed"
+        },
+        {
+          "present_tense": "Crowning Aragorn",
+          "past_tense": "Crowned"
+        },
+        {
+          "present_tense": "Defending Helm's Deep",
+          "past_tense": "Defended"
+        },
+        {
+          "present_tense": "Delving too deep",
+          "past_tense": "Delved"
+        },
+        {
+          "present_tense": "Destroying One Ring",
+          "past_tense": "Destroyed"
+        },
+        {
+          "present_tense": "Drawing Sting",
+          "past_tense": "Drew"
+        },
+        {
+          "present_tense": "Drinking Ent-draught",
+          "past_tense": "Drank"
+        },
+        {
+          "present_tense": "Eating second breakfast",
+          "past_tense": "Ate"
+        },
+        {
+          "present_tense": "Escaping Shelob",
+          "past_tense": "Escaped"
+        },
+        {
+          "present_tense": "Fighting cave troll",
+          "past_tense": "Fought"
+        },
+        {
+          "present_tense": "Fleeing Balrog",
+          "past_tense": "Fled"
+        },
+        {
+          "present_tense": "Flooding Isengard",
+          "past_tense": "Flooded"
+        },
+        {
+          "present_tense": "Following Gollum",
+          "past_tense": "Followed"
+        },
+        {
+          "present_tense": "Freeing Théoden",
+          "past_tense": "Freed"
+        },
+        {
+          "present_tense": "Gazing into Mirror of Galadriel",
+          "past_tense": "Gazed"
+        },
+        {
+          "present_tense": "Guarding Minas Tirith",
+          "past_tense": "Guarded"
+        },
+        {
+          "present_tense": "Halting Balrog on bridge",
+          "past_tense": "Halted"
+        },
+        {
+          "present_tense": "Hiding from Ringwraiths",
+          "past_tense": "Hid"
+        },
+        {
+          "present_tense": "Hosting eleventy-first birthday",
+          "past_tense": "Hosted"
+        },
+        {
+          "present_tense": "Hunting orcs across Rohan",
+          "past_tense": "Hunted"
+        },
+        {
+          "present_tense": "Keeping Ring secret",
+          "past_tense": "Kept"
+        },
+        {
+          "present_tense": "Launching dragon firework",
+          "past_tense": "Launched"
+        },
+        {
+          "present_tense": "Leading Fellowship",
+          "past_tense": "Led"
+        },
+        {
+          "present_tense": "Lighting beacons of Gondor",
+          "past_tense": "Lit"
+        },
+        {
+          "present_tense": "Marching with Ents",
+          "past_tense": "Marched"
+        },
+        {
+          "present_tense": "Mining mithril",
+          "past_tense": "Mined"
+        },
+        {
+          "present_tense": "Mustering Rohan",
+          "past_tense": "Mustered"
+        },
+        {
+          "present_tense": "Navigating Dead Marshes",
+          "past_tense": "Navigated"
+        },
+        {
+          "present_tense": "Outriding Nazgûl",
+          "past_tense": "Outrode"
+        },
+        {
+          "present_tense": "Packing lembas bread",
+          "past_tense": "Packed"
+        },
+        {
+          "present_tense": "Parlaying at Black Gate",
+          "past_tense": "Parlayed"
+        },
+        {
+          "present_tense": "Planting mallorn seed",
+          "past_tense": "Planted"
+        },
+        {
+          "present_tense": "Pondering palantír",
+          "past_tense": "Pondered"
+        },
+        {
+          "present_tense": "Reciting Elvish verse",
+          "past_tense": "Recited"
+        },
+        {
+          "present_tense": "Reforging Narsil",
+          "past_tense": "Reforged"
+        },
+        {
+          "present_tense": "Riding Shadowfax",
+          "past_tense": "Rode"
+        },
+        {
+          "present_tense": "Sailing from Grey Havens",
+          "past_tense": "Sailed"
+        },
+        {
+          "present_tense": "Scouring Shire",
+          "past_tense": "Scoured"
+        },
+        {
+          "present_tense": "Serving elevenses",
+          "past_tense": "Served"
+        },
+        {
+          "present_tense": "Singing in Green Dragon",
+          "past_tense": "Sang"
+        },
+        {
+          "present_tense": "Smoking Longbottom Leaf",
+          "past_tense": "Smoked"
+        },
+        {
+          "present_tense": "Speaking friend to enter",
+          "past_tense": "Spoke"
+        },
+        {
+          "present_tense": "Spotting Oliphaunt",
+          "past_tense": "Spotted"
+        },
+        {
+          "present_tense": "Stewing brace of coneys",
+          "past_tense": "Stewed"
+        },
+        {
+          "present_tense": "Summoning oathbreakers",
+          "past_tense": "Summoned"
+        },
+        {
+          "present_tense": "Surfing on shield",
+          "past_tense": "Surfed"
+        },
+        {
+          "present_tense": "Taking hobbits to Isengard",
+          "past_tense": "Took"
+        },
+        {
+          "present_tense": "Tossing dwarf across chasm",
+          "past_tense": "Tossed"
+        },
+        {
+          "present_tense": "Walking into Mordor",
+          "past_tense": "Walked"
+        },
+        {
+          "present_tense": "Wandering without being lost",
+          "past_tense": "Wandered"
+        },
+        {
+          "present_tense": "Wearing mithril shirt",
+          "past_tense": "Wore"
+        },
+        {
+          "present_tense": "Winning drinking game",
+          "past_tense": "Won"
+        }
+      ]
+    }
+  ]
+}

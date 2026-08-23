@@ -1,0 +1,199 @@
+{
+  "packs": [
+    {
+      "id": "hitchhikers-guide",
+      "name": "Hitchhiker's Guide",
+      "description": "Guide operations across the Galaxy.",
+      "words": [
+        {
+          "present_tense": "Activating SEP field",
+          "past_tense": "Activated"
+        },
+        {
+          "present_tense": "Adjusting improbability factor",
+          "past_tense": "Adjusted"
+        },
+        {
+          "present_tense": "Admiring fjords",
+          "past_tense": "Admired"
+        },
+        {
+          "present_tense": "Answering with forty-two",
+          "past_tense": "Answered"
+        },
+        {
+          "present_tense": "Asking Deep Thought",
+          "past_tense": "Asked"
+        },
+        {
+          "present_tense": "Bidding dolphins farewell",
+          "past_tense": "Bid"
+        },
+        {
+          "present_tense": "Blocking bulldozer",
+          "past_tense": "Blocked"
+        },
+        {
+          "present_tense": "Boarding Heart of Gold",
+          "past_tense": "Boarded"
+        },
+        {
+          "present_tense": "Booking table at end of universe",
+          "past_tense": "Booked"
+        },
+        {
+          "present_tense": "Boycotting Sirius Cybernetics",
+          "past_tense": "Boycotted"
+        },
+        {
+          "present_tense": "Cheering up shipboard computer",
+          "past_tense": "Cheered"
+        },
+        {
+          "present_tense": "Complaining like Marvin",
+          "past_tense": "Complained"
+        },
+        {
+          "present_tense": "Computing ultimate answer",
+          "past_tense": "Computed"
+        },
+        {
+          "present_tense": "Consulting Guide",
+          "past_tense": "Consulted"
+        },
+        {
+          "present_tense": "Contemplating infinity",
+          "past_tense": "Contemplated"
+        },
+        {
+          "present_tense": "Demolishing Earth",
+          "past_tense": "Demolished"
+        },
+        {
+          "present_tense": "Designing Norwegian coastlines",
+          "past_tense": "Designed"
+        },
+        {
+          "present_tense": "Drinking Pan Galactic Gargle Blaster",
+          "past_tense": "Drank"
+        },
+        {
+          "present_tense": "Embracing improbability",
+          "past_tense": "Embraced"
+        },
+        {
+          "present_tense": "Enduring Vogon poetry",
+          "past_tense": "Endured"
+        },
+        {
+          "present_tense": "Engaging infinite improbability drive",
+          "past_tense": "Engaged"
+        },
+        {
+          "present_tense": "Entering hyperspace",
+          "past_tense": "Entered"
+        },
+        {
+          "present_tense": "Exploring Magrathea",
+          "past_tense": "Explored"
+        },
+        {
+          "present_tense": "Finding decent cup of tea",
+          "past_tense": "Found"
+        },
+        {
+          "present_tense": "Fixing nutrimatic dispenser",
+          "past_tense": "Fixed"
+        },
+        {
+          "present_tense": "Growing second head",
+          "past_tense": "Grew"
+        },
+        {
+          "present_tense": "Hitching ride across galaxy",
+          "past_tense": "Hitched"
+        },
+        {
+          "present_tense": "Installing babel fish",
+          "past_tense": "Installed"
+        },
+        {
+          "present_tense": "Jettisoning B Ark",
+          "past_tense": "Jettisoned"
+        },
+        {
+          "present_tense": "Learning to fly",
+          "past_tense": "Learned"
+        },
+        {
+          "present_tense": "Listing malfunctioning diodes",
+          "past_tense": "Listed"
+        },
+        {
+          "present_tense": "Mocking digital watches",
+          "past_tense": "Mocked"
+        },
+        {
+          "present_tense": "Negotiating with Vogons",
+          "past_tense": "Negotiated"
+        },
+        {
+          "present_tense": "Objecting to bypass",
+          "past_tense": "Objected"
+        },
+        {
+          "present_tense": "Offering peanuts",
+          "past_tense": "Offered"
+        },
+        {
+          "present_tense": "Outsmarting white mice",
+          "past_tense": "Outsmarted"
+        },
+        {
+          "present_tense": "Outwitting Ravenous Bugblatter Beast",
+          "past_tense": "Outwitted"
+        },
+        {
+          "present_tense": "Perfecting sandwich craft",
+          "past_tense": "Perfected"
+        },
+        {
+          "present_tense": "Powering bistromathic drive",
+          "past_tense": "Powered"
+        },
+        {
+          "present_tense": "Rating Earth mostly harmless",
+          "past_tense": "Rated"
+        },
+        {
+          "present_tense": "Rebuilding Earth",
+          "past_tense": "Rebuilt"
+        },
+        {
+          "present_tense": "Redirecting incoming missile",
+          "past_tense": "Redirected"
+        },
+        {
+          "present_tense": "Resisting panic",
+          "past_tense": "Resisted"
+        },
+        {
+          "present_tense": "Saying oh no, not again",
+          "past_tense": "Said"
+        },
+        {
+          "present_tense": "Searching for ultimate question",
+          "past_tense": "Searched"
+        },
+        {
+          "present_tense": "Spelling with scrabble tiles",
+          "past_tense": "Spelled"
+        },
+        {
+          "present_tense": "Testing point-of-view gun",
+          "past_tense": "Tested"
+        }
+      ]
+    }
+  ]
+}

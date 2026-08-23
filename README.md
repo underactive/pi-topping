@@ -71,6 +71,12 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Mid-turn inputs                                ON   ║
 ║                                                            ║
 ╟─ Word Packs ───────────────────────────────────────────────╢
+║    [ ] Doctor Who                                    OFF   ║
+║    [ ] Firefly                                       OFF   ║
+║    [ ] Hitchhiker's Guide                            OFF   ║
+║    [ ] The Lord of the Rings                         OFF   ║
+║    [ ] The Matrix                                    OFF   ║
+║    [ ] Portal                                        OFF   ║
 ║    [ ] SimCity                                       OFF   ║
 ║    [ ] Star Trek                                     OFF   ║
 ║    [ ] Star Wars                                     OFF   ║
@@ -79,14 +85,14 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  ←→ select  ␣ toggle  ⏎ apply  esc cancel         ║
-╚════════════════════════════════════════════════════[ 9/41 ]╝
+╚════════════════════════════════════════════════════[ 9/47 ]╝
 ```
 
 ### Word packs
 
-Base activity words are always available. All word packs, including the shipped **SimCity**, **Star Trek**, and **Star Wars** packs and custom packs, are disabled by default. Enable packs in `/topping-settings` to add their entries to the same uniformly selected pool. When Randomize “Worked” text is on, the completion marker uses the selected entry’s matching past tense; otherwise it uses `Worked`.
+Base activity words are always available. All word packs, including the shipped **Doctor Who**, **Firefly**, **Hitchhiker's Guide**, **The Lord of the Rings**, **The Matrix**, **Portal**, **SimCity**, **Star Trek**, and **Star Wars** packs and custom packs, are disabled by default. Enable packs in `/topping-settings` to add their entries to the same uniformly selected pool. When Randomize “Worked” text is on, the completion marker uses the selected entry’s matching past tense; otherwise it uses `Worked`.
 
-Bundled packs live in [`wordpacks/`](wordpacks/). Copy `wordpacks/simcity.json`, `wordpacks/star-trek.json`, or `wordpacks/star-wars.json` to `~/.pi/agent/pi-topping/word-packs.json`, then change the pack `id` (the bundled `simcity`, `star-trek`, and `star-wars` IDs are reserved), name, and words:
+Bundled packs live in [`wordpacks/`](wordpacks/). Copy `wordpacks/doctor-who.json`, `wordpacks/firefly.json`, `wordpacks/hitchhikers-guide.json`, `wordpacks/lord-of-the-rings.json`, `wordpacks/matrix.json`, `wordpacks/portal.json`, `wordpacks/simcity.json`, `wordpacks/star-trek.json`, or `wordpacks/star-wars.json` to `~/.pi/agent/pi-topping/word-packs.json`, then change the pack `id` (the bundled `doctor-who`, `firefly`, `hitchhikers-guide`, `lord-of-the-rings`, `matrix`, `portal`, `simcity`, `star-trek`, and `star-wars` IDs are reserved), name, and words:
 
 ```json
 {

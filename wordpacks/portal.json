@@ -1,0 +1,171 @@
+{
+  "packs": [
+    {
+      "id": "portal",
+      "name": "Portal",
+      "description": "Enrichment Center operations, for science.",
+      "words": [
+        {
+          "present_tense": "Activating aerial faith plate",
+          "past_tense": "Activated"
+        },
+        {
+          "present_tense": "Avoiding emancipation grill",
+          "past_tense": "Avoided"
+        },
+        {
+          "present_tense": "Baking cake",
+          "past_tense": "Baked"
+        },
+        {
+          "present_tense": "Blocking neurotoxin emitters",
+          "past_tense": "Blocked"
+        },
+        {
+          "present_tense": "Boosting off propulsion gel",
+          "past_tense": "Boosted"
+        },
+        {
+          "present_tense": "Carrying companion cube",
+          "past_tense": "Carried"
+        },
+        {
+          "present_tense": "Completing test chamber",
+          "past_tense": "Completed"
+        },
+        {
+          "present_tense": "Deciphering Ratman scribbles",
+          "past_tense": "Deciphered"
+        },
+        {
+          "present_tense": "Defeating GLaDOS",
+          "past_tense": "Defeated"
+        },
+        {
+          "present_tense": "Dodging turret fire",
+          "past_tense": "Dodged"
+        },
+        {
+          "present_tense": "Doubting cake",
+          "past_tense": "Doubted"
+        },
+        {
+          "present_tense": "Extending hard-light bridge",
+          "past_tense": "Extended"
+        },
+        {
+          "present_tense": "Flinging across chamber",
+          "past_tense": "Flung"
+        },
+        {
+          "present_tense": "Flouting safety regulations",
+          "past_tense": "Flouted"
+        },
+        {
+          "present_tense": "Grabbing portal device",
+          "past_tense": "Grabbed"
+        },
+        {
+          "present_tense": "Humming Still Alive",
+          "past_tense": "Hummed"
+        },
+        {
+          "present_tense": "Incinerating weighted cube",
+          "past_tense": "Incinerated"
+        },
+        {
+          "present_tense": "Linking paired portals",
+          "past_tense": "Linked"
+        },
+        {
+          "present_tense": "Listening to GLaDOS",
+          "past_tense": "Listened"
+        },
+        {
+          "present_tense": "Navigating endless catwalks",
+          "past_tense": "Navigated"
+        },
+        {
+          "present_tense": "Noting huge success",
+          "past_tense": "Noted"
+        },
+        {
+          "present_tense": "Opening moon portal",
+          "past_tense": "Opened"
+        },
+        {
+          "present_tense": "Overpowering Wheatley",
+          "past_tense": "Overpowered"
+        },
+        {
+          "present_tense": "Pairing co-op bots",
+          "past_tense": "Paired"
+        },
+        {
+          "present_tense": "Placing cube on button",
+          "past_tense": "Placed"
+        },
+        {
+          "present_tense": "Promising cake",
+          "past_tense": "Promised"
+        },
+        {
+          "present_tense": "Riding excursion funnel",
+          "past_tense": "Rode"
+        },
+        {
+          "present_tense": "Rolling eyes at GLaDOS",
+          "past_tense": "Rolled"
+        },
+        {
+          "present_tense": "Running GLaDOS on potato battery",
+          "past_tense": "Ran"
+        },
+        {
+          "present_tense": "Sidestepping toxic goo",
+          "past_tense": "Sidestepped"
+        },
+        {
+          "present_tense": "Skating on repulsion gel",
+          "past_tense": "Skated"
+        },
+        {
+          "present_tense": "Smashing security cameras",
+          "past_tense": "Smashed"
+        },
+        {
+          "present_tense": "Stepping through portal",
+          "past_tense": "Stepped"
+        },
+        {
+          "present_tense": "Testing for science",
+          "past_tense": "Tested"
+        },
+        {
+          "present_tense": "Thinking with portals",
+          "past_tense": "Thought"
+        },
+        {
+          "present_tense": "Touring old Aperture",
+          "past_tense": "Toured"
+        },
+        {
+          "present_tense": "Waking in relaxation vault",
+          "past_tense": "Woke"
+        },
+        {
+          "present_tense": "Watching orientation video",
+          "past_tense": "Watched"
+        },
+        {
+          "present_tense": "Weaponizing lemons",
+          "past_tense": "Weaponized"
+        },
+        {
+          "present_tense": "Wearing long-fall boots",
+          "past_tense": "Wore"
+        }
+      ]
+    }
+  ]
+}
