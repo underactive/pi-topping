@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-08-23
+
 ### Added
 - Bundled **Doctor Who** word pack (68 entries, off by default) in the Word Packs section of `/topping-settings`.
 - Bundled **Firefly** word pack (31 entries, off by default) in the Word Packs section of `/topping-settings`.
