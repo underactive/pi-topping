@@ -114,7 +114,7 @@ export function registerSetupCommand(pi: ExtensionAPI, install: ToppingInstaller
 						})),
 					},
 				],
-				hints: ["↑↓ move", "␣ toggle", "⏎ install", "esc cancel"],
+				hints: ["↑↓ move", "PgUp/PgDn page", "␣ toggle", "⏎ install", "esc cancel"],
 				previewTitle: "Description",
 				preview: (_values, _elapsedMs, activeItemId) => ({ lines: renderDescription(missing, activeItemId) }),
 			});
