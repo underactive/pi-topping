@@ -11,6 +11,8 @@ import { MenuComponent, type MenuConfig, type MenuResult, type MenuValue } from 
 const KEY = {
 	up: "\x1b[A",
 	down: "\x1b[B",
+	pageUp: "\x1b[5~",
+	pageDown: "\x1b[6~",
 	left: "\x1b[D",
 	right: "\x1b[C",
 	space: " ",
@@ -135,6 +137,33 @@ test("scrolls the item body to fit a 24-row terminal while keeping chrome and cu
 	assert.ok(!lines.some((line) => line.includes("more above") || line.includes("more below")));
 });
 
+test("configured maxHeight caps the menu while preserving scrolling chrome", (t) => {
+	const terminal = { rows: 40 };
+	const tui = { terminal, requestRender: () => {} } as unknown as TUI;
+	const menu = new MenuComponent({
+		title: "TEST",
+		maxHeight: "75%",
+		sections: [{ title: "Many settings", items: Array.from({ length: 40 }, (_, i) => ({ id: `item-${i}`, label: `Item ${i}`, value: true })) }],
+	}, fakeTheme(), () => {}, tui);
+	t.after(() => menu.dispose());
+
+	let lines = menu.render(64).map(stripTags);
+	assert.equal(lines.length, 30);
+	assert.ok(lines.some((line) => line.includes("Item 0") && line.includes("❯")));
+	assert.ok(lines.some((line) => line.includes("↓ more below")));
+	assert.ok(lines.at(-1)!.includes("[ 1/40 ]"));
+	assert.ok(lines.at(-1)!.includes("╝"));
+
+	for (let i = 0; i < 39; i++) menu.handleInput(KEY.down);
+	lines = menu.render(64).map(stripTags);
+	assert.equal(lines.length, 30);
+	assert.ok(lines.some((line) => line.includes("Item 39") && line.includes("❯")));
+	assert.ok(lines.some((line) => line.includes("↑ more above")));
+	assert.ok(!lines.some((line) => line.includes("↓ more below")));
+	assert.ok(lines.at(-1)!.includes("[ 40/40 ]"));
+	assert.ok(lines.at(-1)!.includes("╝"));
+});
+
 test("a section starting near the window bottom keeps its heading instead of folding into the previous section", (t) => {
 	const terminal = { rows: 10 };
 	const tui = { terminal, requestRender: () => {} } as unknown as TUI;
@@ -162,7 +191,7 @@ test("a section starting near the window bottom keeps its heading instead of fol
 	assert.ok(lines[itemIndex]!.includes("\u276f"), "cursor stays on the Beta item");
 });
 
-test("arrow keys move the cursor with wrap-around in both directions", () => {
+test("arrow keys clamp at the first and last items", () => {
 	const menu = makeMenu(() => {});
 
 	function selectedLabel(): string {
@@ -174,19 +203,51 @@ test("arrow keys move the cursor with wrap-around in both directions", () => {
 	// Cursor starts on the first item.
 	assert.equal(selectedLabel(), "a");
 
+	// Up from the first item stays on the first.
+	menu.handleInput(KEY.up);
+	assert.equal(selectedLabel(), "a");
+
 	menu.handleInput(KEY.down);
 	assert.equal(selectedLabel(), "b");
 
 	menu.handleInput(KEY.down);
 	assert.equal(selectedLabel(), "c");
 
-	// Down from the last item wraps to the first.
+	// Down from the last item stays on the last.
 	menu.handleInput(KEY.down);
-	assert.equal(selectedLabel(), "a");
-
-	// Up from the first item wraps to the last.
-	menu.handleInput(KEY.up);
 	assert.equal(selectedLabel(), "c");
+});
+
+test("page keys move by a screenful and clamp at the list boundaries", (t) => {
+	const terminal = { rows: 15 };
+	const tui = { terminal, requestRender: () => {} } as unknown as TUI;
+	const menu = new MenuComponent({
+		title: "TEST",
+		sections: [{ title: "Many settings", items: Array.from({ length: 20 }, (_, i) => ({ id: `item-${i}`, label: `Item ${i}`, value: true })) }],
+	}, fakeTheme(), () => {}, tui);
+	t.after(() => menu.dispose());
+
+	function selectedIndex(): number {
+		const lines = menu.render(64).map(stripTags);
+		const row = lines.find((line) => line.includes("\u276f"))!;
+		return Number.parseInt(row.match(/Item (\d+)/)![1]!, 10);
+	}
+
+	assert.equal(selectedIndex(), 0);
+	menu.handleInput(KEY.pageUp);
+	assert.equal(selectedIndex(), 0);
+
+	menu.handleInput(KEY.pageDown);
+	assert.equal(selectedIndex(), 9);
+	menu.handleInput(KEY.pageDown);
+	assert.equal(selectedIndex(), 18);
+	menu.handleInput(KEY.pageDown);
+	assert.equal(selectedIndex(), 19);
+
+	menu.handleInput(KEY.pageDown);
+	assert.equal(selectedIndex(), 19);
+	menu.handleInput(KEY.pageUp);
+	assert.equal(selectedIndex(), 10);
 });
 
 test("space toggles the selected item's value", () => {

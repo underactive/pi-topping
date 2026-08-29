@@ -25,7 +25,7 @@
  */
 
 import type { ExtensionCommandContext, Theme } from "@earendil-works/pi-coding-agent";
-import { type Component, Key, matchesKey, truncateToWidth, type TUI, visibleWidth } from "@earendil-works/pi-tui";
+import { type Component, Key, matchesKey, truncateToWidth, type SizeValue, type TUI, visibleWidth } from "@earendil-works/pi-tui";
 
 export type MenuValue = boolean | string;
 
@@ -79,6 +79,8 @@ export interface MenuConfig {
 	preview?: (values: Record<string, MenuValue>, elapsedMs: number, activeItemId: string | undefined, width: number) => string[] | PreviewResult;
 	/** Optional heading for the preview block. Defaults to `Preview`. */
 	previewTitle?: string;
+	/** Maximum overlay height in rows or as a percentage of the terminal height. */
+	maxHeight?: SizeValue;
 }
 
 export interface MenuResult<T> {
@@ -86,7 +88,7 @@ export interface MenuResult<T> {
 	values: T;
 }
 
-const DEFAULT_HINTS = ["\u2191\u2193 move", "\u2423 toggle", "\u23ce apply", "esc cancel"];
+const DEFAULT_HINTS = ["\u2191\u2193 move", "PgUp/PgDn page", "\u2423 toggle", "\u23ce apply", "esc cancel"];
 const OVERLAY_WIDTH = "86%";
 export const DEFAULT_PREVIEW_WIDTH = 76;
 const ROW_PREFIX_WIDTH = 8; // "  " + marker + " " + "[" + box + "]" + " "
@@ -141,6 +143,7 @@ export class MenuComponent implements Component {
 	private readonly previewFn: MenuConfig["preview"];
 	private readonly previewOrigin: number | undefined;
 	private readonly tui: TUI | undefined;
+	private readonly maxHeight: SizeValue | undefined;
 	private previewTimer: ReturnType<typeof setTimeout> | undefined;
 	private previewNextRefreshMs: number | undefined;
 	private disposed = false;
@@ -149,6 +152,7 @@ export class MenuComponent implements Component {
 	private cachedWidth: number | undefined;
 	private cachedRows: number | undefined;
 	private cachedLines: string[] | undefined;
+	private pageItemCount: number | undefined;
 
 	constructor(
 		config: MenuConfig,
@@ -163,6 +167,7 @@ export class MenuComponent implements Component {
 		this.hints = config.hints ?? DEFAULT_HINTS;
 		this.previewTitle = config.previewTitle ?? "Preview";
 		this.tui = tui;
+		this.maxHeight = config.maxHeight;
 		this.values = buildInitialValues(config);
 		this.flat = [];
 		for (const [sectionIndex, section] of config.sections.entries()) {
@@ -203,7 +208,7 @@ export class MenuComponent implements Component {
 
 		// Map input to a normalized key name.
 		let mappedKey: string | undefined;
-		for (const k of [Key.up, Key.down, Key.left, Key.right, Key.space, Key.enter, Key.escape]) {
+		for (const k of [Key.up, Key.down, Key.pageUp, Key.pageDown, Key.left, Key.right, Key.space, Key.enter, Key.escape]) {
 			if (matchesKey(data, k)) {
 				mappedKey = k;
 				break;
@@ -214,14 +219,16 @@ export class MenuComponent implements Component {
 		const keyActions: Record<string, () => void> = {
 			[Key.up]: () => {
 				if (this.moveGrabbedItem(-1)) return;
-				this.cursor = (this.cursor - 1 + this.flat.length) % this.flat.length;
+				this.cursor = Math.max(0, this.cursor - 1);
 				this.invalidate();
 			},
 			[Key.down]: () => {
 				if (this.moveGrabbedItem(1)) return;
-				this.cursor = (this.cursor + 1) % this.flat.length;
+				this.cursor = Math.min(this.flat.length - 1, this.cursor + 1);
 				this.invalidate();
 			},
+			[Key.pageUp]: () => this.moveByPage(-1),
+			[Key.pageDown]: () => this.moveByPage(1),
 			[Key.left]: () => this.cycleCurrentValue(-1),
 			[Key.right]: () => this.cycleCurrentValue(1),
 			[Key.space]: () => {
@@ -281,6 +288,20 @@ export class MenuComponent implements Component {
 			this.invalidate();
 		}
 		return true;
+	}
+
+	private moveByPage(direction: -1 | 1): void {
+		const pageItemCount = this.getPageItemCount();
+		if (this.moveGrabbedItem(direction * pageItemCount)) return;
+		this.cursor = Math.max(0, Math.min(this.flat.length - 1, this.cursor + direction * pageItemCount));
+		this.invalidate();
+	}
+
+	private getPageItemCount(): number {
+		if (this.pageItemCount !== undefined) return this.pageItemCount;
+		const rows = this.availableRows();
+		if (rows === undefined) return Math.max(1, Math.min(this.flat.length, 10));
+		return Math.max(1, rows - 6);
 	}
 
 	private cycleCurrentValue(delta: number): void {
@@ -377,10 +398,17 @@ export class MenuComponent implements Component {
 	private buildResponsiveToggleSections(innerWidth: number, maxRows: number, allLines: string[]): string[] {
 		if (allLines.length <= maxRows) {
 			this.scrollStart = 0;
+			this.pageItemCount = Math.max(1, this.flat.length);
 			return allLines;
 		}
-		if (maxRows <= 0) return [];
-		if (maxRows === 1) return this.buildToggleWindow(innerWidth, this.cursor, 1).lines;
+		if (maxRows <= 0) {
+			this.pageItemCount = 1;
+			return [];
+		}
+		if (maxRows === 1) {
+			this.pageItemCount = 1;
+			return this.buildToggleWindow(innerWidth, this.cursor, 1).lines;
+		}
 
 		const contentRows = maxRows - 1; // Reserve one fixed row for scroll status.
 		if (this.cursor < this.scrollStart) this.scrollStart = this.cursor;
@@ -405,6 +433,7 @@ export class MenuComponent implements Component {
 			}
 		}
 		const window = this.buildToggleWindow(innerWidth, this.scrollStart, contentRows);
+		this.pageItemCount = Math.max(1, window.end - this.scrollStart + 1);
 
 		const rows = [...window.lines];
 		while (rows.length < contentRows) rows.push(this.renderBlankRow(innerWidth));
@@ -418,7 +447,15 @@ export class MenuComponent implements Component {
 
 	private availableRows(): number | undefined {
 		const rows = (this.tui as (TUI & { terminal?: { rows?: number } }) | undefined)?.terminal?.rows;
-		return typeof rows === "number" && Number.isFinite(rows) && rows > 0 ? Math.floor(rows) : undefined;
+		if (typeof rows !== "number" || !Number.isFinite(rows) || rows <= 0) return undefined;
+
+		const terminalRows = Math.floor(rows);
+		if (this.maxHeight === undefined) return terminalRows;
+		const requestedRows = typeof this.maxHeight === "number"
+			? this.maxHeight
+			: (Number.parseFloat(this.maxHeight) / 100) * terminalRows;
+		if (!Number.isFinite(requestedRows)) return terminalRows;
+		return Math.max(1, Math.min(terminalRows, Math.floor(requestedRows)));
 	}
 
 	private buildLines(maxWidth: number, maxRows?: number): string[] {
@@ -431,6 +468,7 @@ export class MenuComponent implements Component {
 		const naturalBody = this.buildToggleSections(innerWidth);
 		const naturalHeight = header.length + naturalBody.length + footer.length;
 		if (maxRows === undefined || naturalHeight <= maxRows) {
+			this.pageItemCount = Math.max(1, this.flat.length);
 			return [...header, ...naturalBody, ...footer].map(line => truncateToWidth(line, boxWidth, ""));
 		}
 
@@ -571,9 +609,10 @@ export async function showMenu<T extends Record<string, MenuValue>>(
 		return { applied: false, values: initialValues };
 	}
 
+	const maxHeight = config.maxHeight ?? "100%";
 	return ctx.ui.custom<MenuResult<T>>(
 		(tui, theme, _keybindings, done) =>
 			new MenuComponent(config, theme, done as (result: MenuResult<Record<string, MenuValue>>) => void, tui),
-		{ overlay: true, overlayOptions: { width: OVERLAY_WIDTH, maxHeight: "100%" } },
+		{ overlay: true, overlayOptions: { width: OVERLAY_WIDTH, maxHeight } },
 	);
 }
