@@ -246,9 +246,8 @@ export class SessionManager {
 
 	#onUIPromptStart = (event: UIPromptStartEvent, ctx: ExtensionContext): void => {
 		this.#currentCtx = ctx;
-		if (!this.usable(ctx)) return;
+		if (!this.usable(ctx) || !this.#state.busy) return;
 		this.#state.waiting = { kind: event.kind, title: event.title };
-		if (!this.#state.busy) return;
 		this.applyWaitingIndicator(ctx);
 		this.tick();
 	};
