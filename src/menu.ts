@@ -5,20 +5,7 @@
  *
  * Renders a titled box containing one or more sections of boolean toggle,
  * multi-value cycle, or drag-to-reorder items, plus an optional live-updating
- * preview section driven by a caller-supplied render callback, e.g.:
- *
- *   ╔═[ Pi Topping: Settings ]════════════════════════╗
- *   ╟─ Preview ────────────────────────────────────╢
- *   ║                                                  ║
- *   ║ ⠋ Cerebrating… ⣤⣤⣤⣤  28 tok/s · 3s · ↓ 84 tokens ║
- *   ║                                                  ║
- *   ╟─ Decorations ───────────────────────────────────╢
- *   ║  ❯ [■] Animated spinner                    ON   ║
- *   ║    [ ] "Working..." text shimmer           OFF   ║
- *   ║                                                  ║
- *   ╟──────────────────────────────────────────────────╢
- *   ║  ↑↓ move  ␣ toggle  ⏎ apply  esc cancel          ║
- *   ╚══════════════════════════════════════════[ 1/2 ]═╝
+ * preview section driven by a caller-supplied render callback.
  *
  * Intended to be reused by any extension that needs a simple modal toggle
  * menu; it has no dependency on this extension's own settings shape.
