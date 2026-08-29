@@ -433,7 +433,7 @@ export class MenuComponent implements Component {
 	}
 
 	private availableRows(): number | undefined {
-		const rows = (this.tui as (TUI & { terminal?: { rows?: number } }) | undefined)?.terminal?.rows;
+		const rows = this.tui?.terminal?.rows;
 		if (typeof rows !== "number" || !Number.isFinite(rows) || rows <= 0) return undefined;
 
 		const terminalRows = Math.floor(rows);
