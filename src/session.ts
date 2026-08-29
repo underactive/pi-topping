@@ -47,8 +47,20 @@ type MessageStartEvent = Extract<ExtensionEvent, { type: "message_start" }>;
 type MessageUpdateEvent = Extract<ExtensionEvent, { type: "message_update" }>;
 type MessageEndEvent = Extract<ExtensionEvent, { type: "message_end" }>;
 type ToolExecutionStartEvent = Extract<ExtensionEvent, { type: "tool_execution_start" }>;
+type UIPromptStartEvent = Extract<ExtensionEvent, { type: "ui_prompt_start" }>;
+type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
+type UIPromptKind = UIPromptStartEvent["kind"];
 
 const DONE_ENTRY_TYPE = "pi-topping-done";
+const WAITING_LABELS: Record<UIPromptKind, string> = {
+	select: "Waiting for selection",
+	confirm: "Waiting for confirmation",
+	input: "Waiting for input",
+	editor: "Waiting in editor",
+	custom: "Waiting for input",
+};
+const WAITING_PULSE_FRAMES = ["·", "•", "●", "•"];
+const WAITING_PULSE_INTERVAL_MS = 120;
 // Reconciliation resets the EMA at message boundaries, so retain and then fade the last rate to avoid flicker.
 const TOKEN_RATE_HOLD_MS = 1_500;
 const TOKEN_RATE_FADE_MS = 250;
@@ -74,6 +86,7 @@ interface SessionState {
 	tokenRateFadeStartsAt: number;
 	timer: ReturnType<typeof setInterval> | null;
 	busy: boolean;
+	waiting: { kind: UIPromptKind; title?: string } | null;
 	midTurnInputs: number;
 	/** Last string passed to setWorkingMessage(), or the NOT_SENT sentinel before the first call. */
 	lastMessage: string | undefined | typeof NOT_SENT;
@@ -106,9 +119,15 @@ function makeFreshState(): SessionState {
 		tokenRateFadeStartsAt: 0,
 		timer: null,
 		busy: false,
+		waiting: null,
 		midTurnInputs: 0,
 		lastMessage: NOT_SENT,
 	};
+}
+
+function waitingLabel(waiting: NonNullable<SessionState["waiting"]>): string {
+	const title = waiting.title ? stripControlChars(waiting.title).trim() : "";
+	return title ? `Waiting: ${title}` : WAITING_LABELS[waiting.kind];
 }
 
 /** Owns mutable extension state and Pi lifecycle registrations. */
@@ -225,6 +244,24 @@ export class SessionManager {
 		}
 	};
 
+	#onUIPromptStart = (event: UIPromptStartEvent, ctx: ExtensionContext): void => {
+		this.#currentCtx = ctx;
+		if (!this.usable(ctx)) return;
+		this.#state.waiting = { kind: event.kind, title: event.title };
+		if (!this.#state.busy) return;
+		this.applyWaitingIndicator(ctx);
+		this.tick();
+	};
+
+	#onUIPromptEnd = (_event: UIPromptEndEvent, ctx: ExtensionContext): void => {
+		this.#currentCtx = ctx;
+		if (!this.usable(ctx) || !this.#state.waiting) return;
+		this.#state.waiting = null;
+		if (!this.#state.busy) return;
+		this.applyIndicator(ctx);
+		this.tick();
+	};
+
 	#onAgentSettled = async (_e: AgentSettledEvent, ctx: ExtensionContext): Promise<void> => {
 		this.#currentCtx = ctx;
 		if (!this.usable(ctx)) return;
@@ -232,6 +269,7 @@ export class SessionManager {
 		const hadPrompt = !!this.#state.startTime;
 		const elapsedMs = hadPrompt ? Date.now() - this.#state.startTime : 0;
 		this.#state.busy = false;
+		this.#state.waiting = null;
 		this.#state.startTime = 0;
 		this.#counter.reset();
 		this.stopTimer();
@@ -252,6 +290,7 @@ export class SessionManager {
 	};
 
 	#onSessionShutdown = async (_e: SessionShutdownEvent, _ctx: ExtensionContext): Promise<void> => {
+		this.#state.waiting = null;
 		this.stopTimer();
 	};
 
@@ -298,6 +337,8 @@ export class SessionManager {
 		this.#pi.on("message_end", this.#onMessageEnd);
 		this.#pi.on("tool_execution_start", this.#onToolExecutionStart);
 		this.#pi.on("agent_settled", this.#onAgentSettled);
+		this.#pi.on("ui_prompt_start", this.#onUIPromptStart);
+		this.#pi.on("ui_prompt_end", this.#onUIPromptEnd);
 		this.#pi.on("session_shutdown", this.#onSessionShutdown);
 		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) => this.#renderDoneEntry(entry, theme));
 		this.#pi.registerMessageRenderer<PromptBoxDetails>(PROMPT_BOX_TYPE, promptBoxRenderer);
@@ -343,6 +384,13 @@ export class SessionManager {
 	private indicatorFingerprint(): string {
 		const decorations = this.#settings.decorations;
 		return `${decorations.animatedSpinner}:${decorations.spinnerColor}:${decorations.spinnerColorEnabled}:${this.#settings.loaderOrder[0]}`;
+	}
+
+	private applyWaitingIndicator(ctx: ExtensionContext): void {
+		ctx.ui.setWorkingIndicator({
+			frames: WAITING_PULSE_FRAMES.map((frame) => ctx.ui.theme.fg("dim", frame)),
+			intervalMs: WAITING_PULSE_INTERVAL_MS,
+		});
 	}
 
 	private applyIndicator(ctx: ExtensionContext): void {
@@ -401,6 +449,14 @@ export class SessionManager {
 		const ctx = this.#currentCtx;
 		const state = this.#state;
 		if (!state.busy || !ctx) return;
+		if (state.waiting) {
+			const msg = ctx.ui.theme.fg("dim", waitingLabel(state.waiting));
+			if (msg !== state.lastMessage) {
+				state.lastMessage = msg;
+				ctx.ui.setWorkingMessage(msg);
+			}
+			return;
+		}
 
 		const now = Date.now();
 		const total = state.confirmTokens + state.liveTokens;
@@ -512,7 +568,10 @@ export class SessionManager {
 		}
 
 		this.#settings = updatedSettings;
-		if (before !== this.indicatorFingerprint()) this.applyIndicator(ctx);
+		if (before !== this.indicatorFingerprint()) {
+			if (this.#state.waiting) this.applyWaitingIndicator(ctx);
+			else this.applyIndicator(ctx);
+		}
 		this.#state.activityMeter.setDirection(this.#settings.decorations.meterDirection);
 		if (this.#state.busy) {
 			this.stopTimer();

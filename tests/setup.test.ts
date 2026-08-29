@@ -258,7 +258,7 @@ test("/topping-setup describes the focused topping instead of listing selected i
 		const hyperlinkClose = "\x1b]8;;\x1b\\";
 		const closeIndex = narrowLinkLine.lastIndexOf(hyperlinkClose);
 		assert.ok(closeIndex >= 0, "narrow catalog hyperlink should be explicitly closed");
-		assert.equal(narrowLinkLine.slice(closeIndex + hyperlinkClose.length).trim(), "║");
+		assert.equal(narrowLinkLine.slice(closeIndex + hyperlinkClose.length).replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").trim(), "...║");
 
 		menu.handleInput!("\x1b[B");
 		const afterMove = menu.render(76).join("\n");

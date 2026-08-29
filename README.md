@@ -6,7 +6,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
-**“Working” Loader** — animated spinner (with color choice), randomized activity word, optional word packs, shimmer (with direction, speed, and invert option), token activity monitor (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate (with color choice and dim toggle) — all arrangeable left to right.
+**“Working” Loader** — animated spinner (with color choice), randomized activity word, optional word packs, shimmer (with direction, speed, and invert option), token activity monitor (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate (with color choice and dim toggle) — all arrangeable left to right. During a blocking extension prompt, the loader switches to a stable dim waiting line with a pulsing indicator, then resumes afterward.
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
@@ -128,7 +128,7 @@ Restart Pi (or run `/reload`) to pick it up.
 
 ## Requirements
 
-- [Pi](https://github.com/earendil-works/pi-coding-agent)
+- [Pi](https://github.com/earendil-works/pi-coding-agent). Pi ≥0.84.4 is required for the waiting-for-input loader state; older Pi versions keep the animated loader.
 - Node.js ≥22.19.0
 
 ## Development

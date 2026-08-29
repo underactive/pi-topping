@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Blocking extension prompts now replace the animated working loader with a stable dim waiting state and pulse indicator, then resume the configured loader afterward. This state requires Pi ≥0.84.4.
+
 ## [0.6.2] - 2026-08-23
 
 ### Added

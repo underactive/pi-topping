@@ -10,7 +10,9 @@ import type {
 	ExtensionAPI,
 	ExtensionCommandContext,
 	ExtensionContext,
+	ExtensionEvent,
 	InputEvent,
+	SessionShutdownEvent,
 	SessionStartEvent,
 } from "@earendil-works/pi-coding-agent";
 
@@ -32,6 +34,8 @@ type MessageUpdateEvent = {
 };
 type MessageEndEvent = { type: "message_end"; message: AssistantMessage };
 type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown };
+type UIPromptStartEvent = Extract<ExtensionEvent, { type: "ui_prompt_start" }>;
+type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
 import { PROMPT_BOX_TYPE } from "../src/prompt-decorator.ts";
 import { buildMenuSections, DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/settings.ts";
 import { loadBundledWordPacks } from "../src/word-packs.ts";
@@ -47,6 +51,9 @@ type TestedEvents = {
 	message_update: MessageUpdateEvent;
 	message_end: MessageEndEvent;
 	tool_execution_start: ToolExecutionStartEvent;
+	ui_prompt_start: UIPromptStartEvent;
+	ui_prompt_end: UIPromptEndEvent;
+	session_shutdown: SessionShutdownEvent;
 };
 type TestedEventName = keyof TestedEvents;
 type Handler<K extends TestedEventName> = (event: TestedEvents[K], ctx: ExtensionContext) => Promise<unknown> | unknown;
@@ -345,6 +352,121 @@ test("tracks streamed tokens, usage reconciliation, tool words, and settlement",
 		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
 		assert.equal(messages.at(-1), undefined);
 		assert.equal(indicators.at(-1), undefined);
+	});
+});
+
+test("blocking UI prompts replace the busy loader with a stable waiting line and pulse", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const indicators: unknown[] = [];
+		const ctx = createContext(messages, indicators, (color, text) => `<${color}>${text}</${color}>`);
+		let tick: (() => void) | undefined;
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, (callback) => {
+			tick = callback;
+		});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("ui_prompt_start", { type: "ui_prompt_start", reason: "ui_prompt", kind: "confirm", title: "Allow host?" }, ctx);
+
+		assert.equal(messages.at(-1), "<dim>Waiting: Allow host?</dim>");
+		assert.deepEqual(indicators.at(-1), {
+			frames: ["<dim>·</dim>", "<dim>•</dim>", "<dim>●</dim>", "<dim>•</dim>"],
+			intervalMs: 120,
+		});
+		const messageCount = messages.length;
+		tick!();
+		tick!();
+		assert.equal(messages.length, messageCount);
+
+		await extension.emit("ui_prompt_end", { type: "ui_prompt_end", reason: "ui_prompt", kind: "confirm", title: "Allow host?" }, ctx);
+		assert.notEqual(messages.at(-1), "<dim>Waiting: Allow host?</dim>");
+		assert.equal(indicators.at(-1), undefined);
+	});
+});
+
+test("untitled UI prompts use kind-specific waiting labels", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, []);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		for (const [kind, label] of [
+			["confirm", "Waiting for confirmation"],
+			["select", "Waiting for selection"],
+			["input", "Waiting for input"],
+		] as const) {
+			await extension.emit("ui_prompt_start", { type: "ui_prompt_start", reason: "ui_prompt", kind }, ctx);
+			assert.equal(messages.at(-1), label);
+			await extension.emit("ui_prompt_end", { type: "ui_prompt_end", reason: "ui_prompt", kind }, ctx);
+		}
+	});
+});
+
+test("idle UI prompt lifecycle does not change the loader", async () => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const indicators: unknown[] = [];
+		const ctx = createContext(messages, indicators);
+		workingDecorator(extension.asAPI());
+
+		await extension.emit("ui_prompt_start", { type: "ui_prompt_start", reason: "ui_prompt", kind: "custom" }, ctx);
+		await extension.emit("ui_prompt_end", { type: "ui_prompt_end", reason: "ui_prompt", kind: "custom" }, ctx);
+
+		assert.deepEqual(messages, []);
+		assert.deepEqual(indicators, []);
+	});
+});
+
+test("settling while waiting restores the loader and retains wall-clock elapsed time", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const indicators: unknown[] = [];
+		const ctx = createContext(messages, indicators);
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("ui_prompt_start", { type: "ui_prompt_start", reason: "ui_prompt", kind: "editor" }, ctx);
+		now = 6_000;
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		assert.equal(messages.at(-1), undefined);
+		assert.equal(indicators.at(-1), undefined);
+		assert.equal((extension.appendedEntries.at(-1)!.data as { elapsedMs: number }).elapsedMs, 5_000);
+
+		const messageCount = messages.length;
+		const indicatorCount = indicators.length;
+		await extension.emit("ui_prompt_end", { type: "ui_prompt_end", reason: "ui_prompt", kind: "editor" }, ctx);
+		assert.equal(messages.length, messageCount);
+		assert.equal(indicators.length, indicatorCount);
+	});
+});
+
+test("session shutdown clears a pending UI prompt", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, []);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("ui_prompt_start", { type: "ui_prompt_start", reason: "ui_prompt", kind: "input" }, ctx);
+		await extension.emit("session_shutdown", { type: "session_shutdown", reason: "quit" }, ctx);
+		messages.length = 0;
+		await extension.emit("ui_prompt_end", { type: "ui_prompt_end", reason: "ui_prompt", kind: "input" }, ctx);
+		assert.deepEqual(messages, []);
 	});
 });
 
