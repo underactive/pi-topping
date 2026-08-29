@@ -265,9 +265,9 @@ export class MenuComponent implements Component {
 	}
 
 	/**
-	 * Move the grabbed reorder row one slot within its group, clamped at the group
-	 * edges. Returns true when the key belongs to the mover and must not also move
-	 * the cursor — which is what keeps a grab from escaping its group.
+	 * Move the grabbed reorder row within its group, clamped at the group edges.
+	 * Returns true when the key belongs to the mover and must not also move the
+	 * cursor — which is what keeps a grab from escaping its group.
 	 */
 	private moveGrabbedItem(delta: number): boolean {
 		const grabbed = this.flat[this.cursor]!;
@@ -279,10 +279,10 @@ export class MenuComponent implements Component {
 		let end = this.cursor;
 		while (end < this.flat.length - 1 && this.flat[end + 1]!.reorderGroup === group) end++;
 
-		const target = this.cursor + delta;
-		if (target >= start && target <= end) {
-			this.flat[this.cursor] = this.flat[target]!;
-			this.flat[target] = grabbed;
+		const target = Math.max(start, Math.min(end, this.cursor + delta));
+		if (target !== this.cursor) {
+			this.flat.splice(this.cursor, 1);
+			this.flat.splice(target, 0, grabbed);
 			this.cursor = target;
 			this.values[group] = this.flat.slice(start, end + 1).map(flat => flat.id).join(",");
 			this.invalidate();
