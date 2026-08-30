@@ -263,7 +263,7 @@ test("an input-less run resets the token count after settling", async (t) => {
 		now = 10_000;
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 
-		assert.match(messages.at(-1)!, /--- tok\/s · 0s · ↓ 0 tokens/);
+		assert.match(messages.at(-1)!, /--- tps · 0s · ↓ 0 tokens/);
 	});
 });
 
@@ -516,7 +516,7 @@ test("live token rate is warning styled and rounded in the default detail group"
 
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
-		assert.match(messages.at(-1)!, /<dim>--- tok\/s<\/dim>/, "an inactive rate should use the dim placeholder");
+		assert.match(messages.at(-1)!, /<dim>--- tps<\/dim>/, "an inactive rate should use the dim placeholder");
 		assert.ok(!messages.at(-1)!.includes("<warning></warning>"), "empty rates must not be styled");
 
 		const partial = assistantMessage();
@@ -529,7 +529,7 @@ test("live token rate is warning styled and rounded in the default detail group"
 		now = 1_100;
 		tick!();
 
-		assert.match(messages.at(-1)!, /<warning>  8 tok\/s<\/warning>/);
+		assert.match(messages.at(-1)!, /<warning>  8 tps<\/warning>/);
 	});
 });
 
@@ -558,7 +558,7 @@ test("token rate uses the configured theme color", async (t) => {
 		now = 1_100;
 		tick!();
 
-		assert.match(messages.at(-1)!, /<success>  8 tok\/s<\/success>/);
+		assert.match(messages.at(-1)!, /<success>  8 tps<\/success>/);
 	});
 });
 
@@ -587,7 +587,7 @@ test("dimmed token rate wraps the warning styling in the terminal dim attribute"
 		now = 1_100;
 		tick!();
 
-		assert.match(messages.at(-1)!, /\x1b\[2m<warning>  8 tok\/s<\/warning>\x1b\[22m/);
+		assert.match(messages.at(-1)!, /\x1b\[2m<warning>  8 tps<\/warning>\x1b\[22m/);
 	});
 });
 
@@ -618,7 +618,7 @@ test("token rate holds, fades, and resets to full brightness on updates", async 
 
 		now = 1_350;
 		tick!();
-		assert.match(messages.at(-1)!, /<warning>  8 tok\/s<\/warning>/);
+		assert.match(messages.at(-1)!, /<warning>  8 tps<\/warning>/);
 
 		const second = assistantMessage();
 		await extension.emit("message_start", { type: "message_start", message: second }, ctx);
@@ -629,18 +629,18 @@ test("token rate holds, fades, and resets to full brightness on updates", async 
 		}, ctx);
 		now = 1_450;
 		tick!();
-		assert.match(messages.at(-1)!, /<warning> 20 tok\/s<\/warning>/);
+		assert.match(messages.at(-1)!, /<warning> 20 tps<\/warning>/);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(5) }, ctx);
 
 		now = 2_949;
 		tick!();
-		assert.match(messages.at(-1)!, /<warning> 20 tok\/s<\/warning>/);
+		assert.match(messages.at(-1)!, /<warning> 20 tps<\/warning>/);
 		now = 2_950;
 		tick!();
-		assert.match(messages.at(-1)!, /\x1b\[38;2;212;212;212m 20 tok\/s\x1b\[0m/);
+		assert.match(messages.at(-1)!, /\x1b\[38;2;212;212;212m 20 tps\x1b\[0m/);
 		now = 3_000;
 		tick!();
-		assert.match(messages.at(-1)!, /\x1b\[38;2;180;180;180m 20 tok\/s\x1b\[0m/);
+		assert.match(messages.at(-1)!, /\x1b\[38;2;180;180;180m 20 tps\x1b\[0m/);
 
 		const third = assistantMessage();
 		await extension.emit("message_start", { type: "message_start", message: third }, ctx);
@@ -651,17 +651,17 @@ test("token rate holds, fades, and resets to full brightness on updates", async 
 		}, ctx);
 		now = 3_049;
 		tick!();
-		assert.match(messages.at(-1)!, /<warning> 20 tok\/s<\/warning>/);
+		assert.match(messages.at(-1)!, /<warning> 20 tps<\/warning>/);
 
 		now = 4_549;
 		tick!();
-		assert.match(messages.at(-1)!, /\x1b\[38;2;212;212;212m 20 tok\/s\x1b\[0m/);
+		assert.match(messages.at(-1)!, /\x1b\[38;2;212;212;212m 20 tps\x1b\[0m/);
 		now = 4_798;
 		tick!();
-		assert.match(messages.at(-1)!, /\x1b\[38;2;96;96;96m 20 tok\/s\x1b\[0m/);
+		assert.match(messages.at(-1)!, /\x1b\[38;2;96;96;96m 20 tps\x1b\[0m/);
 		now = 4_799;
 		tick!();
-		assert.match(messages.at(-1)!, /<dim>--- tok\/s<\/dim>/);
+		assert.match(messages.at(-1)!, /<dim>--- tps<\/dim>/);
 	});
 });
 
@@ -690,7 +690,7 @@ test("disabled token rate omits the throughput segment", async (t) => {
 		now = 1_100;
 		tick!();
 
-		assert.ok(!messages.at(-1)!.includes("tok/s"));
+		assert.ok(!messages.at(-1)!.includes("tps"));
 	});
 });
 
@@ -797,7 +797,7 @@ test("token rate keeps a 100ms timer and updates without the activity meter", as
 		now = 1_100;
 		tick!();
 
-		assert.match(messages.at(-1)!, /<warning>  8 tok\/s<\/warning>/);
+		assert.match(messages.at(-1)!, /<warning>  8 tps<\/warning>/);
 	});
 });
 
@@ -842,7 +842,7 @@ test("substituteDefaultMessage=false shows a Working\u2026 placeholder but other
 		const message = messages[0]!;
 		assert.match(stripAnsi(message), /^Working\u2026/);
 		assert.ok(!message.includes("Accomplishing\u2026"));
-		assert.match(message, /--- tok\/s \u00b7 0s \u00b7 \u2193 0 tokens/);
+		assert.match(message, /--- tps \u00b7 0s \u00b7 \u2193 0 tokens/);
 	});
 });
 
@@ -942,7 +942,7 @@ test("loaderOrder reorders the message and moves the spinner inline when it is n
 		// but the monitor is off so it contributes nothing.
 		assert.match(
 			stripAnsi(messages.at(-1)!),
-			/^0s Working\u2026 [\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f] \u2193 0 tokens \u00b7 --- tok\/s$/,
+			/^0s Working\u2026 [\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f] \u2193 0 tokens \u00b7 --- tps$/,
 		);
 	});
 });
@@ -1066,7 +1066,7 @@ test("elapsedTime off but outputTokens on joins the token count with the token r
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 
 		const message = messages.at(-1)!;
-		assert.match(message, /--- tok\/s \u00b7 \u2193 0 tokens/);
+		assert.match(message, /--- tps \u00b7 \u2193 0 tokens/);
 		assert.ok(!message.includes("m 00s"));
 		assert.ok(!message.includes("("));
 		assert.ok(!message.includes(")"));
@@ -1142,7 +1142,7 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 		const animatedRaw = capturedComponent!.render(76);
 		const animated = animatedRaw.map(stripAnsi);
 		assert.ok(animated.some((l) => l.includes("Accomplishing\u2026")));
-		assert.ok(animated.some((l) => l.includes(" 28 tok/s")));
+		assert.ok(animated.some((l) => l.includes(" 28 tps")));
 		const normalShimmer = animatedRaw.find((l) => stripAnsi(l).includes("Accomplishing\u2026"))!;
 		assert.match(normalShimmer, /\x1b\[1m/);
 
@@ -1160,7 +1160,7 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 		moveMenuCursor(capturedComponent!, "shimmerInverted", "showTokenRate");
 		capturedComponent!.handleInput!(" ");
 		const withoutTokenRate = capturedComponent!.render(76).map(stripAnsi);
-		assert.ok(!withoutTokenRate.some((l) => l.includes("tok/s")));
+		assert.ok(!withoutTokenRate.some((l) => l.includes("tps")));
 
 		// Close the menu (Escape = cancel) so the command handler resolves and
 		// the preview animation timer is disposed via component.dispose().
@@ -1424,7 +1424,7 @@ test("preview reflects the substituteDefaultMessage fix: toggling it off keeps e
 		assert.ok(lines.some((l) => l.includes("Working\u2026")));
 		assert.ok(!lines.some((l) => l.includes("Accomplishing\u2026")));
 		// ...but elapsed time and output tokens (still on) keep showing.
-		assert.ok(lines.some((l) => l.includes(" 28 tok/s \u00b7 0s \u00b7 \u2193 0 tokens")));
+		assert.ok(lines.some((l) => l.includes(" 28 tps \u00b7 0s \u00b7 \u2193 0 tokens")));
 
 		capturedComponent!.handleInput!("\x1b"); // escape: cancel
 		await handlerPromise;

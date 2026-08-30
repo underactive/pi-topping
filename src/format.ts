@@ -52,12 +52,12 @@ export function formatTokens(count: number): string {
 const TOKEN_RATE_DIGITS = 3;
 
 /** Placeholder shown when the working indicator has no active token-rate sample. */
-export const TOKEN_RATE_PLACEHOLDER = `${"-".repeat(TOKEN_RATE_DIGITS)} tok/s`;
+export const TOKEN_RATE_PLACEHOLDER = `${"-".repeat(TOKEN_RATE_DIGITS)} tps`;
 
 /** Format an output-token throughput estimate for the working indicator. */
 export function formatTokenRate(rate: number): string {
 	const rounded = Math.round(rate);
-	return rounded === 0 ? "" : `${rounded.toString().padStart(TOKEN_RATE_DIGITS)} tok/s`;
+	return rounded === 0 ? "" : `${rounded.toString().padStart(TOKEN_RATE_DIGITS)} tps`;
 }
 
 /**

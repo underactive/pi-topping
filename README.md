@@ -23,7 +23,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╔═[ Pi Topping: Settings ]═══════════════════════════════════╗
 ╟─ Preview ──────────────────────────────────────────────────╢
 ║                                                            ║
-║ ⠋ Crafting… ⣠⣤⣶⣶⣤⣠⣀⢀ 28 tok/s · 3s · ↓ 84 tokens · test-model ║
+║ ⠋ Crafting… ⣠⣤⣶⣶⣤⣠⣀⢀ 28 tps · 3s · ↓ 84 tokens · test-model ║
 ║                                                            ║
 ╟─ User Prompt ──────────────────────────────────────────────╢
 ║    [■] High-vis prompt                                ON   ║
@@ -116,9 +116,9 @@ left or right within the loader. Elapsed time, output tokens, token rate, and re
 `·` separators whenever adjacent. When reordering separates them, each adjacent run is rendered
 without a separator before or after it.
 
-The `N tok/s` token rate uses the selected theme color and
+The `N tps` token rate uses the selected theme color and
 remains reorderable. Active rates below 1,000 are padded to three characters so updates do not shift the other
-segments; larger rates may shift later segments. When inactive, it remains as the dim `--- tok/s` placeholder. After its last update it holds
+segments; larger rates may shift later segments. When inactive, it remains as the dim `--- tps` placeholder. After its last update it holds
 full brightness for 1.5 seconds, then fades through five theme-aware shades to the dim text color over
 the next 0.25 seconds before returning to the placeholder; a new count restores full brightness and
 restarts the cycle.

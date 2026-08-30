@@ -6,8 +6,8 @@ import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBox
 import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderStyle, isDoneMarkerStyle, isSettingColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
 import { isWordPackEnabled, selectWorkingTextSelection, wordPacksPath, type WordPack } from "./word-packs.ts";
 import { pickRandomWord } from "./words.ts";
-// Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tok/s for the meter,
-// flat 28 tok/s for the token readouts.
+// Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tps for the meter,
+// flat 28 tps for the token readouts.
 const METER_PERIOD_MS = 2400, METER_PEAK_RATE = 46, TOKEN_RATE_PER_SEC = 28;
 const PROMPT_IDS = new Set(MENU_ENTRIES.filter(entry => entry.section === "User Prompt").map(entry => entry.id));
 const MARKER_IDS = new Set(MENU_ENTRIES.filter(entry => entry.section === "Completion Marker").map(entry => entry.id));

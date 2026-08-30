@@ -13,10 +13,10 @@ test("formatTokens uses readable thresholds", () => {
 test("formatTokenRate rounds to a whole number, pads active rates, and hides zero", () => {
 	assert.equal(formatTokenRate(0), "");
 	assert.equal(formatTokenRate(0.49), "");
-	assert.equal(formatTokenRate(0.5), "  1 tok/s");
-	assert.equal(formatTokenRate(28.2), " 28 tok/s");
-	assert.equal(formatTokenRate(100), "100 tok/s");
-	assert.equal(TOKEN_RATE_PLACEHOLDER, "--- tok/s");
+	assert.equal(formatTokenRate(0.5), "  1 tps");
+	assert.equal(formatTokenRate(28.2), " 28 tps");
+	assert.equal(formatTokenRate(100), "100 tps");
+	assert.equal(TOKEN_RATE_PLACEHOLDER, "--- tps");
 	assert.equal(formatTokenRate(100).length, TOKEN_RATE_PLACEHOLDER.length);
 });
 
@@ -25,14 +25,14 @@ test("fadeThemeColorString uses five cosine-eased warning-to-dim shades", () => 
 		getFgAnsi: (color: string) => color === "warning" ? "\x1b[38;2;110;120;130m" : "\x1b[38;2;10;20;30m",
 		fg: (_color: string, text: string) => text,
 	};
-	const shades = Array.from({ length: TOKEN_RATE_FADE_SHADE_COUNT }, (_, level) => fadeThemeColorString(" 20 tok/s", level, theme, "warning"));
+	const shades = Array.from({ length: TOKEN_RATE_FADE_SHADE_COUNT }, (_, level) => fadeThemeColorString(" 20 tps", level, theme, "warning"));
 
 	assert.deepEqual(shades, [
-		"\x1b[38;2;100;110;120m 20 tok/s\x1b[0m",
-		"\x1b[38;2;75;85;95m 20 tok/s\x1b[0m",
-		"\x1b[38;2;45;55;65m 20 tok/s\x1b[0m",
-		"\x1b[38;2;20;30;40m 20 tok/s\x1b[0m",
-		"\x1b[38;2;10;20;30m 20 tok/s\x1b[0m",
+		"\x1b[38;2;100;110;120m 20 tps\x1b[0m",
+		"\x1b[38;2;75;85;95m 20 tps\x1b[0m",
+		"\x1b[38;2;45;55;65m 20 tps\x1b[0m",
+		"\x1b[38;2;20;30;40m 20 tps\x1b[0m",
+		"\x1b[38;2;10;20;30m 20 tps\x1b[0m",
 	]);
 });
 
@@ -43,8 +43,8 @@ test("fadeThemeColorString blends the selected color toward dim", () => {
 	};
 
 	assert.equal(
-		fadeThemeColorString(" 20 tok/s", 0, theme, "success"),
-		"\x1b[38;2;100;110;120m 20 tok/s\x1b[0m",
+		fadeThemeColorString(" 20 tps", 0, theme, "success"),
+		"\x1b[38;2;100;110;120m 20 tps\x1b[0m",
 	);
 });
 
@@ -64,10 +64,10 @@ test("token rate joins the adjacent detail group", () => {
 		text: "Working…",
 		elapsed: "3s",
 		tokens: "↓ 84 tokens",
-		tokenRate: "<warning> 28 tok/s</warning>",
+		tokenRate: "<warning> 28 tps</warning>",
 	});
 
-	assert.equal(message, "Working… <warning> 28 tok/s</warning><dim> · </dim><dim>3s</dim><dim> · </dim><dim>↓ 84 tokens</dim>");
+	assert.equal(message, "Working… <warning> 28 tps</warning><dim> · </dim><dim>3s</dim><dim> · </dim><dim>↓ 84 tokens</dim>");
 });
 
 test("detail styling survives a token rate moved before another detail", () => {
@@ -77,12 +77,12 @@ test("detail styling survives a token rate moved before another detail", () => {
 	const message = buildWorkingMessage(theme as never, {
 		elapsed: "3s",
 		tokens: "↓ 84 tokens",
-		tokenRate: "\x1b[38;5;3m 28 tok/s\x1b[39m",
+		tokenRate: "\x1b[38;5;3m 28 tps\x1b[39m",
 	}, ["elapsed", "tokenRate", "tokens"]);
 
 	assert.equal(
 		message,
-		"\x1b[38;5;8m3s\x1b[39m\x1b[38;5;8m · \x1b[39m\x1b[38;5;3m 28 tok/s\x1b[39m\x1b[38;5;8m · \x1b[39m\x1b[38;5;8m↓ 84 tokens\x1b[39m",
+		"\x1b[38;5;8m3s\x1b[39m\x1b[38;5;8m · \x1b[39m\x1b[38;5;3m 28 tps\x1b[39m\x1b[38;5;8m · \x1b[39m\x1b[38;5;8m↓ 84 tokens\x1b[39m",
 	);
 });
 
@@ -92,10 +92,10 @@ test("detail separators do not surround a detail element moved outside its group
 		text: "Working…",
 		elapsed: "3s",
 		tokens: "↓ 84 tokens",
-		tokenRate: "<warning>28 tok/s</warning>",
+		tokenRate: "<warning>28 tps</warning>",
 	}, ["elapsed", "text", "tokens", "tokenRate"]);
 
-	assert.equal(message, "<dim>3s</dim> Working… <dim>↓ 84 tokens</dim><dim> · </dim><warning>28 tok/s</warning>");
+	assert.equal(message, "<dim>3s</dim> Working… <dim>↓ 84 tokens</dim><dim> · </dim><warning>28 tps</warning>");
 });
 
 test("response model is a pre-colored detail and follows the default trailing separator", () => {
