@@ -79,6 +79,7 @@ function createContext(notifications: Notification[], options?: { mode?: "tui" |
 			},
 			setWorkingMessage() {},
 			setWorkingIndicator() {},
+			setStatus() {},
 			custom<T>(factory: CustomFactory<T>): Promise<T> {
 				return new Promise<T>((resolve) => {
 					let component: CustomComponent | undefined;

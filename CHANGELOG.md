@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-08-29
+
 ### Added
 - Response-model display in the working loader, with visibility, color, permanent-dim, and reorder controls. The sanitized value appears without a label, remains for 3 seconds after settlement, then fades over 0.5 seconds.
+
+### Changed
+- The token-rate unit label is now `tps` (was `tok/s`).
+
+### Fixed
+- The response model is now picked up from partial assistant messages during streaming, so the loader shows the current model before the turn ends.
+- Token counts reported by providers are validated before use: non-finite or negative `usage.output` values are ignored instead of being written into session state.
+- The decorated prompt submission now awaits delivery before the input is claimed as handled; when delivery fails, a `Failed to submit prompt` error is shown and the input is not swallowed.
+- The post-settlement display of the response model now renders on a persistent status surface instead of the transient working message, so the hold/fade no longer fights the loader, and it clears cleanly on the next turn, session start, and shutdown.
 
 ## [0.6.3] - 2026-08-28
 
