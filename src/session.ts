@@ -246,7 +246,9 @@ export class SessionManager {
 		this.#currentCtx = ctx;
 		if (!this.usable(ctx) || event.message.role !== "assistant") return;
 
-		const exactTokens = event.message.usage?.output;
+		const rawTokens = event.message.usage?.output;
+		const exactTokens =
+			typeof rawTokens === "number" && Number.isFinite(rawTokens) && rawTokens >= 0 ? rawTokens : undefined;
 		this.#state.confirmTokens += exactTokens ?? this.#state.liveTokens;
 		if (exactTokens !== undefined) {
 			// Only reset the sampling state here, not tokenRateText/tokenRateFadeStartsAt:
