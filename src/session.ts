@@ -177,27 +177,32 @@ export class SessionManager {
 		if (!event.streamingBehavior && !this.#state.busy) this.resetTurn(Date.now());
 		else if (event.streamingBehavior && event.source !== "extension") this.#state.midTurnInputs++;
 		if (this.#settings.decorations.decorateUserPrompt && this.shouldDecorate(event)) {
-			this.#pi.sendMessage<PromptBoxDetails>(
-				{
-					customType: PROMPT_BOX_TYPE,
-					content: event.text,
-					display: true,
-					details: {
-						submittedAt: Date.now(),
-						showIcon: this.#settings.decorations.promptIcon,
-						showTimestamp: this.#settings.decorations.promptTimestamp,
-						showProvider: this.#settings.decorations.promptProvider,
-						showModel: this.#settings.decorations.promptModel,
-						icon: this.#settings.decorations.useNerdFont ? "" : "π",
-						provider: ctx.model?.provider,
-						model: ctx.model?.id,
-						borderColor: this.#settings.decorations.borderColor,
-						borderStyle: this.#settings.decorations.borderStyle,
+			try {
+				await this.#pi.sendMessage<PromptBoxDetails>(
+					{
+						customType: PROMPT_BOX_TYPE,
+						content: event.text,
+						display: true,
+						details: {
+							submittedAt: Date.now(),
+							showIcon: this.#settings.decorations.promptIcon,
+							showTimestamp: this.#settings.decorations.promptTimestamp,
+							showProvider: this.#settings.decorations.promptProvider,
+							showModel: this.#settings.decorations.promptModel,
+							icon: this.#settings.decorations.useNerdFont ? "" : "π",
+							provider: ctx.model?.provider,
+							model: ctx.model?.id,
+							borderColor: this.#settings.decorations.borderColor,
+							borderStyle: this.#settings.decorations.borderStyle,
+						},
 					},
-				},
-				{ triggerTurn: true },
-			);
-			return { action: "handled" };
+					{ triggerTurn: true },
+				);
+				return { action: "handled" };
+			} catch {
+				ctx.ui.notify("Failed to submit prompt", "error");
+				return;
+			}
 		}
 	};
 
