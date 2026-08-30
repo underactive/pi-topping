@@ -748,14 +748,24 @@ test("response model fade is cancelled by a new run and shutdown", async (t) => 
 		const statuses: { key: string; text: string | undefined }[] = [];
 		const ctx = createContext(messages, [], undefined, { statuses });
 		const timeouts: (() => void)[] = [];
+		const intervals: (() => void)[] = [];
+		const clearedTimeouts: unknown[] = [];
+		const clearedIntervals: unknown[] = [];
 		t.mock.method(Date, "now", () => 1_000);
 		t.mock.method(globalThis, "setTimeout", ((callback: () => void) => {
 			timeouts.push(callback);
 			return timeouts.length;
 		}) as unknown as typeof setTimeout);
-		t.mock.method(globalThis, "clearTimeout", (() => {}) as typeof clearTimeout);
-		t.mock.method(globalThis, "setInterval", (() => 1) as unknown as typeof setInterval);
-		t.mock.method(globalThis, "clearInterval", (() => {}) as typeof clearInterval);
+		t.mock.method(globalThis, "clearTimeout", ((timer: unknown) => {
+			clearedTimeouts.push(timer);
+		}) as typeof clearTimeout);
+		t.mock.method(globalThis, "setInterval", ((callback: () => void) => {
+			intervals.push(callback);
+			return intervals.length;
+		}) as unknown as typeof setInterval);
+		t.mock.method(globalThis, "clearInterval", ((timer: unknown) => {
+			clearedIntervals.push(timer);
+		}) as typeof clearInterval);
 
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
@@ -765,7 +775,20 @@ test("response model fade is cancelled by a new run and shutdown", async (t) => 
 		const afterNewRun = statuses.length;
 		timeouts[0]!();
 		assert.equal(statuses.length, afterNewRun);
+		assert.equal(clearedTimeouts.length, 1);
+
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		assert.equal(timeouts.length, 2);
+		timeouts[1]!();
+		const fade = intervals.at(-1)!;
+		const fadeTimerHandle = intervals.length;
 		await extension.emit("session_shutdown", { type: "session_shutdown", reason: "quit" }, ctx);
+		assert.equal(statuses.at(-1)!.text, undefined);
+		assert.ok(clearedIntervals.includes(fadeTimerHandle));
+		const afterShutdown = statuses.length;
+		fade();
+		assert.equal(statuses.length, afterShutdown);
 	});
 });
 
