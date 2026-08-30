@@ -25,6 +25,8 @@ import {
 	formatTokens,
 	isFullyDefaultAppearance,
 	METER_INTERVAL_MS,
+	RESPONSE_MODEL_FADE_MS,
+	RESPONSE_MODEL_HOLD_MS,
 	SHIMMER_INTERVAL_MS,
 	shimmerString,
 	SPINNER_FRAME_MS,
@@ -32,6 +34,7 @@ import {
 	TOKEN_RATE_FADE_SHADE_COUNT,
 	TOKEN_RATE_PLACEHOLDER,
 	StreamingWordCounter,
+	type LoaderElement,
 } from "./format.ts";
 import { isSiblingSetupEnabled } from "./flags.ts";
 import { showMenu } from "./menu.ts";
@@ -82,6 +85,10 @@ interface SessionState {
 	rateTracker: TokRateTracker;
 	lastTokenRateSampledAt: number;
 	lastTokenRateTotal: number;
+	responseModel: string;
+	responseModelHoldTimer: ReturnType<typeof setTimeout> | null;
+	responseModelFadeTimer: ReturnType<typeof setInterval> | null;
+	responseModelFadeGeneration: number;
 	tokenRateText: string;
 	tokenRateFadeStartsAt: number;
 	timer: ReturnType<typeof setInterval> | null;
@@ -115,6 +122,10 @@ function makeFreshState(): SessionState {
 		rateTracker: new TokRateTracker(),
 		lastTokenRateSampledAt: 0,
 		lastTokenRateTotal: 0,
+		responseModel: "",
+		responseModelHoldTimer: null,
+		responseModelFadeTimer: null,
+		responseModelFadeGeneration: 0,
 		tokenRateText: "",
 		tokenRateFadeStartsAt: 0,
 		timer: null,
@@ -146,6 +157,7 @@ export class SessionManager {
 
 	#onSessionStart = async (_e: SessionStartEvent, ctx: ExtensionContext): Promise<void> => {
 		this.stopTimer();
+		this.cancelResponseModelFade();
 		this.#counter.reset();
 		this.#state = makeFreshState();
 		this.#settings = loadSettings();
@@ -190,6 +202,7 @@ export class SessionManager {
 	};
 
 	#onAgentStart = async (_e: AgentStartEvent, ctx: ExtensionContext): Promise<void> => {
+		this.cancelResponseModelFade();
 		this.#currentCtx = ctx;
 		if (!this.usable(ctx)) return;
 		if (!this.#state.startTime) this.resetTurn(Date.now());
@@ -233,6 +246,12 @@ export class SessionManager {
 		}
 		this.#state.liveTokens = 0;
 		this.#counter.reset();
+		const rawResponseModel = (event.message as { responseModel?: unknown }).responseModel;
+		const responseModel = typeof rawResponseModel === "string" ? stripControlChars(rawResponseModel).trim() : "";
+		if (responseModel && responseModel !== this.#state.responseModel) {
+			this.#state.responseModel = responseModel;
+			this.tick();
+		}
 	};
 
 	#onToolExecutionStart = async (_e: ToolExecutionStartEvent, ctx: ExtensionContext): Promise<void> => {
@@ -267,13 +286,18 @@ export class SessionManager {
 
 		const hadPrompt = !!this.#state.startTime;
 		const elapsedMs = hadPrompt ? Date.now() - this.#state.startTime : 0;
+		const responseModel = this.#settings.features.responseModel ? this.#state.responseModel : "";
+		const responseModelColor = this.#settings.decorations.responseModelColor;
+		const responseModelDimmed = this.#settings.decorations.responseModelDimmed;
+		const responseModelOrder = [...this.#settings.loaderOrder];
 		this.#state.busy = false;
 		this.#state.waiting = null;
 		this.#state.startTime = 0;
 		this.#counter.reset();
 		this.stopTimer();
-		ctx.ui.setWorkingMessage();
 		this.applyIndicator(ctx);
+		if (responseModel) this.startResponseModelFade(ctx, responseModel, responseModelColor, responseModelDimmed, responseModelOrder);
+		else ctx.ui.setWorkingMessage();
 		this.#state.activityMeter.reset();
 		resetTokenRateState(this.#state);
 		this.#state.lastMessage = NOT_SENT;
@@ -290,6 +314,7 @@ export class SessionManager {
 
 	#onSessionShutdown = async (_e: SessionShutdownEvent, _ctx: ExtensionContext): Promise<void> => {
 		this.#state.waiting = null;
+		this.cancelResponseModelFade();
 		this.stopTimer();
 	};
 
@@ -413,6 +438,47 @@ export class SessionManager {
 		}
 	}
 
+	private cancelResponseModelFade(): void {
+		const state = this.#state;
+		state.responseModelFadeGeneration++;
+		if (state.responseModelHoldTimer) {
+			clearTimeout(state.responseModelHoldTimer);
+			state.responseModelHoldTimer = null;
+		}
+		if (state.responseModelFadeTimer) {
+			clearInterval(state.responseModelFadeTimer);
+			state.responseModelFadeTimer = null;
+		}
+	}
+
+	private startResponseModelFade(ctx: ExtensionContext, model: string, color: SettingColor, dimmed: boolean, order: readonly LoaderElement[]): void {
+		this.cancelResponseModelFade();
+		const generation = this.#state.responseModelFadeGeneration;
+		const render = (shade?: number): void => {
+			const colored = shade === undefined
+				? ctx.ui.theme.fg(color, model)
+				: fadeThemeColorString(model, shade, ctx.ui.theme, color);
+			const responseModel = dimmed ? dimAttribute(colored) : colored;
+			ctx.ui.setWorkingMessage(buildWorkingMessage(ctx.ui.theme, { responseModel }, order));
+		};
+		render();
+		this.#state.responseModelHoldTimer = setTimeout(() => {
+			if (this.#state.responseModelFadeGeneration !== generation) return;
+			this.#state.responseModelHoldTimer = null;
+			let shade = 0;
+			render(shade++);
+			this.#state.responseModelFadeTimer = setInterval(() => {
+				if (this.#state.responseModelFadeGeneration !== generation) return;
+				if (shade >= TOKEN_RATE_FADE_SHADE_COUNT) {
+					this.cancelResponseModelFade();
+					ctx.ui.setWorkingMessage();
+					return;
+				}
+				render(shade++);
+			}, RESPONSE_MODEL_FADE_MS / TOKEN_RATE_FADE_SHADE_COUNT);
+		}, RESPONSE_MODEL_HOLD_MS);
+	}
+
 	private startTimer(): void {
 		if (this.#state.timer) return;
 
@@ -431,12 +497,14 @@ export class SessionManager {
 	}
 
 	private resetTurn(now: number): void {
+		this.cancelResponseModelFade();
 		const state = this.#state;
 		state.startTime = now;
 		state.shimmerOrigin = now;
 		state.workingText = this.pickWorkingWord();
 		state.confirmTokens = 0;
 		state.liveTokens = 0;
+		state.responseModel = "";
 		state.activityMeter.reset();
 		resetTokenRateState(state);
 		state.midTurnInputs = 0;
@@ -473,9 +541,13 @@ export class SessionManager {
 		const spinner = this.spinnerInMessage()
 			? ctx.ui.theme.fg(this.spinnerColor(), SPINNER_FRAMES[Math.floor(now / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!)
 			: "";
+		const responseModelColored = features.responseModel && state.responseModel
+			? ctx.ui.theme.fg(decorations.responseModelColor, state.responseModel)
+			: "";
+		const responseModel = responseModelColored && decorations.responseModelDimmed ? dimAttribute(responseModelColored) : responseModelColored;
 		if (isFullyDefaultAppearance(features, decorations)) {
-			const msg = spinner
-				? buildWorkingMessage(ctx.ui.theme, { spinner, text: ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD) }, this.#settings.loaderOrder)
+			const msg = spinner || responseModel
+				? buildWorkingMessage(ctx.ui.theme, { spinner, text: ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD), responseModel }, this.#settings.loaderOrder)
 				: undefined;
 			if (msg !== state.lastMessage) {
 				state.lastMessage = msg;
@@ -532,6 +604,7 @@ export class SessionManager {
 				elapsed: features.elapsedTime ? formatElapsed(now - state.startTime) : "",
 				tokens: features.outputTokens ? `↓ ${formatTokens(total)} tokens` : "",
 				tokenRate: tokenRateStyled,
+				responseModel,
 			},
 			this.#settings.loaderOrder,
 		);

@@ -22,6 +22,7 @@ type AssistantMessage = {
 	api: string;
 	provider: string;
 	model: string;
+	responseModel?: string;
 	usage?: { input: number; output: number; cacheRead: number; cacheWrite: number; totalTokens: number };
 	stopReason: string;
 	timestamp: number;
@@ -204,13 +205,14 @@ async function withTempAgentDir<T>(fn: () => Promise<T> | T): Promise<T> {
 	}
 }
 
-function assistantMessage(output = 0): Extract<MessageEndEvent["message"], { role: "assistant" }> {
+function assistantMessage(output = 0, responseModel?: string): Extract<MessageEndEvent["message"], { role: "assistant" }> {
 	return {
 		role: "assistant",
 		content: [],
 		api: "test",
 		provider: "test",
 		model: "test",
+		responseModel,
 		usage: { input: 0, output, cacheRead: 0, cacheWrite: 0, totalTokens: output },
 		stopReason: "stop",
 		timestamp: 0,
@@ -689,6 +691,74 @@ test("disabled token rate omits the throughput segment", async (t) => {
 		tick!();
 
 		assert.ok(!messages.at(-1)!.includes("tok/s"));
+	});
+});
+
+test("response model is sanitized, configurable, and holds then fades after settlement", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			decorations: { ...DEFAULT_SETTINGS.decorations, responseModelColor: "success", responseModelDimmed: true },
+			features: { ...DEFAULT_SETTINGS.features, tokenRate: false },
+		});
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`);
+		const timeouts: (() => void)[] = [];
+		const intervals: (() => void)[] = [];
+		t.mock.method(Date, "now", () => 1_000);
+		t.mock.method(globalThis, "setTimeout", ((callback: () => void) => {
+			timeouts.push(callback);
+			return timeouts.length;
+		}) as unknown as typeof setTimeout);
+		t.mock.method(globalThis, "setInterval", ((callback: () => void) => {
+			intervals.push(callback);
+			return intervals.length;
+		}) as unknown as typeof setInterval);
+		t.mock.method(globalThis, "clearTimeout", (() => {}) as typeof clearTimeout);
+		t.mock.method(globalThis, "clearInterval", (() => {}) as typeof clearInterval);
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "\u0000 test-model \u001b") }, ctx);
+		assert.match(messages.at(-1)!, /\x1b\[2m<success>test-model<\/success>\x1b\[22m$/);
+
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		assert.match(messages.at(-1)!, /\x1b\[2m<success>test-model<\/success>\x1b\[22m$/);
+		assert.equal(timeouts.length, 1);
+		timeouts[0]!();
+		assert.match(messages.at(-1)!, /\x1b\[2m\x1b\[38;2;/);
+		assert.equal(intervals.length, 2, "one working timer and one fade timer");
+		const fade = intervals.at(-1)!;
+		for (let i = 0; i < 5; i++) fade();
+		assert.equal(messages.at(-1), undefined);
+	});
+});
+
+test("response model fade is cancelled by a new run and shutdown", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, []);
+		const timeouts: (() => void)[] = [];
+		t.mock.method(Date, "now", () => 1_000);
+		t.mock.method(globalThis, "setTimeout", ((callback: () => void) => {
+			timeouts.push(callback);
+			return timeouts.length;
+		}) as unknown as typeof setTimeout);
+		t.mock.method(globalThis, "clearTimeout", (() => {}) as typeof clearTimeout);
+		t.mock.method(globalThis, "setInterval", (() => 1) as unknown as typeof setInterval);
+		t.mock.method(globalThis, "clearInterval", (() => {}) as typeof clearInterval);
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const afterNewRun = messages.length;
+		timeouts[0]!();
+		assert.equal(messages.length, afterNewRun);
+		await extension.emit("session_shutdown", { type: "session_shutdown", reason: "quit" }, ctx);
 	});
 });
 
@@ -1318,7 +1388,7 @@ test("grabbing an Elements Order row reorders the preview and persists the new o
 		capturedComponent!.handleInput!("\r");
 		await handlerPromise;
 
-		assert.deepEqual(loadSettings().loaderOrder, ["text", "spinner", "meter", "tokenRate", "elapsed", "tokens"]);
+		assert.deepEqual(loadSettings().loaderOrder, ["text", "spinner", "meter", "tokenRate", "elapsed", "tokens", "responseModel"]);
 	});
 });
 

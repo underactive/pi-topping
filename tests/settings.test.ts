@@ -46,7 +46,7 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Word Packs", "Options"]);
 	const itemIds = sections.flatMap(section => section.items).map(item => item.id);
 	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
-	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "doneMarker", "doneMarkerStyle", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars", "useNerdFont"]);
+	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "showResponseModel", "responseModelColor", "responseModelDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel", "doneMarker", "doneMarkerStyle", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars", "useNerdFont"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
 	assert.equal(isWordPackEnabled("simcity", DEFAULT_SETTINGS.wordPacks), false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:simcity")!.value, false);
@@ -77,26 +77,26 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 test("buildMenuSections appends tokenRate to legacy five-element orders", () => {
 	const sections = buildMenuSections({ ...DEFAULT_SETTINGS, loaderOrder: ["text", "tokens", "spinner", "meter", "elapsed"] }, loadBundledWordPacks());
 	const reorderSection = sections.find(section => section.title === "Elements Order")!;
-	assert.deepEqual(reorderSection.items.map(item => item.id), ["text", "tokens", "spinner", "meter", "elapsed", "tokenRate"]);
+	assert.deepEqual(reorderSection.items.map(item => item.id), ["text", "tokens", "spinner", "meter", "elapsed", "tokenRate", "responseModel"]);
 	assert.ok(reorderSection.items.every(item => item.reorderGroup === LOADER_ORDER_ID && item.value === false));
 });
 
 test("parseLoaderOrder drops junk and duplicates, then appends the missing elements", () => {
-	assert.deepEqual(parseLoaderOrder("tokens,spinner"), ["tokens", "spinner", "text", "meter", "tokenRate", "elapsed"]);
-	assert.deepEqual(parseLoaderOrder(["meter", "meter", "nope", 7]), ["meter", "spinner", "text", "tokenRate", "elapsed", "tokens"]);
+	assert.deepEqual(parseLoaderOrder("tokens,spinner"), ["tokens", "spinner", "text", "meter", "tokenRate", "elapsed", "responseModel"]);
+	assert.deepEqual(parseLoaderOrder(["meter", "meter", "nope", 7]), ["meter", "spinner", "text", "tokenRate", "elapsed", "tokens", "responseModel"]);
 	assert.deepEqual(parseLoaderOrder(undefined), [...DEFAULT_SETTINGS.loaderOrder]);
 	assert.deepEqual(parseLoaderOrder(""), [...DEFAULT_SETTINGS.loaderOrder]);
 });
 
 test("parseLoaderOrder preserves complete saved orders after default changes", () => {
-	const savedOrder = ["spinner", "text", "meter", "elapsed", "tokens", "tokenRate"];
+	const savedOrder = ["spinner", "text", "meter", "elapsed", "tokens", "tokenRate", "responseModel"];
 	assert.deepEqual(parseLoaderOrder(savedOrder), savedOrder);
 });
 
 test("applyMenuResult adopts the reordered element list from the menu", () => {
 	const updated = applyMenuResult(DEFAULT_SETTINGS, { [LOADER_ORDER_ID]: "text,meter,spinner,elapsed,tokens" });
-	assert.deepEqual(updated.loaderOrder, ["text", "meter", "spinner", "elapsed", "tokens", "tokenRate"]);
-	assert.deepEqual(DEFAULT_SETTINGS.loaderOrder, ["spinner", "text", "meter", "tokenRate", "elapsed", "tokens"]);
+	assert.deepEqual(updated.loaderOrder, ["text", "meter", "spinner", "elapsed", "tokens", "tokenRate", "responseModel"]);
+	assert.deepEqual(DEFAULT_SETTINGS.loaderOrder, ["spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel"]);
 });
 
 test("cycle values normalize labels and invalid preview inputs", () => {
@@ -118,6 +118,9 @@ test("applyMenuResult clones settings and applies known partial values", () => {
 		meterDirection: "Right to Left",
 		shimmerSpeed: "Fast",
 		shimmerInverted: true,
+		showResponseModel: false,
+		responseModelDimmed: true,
+		responseModelColor: "success",
 		unknown: false,
 	});
 
@@ -127,6 +130,9 @@ test("applyMenuResult clones settings and applies known partial values", () => {
 	assert.equal(updated.decorations.meterDirection, "rtl");
 	assert.equal(updated.decorations.shimmerSpeed, "fast");
 	assert.equal(updated.decorations.shimmerInverted, true);
+	assert.equal(updated.features.responseModel, false);
+	assert.equal(updated.decorations.responseModelDimmed, true);
+	assert.equal(updated.decorations.responseModelColor, "success");
 	assert.equal(updated.features.doneMarker, true);
 
 	assert.equal(applyMenuResult(updated, { meterDirection: "Left to Right" }).decorations.meterDirection, "ltr");
@@ -140,7 +146,7 @@ test("applyMenuResult accepts every completion marker border style", () => {
 });
 
 test("applyMenuResult accepts every setting color for every color setting", () => {
-	const colorKeys = ["borderColor", "doneMarkerBorderColor", "spinnerColor", "meterColor", "tokenRateColor"] as const;
+	const colorKeys = ["borderColor", "doneMarkerBorderColor", "spinnerColor", "meterColor", "tokenRateColor", "responseModelColor"] as const;
 	for (const color of SETTING_COLOR_VALUES) {
 		for (const key of colorKeys) {
 			assert.equal(applyMenuResult(DEFAULT_SETTINGS, { [key]: color }).decorations[key], color);
@@ -176,7 +182,7 @@ test("loadSettings deep-merges a partial nested file over defaults", () => {
 test("loadSettings accepts allowed setting colors and rejects other theme colors", () => {
 	withTempAgentDir(() => {
 		mkdirSync(join(settingsPath(), ".."), { recursive: true });
-		for (const key of ["borderColor", "doneMarkerBorderColor", "spinnerColor", "meterColor", "tokenRateColor"] as const) {
+		for (const key of ["borderColor", "doneMarkerBorderColor", "spinnerColor", "meterColor", "tokenRateColor", "responseModelColor"] as const) {
 			writeFileSync(settingsPath(), JSON.stringify({ decorations: { [key]: "success" } }));
 			assert.equal(loadSettings().decorations[key], "success");
 		}
@@ -207,9 +213,9 @@ test("saveSettings then loadSettings round-trips the full schema", () => {
 	withTempAgentDir(() => {
 		const custom: DecoratorSettings = {
 			decorations: { ...DEFAULT_SETTINGS.decorations, animatedSpinner: false, shimmer: false, tokenActivityMonitor: true, meterDirection: "ltr", decorateUserPrompt: false },
-			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, elapsedTime: true, outputTokens: false, tokenRate: false, doneMarker: true },
+			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, elapsedTime: true, outputTokens: false, tokenRate: false, responseModel: false, doneMarker: true },
 			wordPacks: { simcity: true, "star-trek": false, "star-wars": false },
-			loaderOrder: ["meter", "elapsed", "spinner", "tokens", "text", "tokenRate"],
+			loaderOrder: ["meter", "elapsed", "spinner", "tokens", "text", "tokenRate", "responseModel"],
 		};
 		saveSettings(custom);
 		assert.deepEqual(loadSettings(), custom);

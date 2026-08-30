@@ -98,6 +98,19 @@ test("detail separators do not surround a detail element moved outside its group
 	assert.equal(message, "<dim>3s</dim> Working… <dim>↓ 84 tokens</dim><dim> · </dim><warning>28 tok/s</warning>");
 });
 
+test("response model is a pre-colored detail and follows the default trailing separator", () => {
+	const theme = { fg: (color: string, text: string) => `<${color}>${text}</${color}>` };
+	assert.equal(
+		buildWorkingMessage(theme as never, { text: "Working…", tokens: "↓ 84 tokens", responseModel: "<accent>test-model</accent>" }),
+		"Working… <dim>↓ 84 tokens</dim><dim> · </dim><accent>test-model</accent>",
+	);
+	assert.equal(buildWorkingMessage(theme as never, { responseModel: "<accent>test-model</accent>" }), "<accent>test-model</accent>");
+	assert.equal(
+		buildWorkingMessage(theme as never, { text: "Working…", responseModel: "\x1b[2m<accent>test-model</accent>\x1b[22m" }, ["responseModel", "text"]),
+		"\x1b[2m<accent>test-model</accent>\x1b[22m Working…",
+	);
+});
+
 test("formatElapsed clamps negatives and pads seconds", () => {
 	assert.equal(formatElapsed(-1), "0s");
 	assert.equal(formatElapsed(286_000), "4m 46s");

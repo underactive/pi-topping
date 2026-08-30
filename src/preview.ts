@@ -51,7 +51,7 @@ export class PreviewRenderer {
 			this.#meter.push(rateToLevel(meterRate(elapsedMs)));
 			this.#lastMeterUpdate = elapsedMs;
 		}
-		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false };
+		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false, responseModel: values.showResponseModel !== false };
 		const decorations = { shimmer: values.shimmer !== false, shimmerInverted: values.shimmerInverted === true, tokenActivityMonitor: values.tokenActivityMonitor !== false };
 		let spinnerColor = DEFAULT_SETTINGS.decorations.spinnerColor;
 		if (values.spinnerColorEnabled !== false && isSettingColor(values.spinnerColor)) {
@@ -62,8 +62,12 @@ export class PreviewRenderer {
 			spinner = this.#ctx.ui.theme.fg(spinnerColor, SPINNER_FRAMES[Math.floor(elapsedMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!);
 		}
 		const order = parseLoaderOrder(values[LOADER_ORDER_ID]);
+		let responseModelColor = DEFAULT_SETTINGS.decorations.responseModelColor;
+		if (isSettingColor(values.responseModelColor)) responseModelColor = values.responseModelColor;
+		const responseModelColored = features.responseModel ? this.#ctx.ui.theme.fg(responseModelColor, "test-model") : "";
+		const responseModel = responseModelColored && values.responseModelDimmed === true ? dimAttribute(responseModelColored) : responseModelColored;
 		if (isFullyDefaultAppearance(features, decorations)) {
-			return buildWorkingMessage(this.#ctx.ui.theme, { spinner, text: this.#ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD) }, order);
+			return buildWorkingMessage(this.#ctx.ui.theme, { spinner, text: this.#ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD), responseModel }, order);
 		}
 		let word = DEFAULT_WORKING_WORD;
 		if (features.substituteDefaultMessage) {
@@ -121,6 +125,7 @@ export class PreviewRenderer {
 			elapsed,
 			tokens,
 			tokenRate,
+			responseModel,
 		}, order);
 	}
 	private packValues(values: Record<string, boolean | string>): Record<string, boolean> {

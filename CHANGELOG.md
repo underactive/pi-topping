@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Response-model display in the working loader, with visibility, color, permanent-dim, and reorder controls. The sanitized value appears without a label, remains for 3 seconds after settlement, then fades over 0.5 seconds.
+
 ## [0.6.3] - 2026-08-28
 
 ### Added

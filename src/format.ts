@@ -19,13 +19,13 @@ export const SHIMMER_INTERVAL_MS = 50;
 export const ELAPSED_INTERVAL_MS = 1_000;
 
 /** A user-orderable piece of the working indicator. */
-export type LoaderElement = "spinner" | "text" | "meter" | "elapsed" | "tokens" | "tokenRate";
+export type LoaderElement = "spinner" | "text" | "meter" | "elapsed" | "tokens" | "tokenRate" | "responseModel";
 
 /** Default first-use working-indicator element order. */
-export const DEFAULT_LOADER_ORDER: readonly LoaderElement[] = ["spinner", "text", "meter", "tokenRate", "elapsed", "tokens"];
+export const DEFAULT_LOADER_ORDER: readonly LoaderElement[] = ["spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel"];
 
 /** Elements share a detail group; separators and non-rate details are dimmed. */
-const DETAIL_ELEMENTS: ReadonlySet<LoaderElement> = new Set(["elapsed", "tokens", "tokenRate"]);
+const DETAIL_ELEMENTS: ReadonlySet<LoaderElement> = new Set(["elapsed", "tokens", "tokenRate", "responseModel"]);
 
 const TOKEN_UNITS = [
 	{ threshold: 10_000, divisor: 1_000, decimals: 1, suffix: "k" },
@@ -73,6 +73,12 @@ export function dimAttribute(text: string): string {
 
 /** Number of discrete, eased warning-to-dim shades used for the token-rate fade. */
 export const TOKEN_RATE_FADE_SHADE_COUNT = 5;
+
+/** Milliseconds a settled response model remains fully visible before fading. */
+export const RESPONSE_MODEL_HOLD_MS = 3_000;
+
+/** Milliseconds over which a settled response model fades through the theme shades. */
+export const RESPONSE_MODEL_FADE_MS = 500;
 
 /** Render one token-rate fade shade by blending the selected color toward the active theme's dim color. */
 export function fadeThemeColorString(
@@ -144,8 +150,8 @@ export function buildWorkingMessage(
 		const value = parts[element];
 		if (!value) continue;
 		if (DETAIL_ELEMENTS.has(element)) {
-			// tokenRate arrives pre-colored; dimming it here would replace its configured color.
-			details.push(element === "tokenRate" ? value : theme.fg("dim", value));
+			// tokenRate and responseModel arrive pre-colored; dimming them here would replace their configured colors.
+			details.push(element === "tokenRate" || element === "responseModel" ? value : theme.fg("dim", value));
 			continue;
 		}
 		flushDetails();

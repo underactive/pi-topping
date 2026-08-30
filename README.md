@@ -6,7 +6,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
-**“Working” Loader** — animated spinner (with color choice), randomized activity word, optional word packs, shimmer (with direction, speed, and invert option), token activity monitor (with color, direction, and dim toggle), elapsed timer, output token display, and live output-token rate (with color choice and dim toggle) — all arrangeable left to right. During a blocking extension prompt, the loader switches to a stable dim waiting line with a pulsing indicator, then resumes afterward.
+**“Working” Loader** — animated spinner (with color choice), randomized activity word, optional word packs, shimmer (with direction, speed, and invert option), token activity monitor (with color, direction, and dim toggle), elapsed timer, output token display, live output-token rate (with color choice and dim toggle), and the response model (with visibility, color, and dim controls) — all arrangeable left to right. During a blocking extension prompt, the loader switches to a stable dim waiting line with a pulsing indicator, then resumes afterward.
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
@@ -23,7 +23,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╔═[ Pi Topping: Settings ]═══════════════════════════════════╗
 ╟─ Preview ──────────────────────────────────────────────────╢
 ║                                                            ║
-║ ⠋ Crafting… ⣠⣤⣶⣶⣤⣠⣀⢀ 28 tok/s · 3s · ↓ 84 tokens          ║
+║ ⠋ Crafting… ⣠⣤⣶⣶⣤⣠⣀⢀ 28 tok/s · 3s · ↓ 84 tokens · test-model ║
 ║                                                            ║
 ╟─ User Prompt ──────────────────────────────────────────────╢
 ║    [■] High-vis prompt                                ON   ║
@@ -51,6 +51,9 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Token rate                                     ON   ║
 ║    [■] Token rate color                        ‹ warning › ║
 ║    [■] Token rate dimmed                             OFF   ║
+║    [■] Response model                                 ON   ║
+║    [■] Response model color                     ‹ accent › ║
+║    [■] Response model dimmed                        OFF   ║
 ║                                                            ║
 ╟─ Elements Order ───────────────────────────────────────────╢
 ║    [ ] Animated spinner                                    ║
@@ -59,6 +62,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [ ] Token rate                                          ║
 ║    [ ] Elapsed time                                        ║
 ║    [ ] Output tokens                                       ║
+║    [ ] Response model                                      ║
 ║                                                            ║
 ╟─ Completion Marker ────────────────────────────────────────╢
 ║    [■] Show completion marker                         ON   ║
@@ -86,7 +90,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╟────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  PgUp/PgDn page  ←→ select                       ║
 ║  ␣ toggle  ⏎ apply  esc cancel                            ║
-╚════════════════════════════════════════════════════[ 9/47 ]╝
+╚════════════════════════════════════════════════════[ 9/50 ]╝
 ```
 
 ### Word packs
@@ -108,7 +112,7 @@ Bundled packs live in [`wordpacks/`](wordpacks/). Copy `wordpacks/doctor-who.jso
 Pack IDs must start with a lowercase letter and contain only lowercase letters, digits, and `-`. Each pack needs a non-empty `name` and at least one word with non-empty `present_tense` and `past_tense` strings. Invalid entries are ignored. Packs reload when a session starts and whenever `/topping-settings` opens, not while a turn is running. Preferences for missing packs are retained so they apply when the pack returns.
 
 Under **Elements Order**, press `␣` to grab a row, then `↑`/`↓` to slide that element
-left or right within the loader. Elapsed time, output tokens, and token rate are joined with
+left or right within the loader. Elapsed time, output tokens, token rate, and response model are joined with
 `·` separators whenever adjacent. When reordering separates them, each adjacent run is rendered
 without a separator before or after it.
 
@@ -118,6 +122,8 @@ segments; larger rates may shift later segments. When inactive, it remains as th
 full brightness for 1.5 seconds, then fades through five theme-aware shades to the dim text color over
 the next 0.25 seconds before returning to the placeholder; a new count restores full brightness and
 restarts the cycle.
+
+The response model is captured from assistant responses, displayed as its sanitized value with no label, and defaults to the final loader detail after output tokens. It can be hidden, recolored, permanently dimmed, or reordered. After the agent settles, its final value remains visible for 3 seconds, fades through five theme-aware shades over 0.5 seconds, then clears; new work cancels the pending fade.
 
 ## Install
 

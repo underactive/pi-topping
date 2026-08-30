@@ -59,6 +59,8 @@ export interface DecoratorSettings {
 		meterDimmed: boolean;
 		tokenRateColor: SettingColor;
 		tokenRateDimmed: boolean;
+		responseModelColor: SettingColor;
+		responseModelDimmed: boolean;
 		promptIcon: boolean;
 		promptTimestamp: boolean;
 		promptProvider: boolean;
@@ -70,6 +72,7 @@ export interface DecoratorSettings {
 		elapsedTime: boolean;
 		outputTokens: boolean;
 		tokenRate: boolean;
+		responseModel: boolean;
 		doneMarker: boolean;
 		doneMarkerIcon: boolean;
 		randomizeDoneMarker: boolean;
@@ -81,8 +84,8 @@ export interface DecoratorSettings {
 }
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
-	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "borderAccent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "borderAccent", doneMarkerStyle: "elite", spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
-	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
+	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "borderAccent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "borderAccent", doneMarkerStyle: "elite", spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, responseModelColor: "accent", responseModelDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
+	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, responseModel: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 	wordPacks: {},
 };
@@ -96,6 +99,7 @@ const LOADER_ELEMENT_LABELS: Record<LoaderElement, string> = {
 	elapsed: "Elapsed time",
 	tokens: "Output tokens",
 	tokenRate: "Token rate",
+	responseModel: "Response model",
 };
 
 /**
@@ -198,6 +202,10 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "showTokenRate", label: "Token rate", section: "“Working” Loader", group: "features", key: "tokenRate" },
 	{ id: "tokenRateColor", label: "Token rate color", section: "“Working” Loader", group: "decorations", key: "tokenRateColor", cycleValues: SETTING_COLOR_VALUES },
 	{ id: "tokenRateDimmed", label: "Token rate dimmed", section: "“Working” Loader", group: "decorations", key: "tokenRateDimmed" },
+	// id differs from key: the Elements Order row already owns "responseModel" in the menu's shared value namespace.
+	{ id: "showResponseModel", label: "Response model", section: "“Working” Loader", group: "features", key: "responseModel" },
+	{ id: "responseModelColor", label: "Response model color", section: "“Working” Loader", group: "decorations", key: "responseModelColor", cycleValues: SETTING_COLOR_VALUES },
+	{ id: "responseModelDimmed", label: "Response model dimmed", section: "“Working” Loader", group: "decorations", key: "responseModelDimmed" },
 	{ id: "doneMarker", label: "Show completion marker", section: "Completion Marker", group: "features", key: "doneMarker" },
 	{ id: "doneMarkerStyle", label: "Marker style", section: "Completion Marker", group: "decorations", key: "doneMarkerStyle", cycleValues: DONE_MARKER_STYLE_VALUES },
 	{ id: "doneMarkerBorderStyle", label: "Border style", section: "Completion Marker", group: "decorations", key: "doneMarkerBorderStyle", cycleValues: DONE_MARKER_BORDER_STYLE_VALUES },
@@ -228,6 +236,7 @@ function setDecorationCycleValue(decorations: DecorationSettings, key: keyof Dec
 		case "spinnerColor":
 		case "meterColor":
 		case "tokenRateColor":
+		case "responseModelColor":
 		case "doneMarkerBorderColor":
 			if (isSettingColor(stored)) decorations[key] = stored;
 			return;
