@@ -1324,11 +1324,16 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		// real menu rows prevents this integration test from silently skipping a
 		// newly added control. Reorder rows are stepped over rather than pressed:
 		// space would grab one, and the following downs would sort it instead of
-		// advancing the cursor.
+		// advancing the cursor. Cycle-only rows advance on right arrow.
 		const rows = buildMenuSections(DEFAULT_SETTINGS, loadBundledWordPacks()).flatMap((section) => section.items);
 		for (const [index, row] of rows.entries()) {
 			if (index > 0) capturedComponent!.handleInput!("\x1b[B");
-			if (!row.reorderGroup) capturedComponent!.handleInput!(" ");
+			if (row.reorderGroup) continue;
+			if (row.cycleValues && !row.cycleEnabledBy) {
+				capturedComponent!.handleInput!("\x1b[C");
+			} else {
+				capturedComponent!.handleInput!(" ");
+			}
 		}
 
 		// Apply.
@@ -1368,9 +1373,15 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.features.elapsedTime, !DEFAULT_SETTINGS.features.elapsedTime);
 		assert.equal(persisted.features.outputTokens, !DEFAULT_SETTINGS.features.outputTokens);
 		assert.equal(persisted.features.tokenRate, !DEFAULT_SETTINGS.features.tokenRate);
-		assert.equal(persisted.decorations.tokenRateColor, DEFAULT_SETTINGS.decorations.tokenRateColor);
+		assert.equal(persisted.decorations.tokenRateColor, "accent");
 		assert.equal(persisted.decorations.tokenRateDimmed, !DEFAULT_SETTINGS.decorations.tokenRateDimmed);
+		assert.equal(persisted.features.responseModel, !DEFAULT_SETTINGS.features.responseModel);
+		assert.equal(persisted.decorations.responseModelColor, "border");
+		assert.equal(persisted.decorations.responseModelDimmed, !DEFAULT_SETTINGS.decorations.responseModelDimmed);
 		assert.equal(persisted.features.doneMarker, !DEFAULT_SETTINGS.features.doneMarker);
+		assert.equal(persisted.decorations.doneMarkerStyle, "bookend");
+		assert.equal(persisted.decorations.doneMarkerBorderStyle, "double");
+		assert.equal(persisted.decorations.doneMarkerBorderColor, "success");
 		assert.equal(persisted.features.doneMarkerIcon, !DEFAULT_SETTINGS.features.doneMarkerIcon);
 		assert.equal(persisted.features.randomizeDoneMarker, !DEFAULT_SETTINGS.features.randomizeDoneMarker);
 		assert.equal(persisted.features.doneMarkerTokens, !DEFAULT_SETTINGS.features.doneMarkerTokens);

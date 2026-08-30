@@ -88,8 +88,8 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╟─ Options ──────────────────────────────────────────────────╢
 ║    [■] Use NerdFont icons                             ON   ║
 ╟────────────────────────────────────────────────────────────╢
-║  ↑↓ move  PgUp/PgDn page  ←→ select                       ║
-║  ␣ toggle  ⏎ apply  esc cancel                            ║
+║  ↑↓ move  PgUp/PgDn page  ←→ select                        ║
+║  ␣ toggle  ⏎ apply  esc cancel                             ║
 ╚════════════════════════════════════════════════════[ 9/50 ]╝
 ```
 
