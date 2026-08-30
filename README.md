@@ -6,7 +6,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
-**“Working” Loader** — animated spinner (with color choice), randomized activity word, optional word packs, shimmer (with direction, speed, and invert option), token activity monitor (with color, direction, and dim toggle), elapsed timer, output token display, live output-token rate (with color choice and dim toggle), and the response model (with visibility, color, and dim controls) — all arrangeable left to right. During a blocking extension prompt, the loader switches to a stable dim waiting line with a pulsing indicator, then resumes afterward.
+**“Working” Loader** — animated spinner (with color choice), randomized activity word, optional word packs, shimmer, token activity monitor, elapsed timer, output token display, live output-token rate, and the response model (for 'auto' models) — all arrangeable left to right. During a blocking extension prompt, the loader switches to a stable dim waiting line with a pulsing indicator, then resumes afterward.
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
@@ -14,83 +14,91 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Example of pi-topping's completion marker](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_completion_marker.png)
 
+## Install
+
+```bash
+pi install npm:@underactive/pi-topping
+```
+
+Restart Pi (or run `/reload`) to pick it up.
+
 ## Settings
 
 Run `/topping-settings` (TUI only) to customize your toppings. Settings persist to
 `~/.pi/agent/pi-topping/settings.json`; hand edits are tolerated on load.
 
 ```
-╔═[ Pi Topping: Settings ]═══════════════════════════════════╗
-╟─ Preview ──────────────────────────────────────────────────╢
-║                                                            ║
-║ ⠋ Crafting… ⣠⣤⣶⣶⣤⣠⣀⢀ 28 tps · 3s · ↓ 84 tokens · test-model ║
-║                                                            ║
-╟─ User Prompt ──────────────────────────────────────────────╢
-║    [■] High-vis prompt                                ON   ║
-║    [■] Border style                             ‹ double › ║
-║    [■] Border color                       ‹ borderAccent › ║
-║    [■] Pi icon                                        ON   ║
-║    [■] Timestamp                                      ON   ║
-║    [■] Provider                                       ON   ║
-║    [■] Model                                          ON   ║
-║                                                            ║
-╟─ “Working” Loader ─────────────────────────────────────────╢
-║    [■] Animated spinner                               ON   ║
-║  ❯ [■] Animated spinner color                   ‹ accent › ║
-║    [■] Randomize “Working” text                       ON   ║
-║    [■] Text shimmer                                   ON   ║
-║    [■] Invert shimmer                                OFF   ║
-║    [■] Text shimmer direction            ‹ Left to Right › ║
-║    [■] Text shimmer speed                       ‹ Normal › ║
-║    [■] Token activity monitor                         ON   ║
-║    [■] Token activity monitor color             ‹ accent › ║
-║    [■] Token activity monitor direction  ‹ Right to Left › ║
-║    [■] Token activity monitor dimmed                 OFF   ║
-║    [■] Elapsed time since prompt                      ON   ║
-║    [■] Show output tokens                             ON   ║
-║    [■] Token rate                                     ON   ║
-║    [■] Token rate color                        ‹ warning › ║
-║    [■] Token rate dimmed                             OFF   ║
-║    [■] Response model                                 ON   ║
-║    [■] Response model color                     ‹ accent › ║
-║    [■] Response model dimmed                        OFF   ║
-║                                                            ║
-╟─ Elements Order ───────────────────────────────────────────╢
-║    [ ] Animated spinner                                    ║
-║    [ ] “Working” text                                      ║
-║    [ ] Token activity monitor                              ║
-║    [ ] Token rate                                          ║
-║    [ ] Elapsed time                                        ║
-║    [ ] Output tokens                                       ║
-║    [ ] Response model                                      ║
-║                                                            ║
-╟─ Completion Marker ────────────────────────────────────────╢
-║    [■] Show completion marker                         ON   ║
-║    [■] Marker style                              ‹ elite › ║
-║    [■] Border style                               ‹ none › ║
-║    [■] Border color                       ‹ borderAccent › ║
-║    [■] Pi icon                                        ON   ║
-║    [■] Randomize “Worked” text                        ON   ║
-║    [■] Tokens spent                                   ON   ║
-║    [■] Mid-turn inputs                                ON   ║
-║                                                            ║
-╟─ Word Packs ───────────────────────────────────────────────╢
-║    [ ] Doctor Who                                    OFF   ║
-║    [ ] Firefly                                       OFF   ║
-║    [ ] Hitchhiker's Guide                            OFF   ║
-║    [ ] The Lord of the Rings                         OFF   ║
-║    [ ] The Matrix                                    OFF   ║
-║    [ ] Portal                                        OFF   ║
-║    [ ] SimCity                                       OFF   ║
-║    [ ] Star Trek                                     OFF   ║
-║    [ ] Star Wars                                     OFF   ║
-║                                                            ║
-╟─ Options ──────────────────────────────────────────────────╢
-║    [■] Use NerdFont icons                             ON   ║
-╟────────────────────────────────────────────────────────────╢
-║  ↑↓ move  PgUp/PgDn page  ←→ select                        ║
-║  ␣ toggle  ⏎ apply  esc cancel                             ║
-╚════════════════════════════════════════════════════[ 9/50 ]╝
+╔═[ Pi Topping: Settings ]══════════════════════════════════════╗
+╟─ Preview ─────────────────────────────────────────────────────╢
+║                                                               ║
+║ ⠋ Crafting… ⣠⣤⣶⣶⣤⣠⣀⢀ 28 tps · 3s · ↓ 84 tokens · test-model  ║
+║                                                               ║
+╟─ User Prompt ─────────────────────────────────────────────────╢
+║    [■] High-vis prompt                                ON      ║
+║    [■] Border style                             ‹ double ›    ║
+║    [■] Border color                       ‹ borderAccent ›    ║
+║    [■] Pi icon                                        ON      ║
+║    [■] Timestamp                                      ON      ║
+║    [■] Provider                                       ON      ║
+║    [■] Model                                          ON      ║
+║                                                               ║
+╟─ “Working” Loader ────────────────────────────────────────────╢
+║    [■] Animated spinner                               ON      ║
+║  ❯ [■] Animated spinner color                   ‹ accent ›    ║
+║    [■] Randomize “Working” text                       ON      ║
+║    [■] Text shimmer                                   ON      ║
+║    [■] Invert shimmer                                OFF      ║
+║    [■] Text shimmer direction            ‹ Left to Right ›    ║
+║    [■] Text shimmer speed                       ‹ Normal ›    ║
+║    [■] Token activity monitor                         ON      ║
+║    [■] Token activity monitor color             ‹ accent ›    ║
+║    [■] Token activity monitor direction  ‹ Right to Left ›    ║
+║    [■] Token activity monitor dimmed                 OFF      ║
+║    [■] Elapsed time since prompt                      ON      ║
+║    [■] Show output tokens                             ON      ║
+║    [■] Token rate                                     ON      ║
+║    [■] Token rate color                        ‹ warning ›    ║
+║    [■] Token rate dimmed                             OFF      ║
+║    [■] Response model                                 ON      ║
+║    [■] Response model color                     ‹ accent ›    ║
+║    [■] Response model dimmed                        OFF       ║
+║                                                               ║
+╟─ Elements Order ──────────────────────────────────────────────╢
+║    [ ] Animated spinner                                       ║
+║    [ ] “Working” text                                         ║
+║    [ ] Token activity monitor                                 ║
+║    [ ] Token rate                                             ║
+║    [ ] Elapsed time                                           ║
+║    [ ] Output tokens                                          ║
+║    [ ] Response model                                         ║
+║                                                               ║
+╟─ Completion Marker ───────────────────────────────────────────╢
+║    [■] Show completion marker                         ON      ║
+║    [■] Marker style                              ‹ elite ›    ║
+║    [■] Border style                               ‹ none ›    ║
+║    [■] Border color                       ‹ borderAccent ›    ║
+║    [■] Pi icon                                        ON      ║
+║    [■] Randomize “Worked” text                        ON      ║
+║    [■] Tokens spent                                   ON      ║
+║    [■] Mid-turn inputs                                ON      ║
+║                                                               ║
+╟─ Word Packs ──────────────────────────────────────────────────╢
+║    [ ] Doctor Who                                    OFF      ║
+║    [ ] Firefly                                       OFF      ║
+║    [ ] Hitchhiker's Guide                            OFF      ║
+║    [ ] The Lord of the Rings                         OFF      ║
+║    [ ] The Matrix                                    OFF      ║
+║    [ ] Portal                                        OFF      ║
+║    [ ] SimCity                                       OFF      ║
+║    [ ] Star Trek                                     OFF      ║
+║    [ ] Star Wars                                     OFF      ║
+║                                                               ║
+╟─ Options ─────────────────────────────────────────────────────╢
+║    [■] Use NerdFont icons                             ON      ║
+╟───────────────────────────────────────────────────────────────╢
+║  ↑↓ move  PgUp/PgDn page  ←→ select                           ║
+║  ␣ toggle  ⏎ apply  esc cancel                                ║
+╚═══════════════════════════════════════════════════════[ 9/50 ]╝
 ```
 
 ### Word packs
@@ -124,14 +132,6 @@ the next 0.25 seconds before returning to the placeholder; a new count restores 
 restarts the cycle.
 
 The response model is captured from assistant responses, displayed as its sanitized value with no label, and defaults to the final loader detail after output tokens. It can be hidden, recolored, permanently dimmed, or reordered. After the agent settles, its final value remains visible for 3 seconds, fades through five theme-aware shades over 0.5 seconds, then clears; new work cancels the pending fade.
-
-## Install
-
-```bash
-pi install npm:@underactive/pi-topping
-```
-
-Restart Pi (or run `/reload`) to pick it up.
 
 ## Requirements
 
