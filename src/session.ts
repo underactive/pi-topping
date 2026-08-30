@@ -221,6 +221,7 @@ export class SessionManager {
 		if (this.usable(ctx) && event.message.role === "assistant") {
 			this.#state.liveTokens = 0;
 			this.#counter.reset();
+			this.updateResponseModel((event.message as { responseModel?: unknown }).responseModel);
 		}
 	};
 
@@ -233,6 +234,11 @@ export class SessionManager {
 			(assistantEvent.type === "text_delta" || assistantEvent.type === "thinking_delta")
 		) {
 			this.#state.liveTokens += this.#counter.count(assistantEvent.delta, assistantEvent.type);
+		}
+		if (this.usable(ctx)) {
+			const rawResponseModel = (assistantEvent as { partial?: { responseModel?: unknown } } | undefined)?.partial?.responseModel
+				?? (event.message as { responseModel?: unknown } | undefined)?.responseModel;
+			this.updateResponseModel(rawResponseModel);
 		}
 	};
 
@@ -251,12 +257,7 @@ export class SessionManager {
 		}
 		this.#state.liveTokens = 0;
 		this.#counter.reset();
-		const rawResponseModel = (event.message as { responseModel?: unknown }).responseModel;
-		const responseModel = typeof rawResponseModel === "string" ? stripControlChars(rawResponseModel).trim() : "";
-		if (responseModel && responseModel !== this.#state.responseModel) {
-			this.#state.responseModel = responseModel;
-			this.tick();
-		}
+		this.updateResponseModel((event.message as { responseModel?: unknown }).responseModel);
 	};
 
 	#onToolExecutionStart = async (_e: ToolExecutionStartEvent, ctx: ExtensionContext): Promise<void> => {
@@ -439,6 +440,14 @@ export class SessionManager {
 		if (this.#state.timer) {
 			clearInterval(this.#state.timer);
 			this.#state.timer = null;
+		}
+	}
+
+	private updateResponseModel(raw: unknown): void {
+		const responseModel = typeof raw === "string" ? stripControlChars(raw).trim() : "";
+		if (responseModel && responseModel !== this.#state.responseModel) {
+			this.#state.responseModel = responseModel;
+			this.tick();
 		}
 	}
 
