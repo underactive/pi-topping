@@ -135,10 +135,12 @@ function createContext(
 	options?: {
 		mode?: string;
 		notifications?: { message: string; type?: string }[];
+		statuses?: { key: string; text: string | undefined }[];
 		onCustomComponent?: (component: { render(width: number): string[]; handleInput?(data: string): void; dispose?(): void }) => void;
 	},
 ): ExtensionContext {
 	const notifications = options?.notifications ?? [];
+	const statuses = options?.statuses ?? [];
 	const theme = {
 		fg,
 		bg: (_color: string, text: string) => text,
@@ -156,6 +158,9 @@ function createContext(
 			},
 			setWorkingIndicator(options?: unknown) {
 				indicators.push(options);
+			},
+			setStatus(key: string, text?: string) {
+				statuses.push({ key, text });
 			},
 			notify(message: string, type?: string) {
 				notifications.push({ message, type });
@@ -703,7 +708,8 @@ test("response model is sanitized, configurable, and holds then fades after sett
 		});
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];
-		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`);
+		const statuses: { key: string; text: string | undefined }[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`, { statuses });
 		const timeouts: (() => void)[] = [];
 		const intervals: (() => void)[] = [];
 		t.mock.method(Date, "now", () => 1_000);
@@ -724,14 +730,14 @@ test("response model is sanitized, configurable, and holds then fades after sett
 		assert.match(messages.at(-1)!, /\x1b\[2m<success>test-model<\/success>\x1b\[22m$/);
 
 		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
-		assert.match(messages.at(-1)!, /\x1b\[2m<success>test-model<\/success>\x1b\[22m$/);
+		assert.match(statuses.at(-1)!.text!, /\x1b\[2m<success>test-model<\/success>\x1b\[22m$/);
 		assert.equal(timeouts.length, 1);
 		timeouts[0]!();
-		assert.match(messages.at(-1)!, /\x1b\[2m\x1b\[38;2;/);
+		assert.match(statuses.at(-1)!.text!, /\x1b\[2m\x1b\[38;2;/);
 		assert.equal(intervals.length, 2, "one working timer and one fade timer");
 		const fade = intervals.at(-1)!;
 		for (let i = 0; i < 5; i++) fade();
-		assert.equal(messages.at(-1), undefined);
+		assert.equal(statuses.at(-1)!.text, undefined);
 	});
 });
 
@@ -739,7 +745,8 @@ test("response model fade is cancelled by a new run and shutdown", async (t) => 
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];
-		const ctx = createContext(messages, []);
+		const statuses: { key: string; text: string | undefined }[] = [];
+		const ctx = createContext(messages, [], undefined, { statuses });
 		const timeouts: (() => void)[] = [];
 		t.mock.method(Date, "now", () => 1_000);
 		t.mock.method(globalThis, "setTimeout", ((callback: () => void) => {
@@ -755,9 +762,9 @@ test("response model fade is cancelled by a new run and shutdown", async (t) => 
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
 		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
-		const afterNewRun = messages.length;
+		const afterNewRun = statuses.length;
 		timeouts[0]!();
-		assert.equal(messages.length, afterNewRun);
+		assert.equal(statuses.length, afterNewRun);
 		await extension.emit("session_shutdown", { type: "session_shutdown", reason: "quit" }, ctx);
 	});
 });

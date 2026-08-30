@@ -34,7 +34,6 @@ import {
 	TOKEN_RATE_FADE_SHADE_COUNT,
 	TOKEN_RATE_PLACEHOLDER,
 	StreamingWordCounter,
-	type LoaderElement,
 } from "./format.ts";
 import { isSiblingSetupEnabled } from "./flags.ts";
 import { showMenu } from "./menu.ts";
@@ -55,6 +54,7 @@ type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
 type UIPromptKind = UIPromptStartEvent["kind"];
 
 const DONE_ENTRY_TYPE = "pi-topping-done";
+const RESPONSE_MODEL_STATUS_KEY = "pi-topping-response-model";
 const WAITING_LABELS: Record<UIPromptKind, string> = {
 	select: "Waiting for selection",
 	confirm: "Waiting for confirmation",
@@ -156,14 +156,14 @@ export class SessionManager {
 	}
 
 	#onSessionStart = async (_e: SessionStartEvent, ctx: ExtensionContext): Promise<void> => {
+		this.#currentCtx = ctx;
 		this.stopTimer();
-		this.cancelResponseModelFade();
+		this.cancelResponseModelFade(ctx);
 		this.#counter.reset();
 		this.#state = makeFreshState();
 		this.#settings = loadSettings();
 		this.#userPacks = loadUserWordPacks();
 		this.#state.activityMeter.setDirection(this.#settings.decorations.meterDirection);
-		this.#currentCtx = ctx;
 		if (this.usable(ctx)) {
 			this.applyIndicator(ctx);
 			if (isSiblingSetupEnabled()) notifyMissingToppingsOnce(this.#pi, ctx.ui);
@@ -202,8 +202,8 @@ export class SessionManager {
 	};
 
 	#onAgentStart = async (_e: AgentStartEvent, ctx: ExtensionContext): Promise<void> => {
-		this.cancelResponseModelFade();
 		this.#currentCtx = ctx;
+		this.cancelResponseModelFade(ctx);
 		if (!this.usable(ctx)) return;
 		if (!this.#state.startTime) this.resetTurn(Date.now());
 		this.#state.busy = true;
@@ -289,15 +289,14 @@ export class SessionManager {
 		const responseModel = this.#settings.features.responseModel ? this.#state.responseModel : "";
 		const responseModelColor = this.#settings.decorations.responseModelColor;
 		const responseModelDimmed = this.#settings.decorations.responseModelDimmed;
-		const responseModelOrder = [...this.#settings.loaderOrder];
 		this.#state.busy = false;
 		this.#state.waiting = null;
 		this.#state.startTime = 0;
 		this.#counter.reset();
 		this.stopTimer();
 		this.applyIndicator(ctx);
-		if (responseModel) this.startResponseModelFade(ctx, responseModel, responseModelColor, responseModelDimmed, responseModelOrder);
-		else ctx.ui.setWorkingMessage();
+		ctx.ui.setWorkingMessage();
+		if (responseModel) this.startResponseModelFade(ctx, responseModel, responseModelColor, responseModelDimmed);
 		this.#state.activityMeter.reset();
 		resetTokenRateState(this.#state);
 		this.#state.lastMessage = NOT_SENT;
@@ -312,9 +311,9 @@ export class SessionManager {
 		this.#currentCtx = null;
 	};
 
-	#onSessionShutdown = async (_e: SessionShutdownEvent, _ctx: ExtensionContext): Promise<void> => {
+	#onSessionShutdown = async (_e: SessionShutdownEvent, ctx: ExtensionContext): Promise<void> => {
 		this.#state.waiting = null;
-		this.cancelResponseModelFade();
+		this.cancelResponseModelFade(ctx);
 		this.stopTimer();
 	};
 
@@ -438,7 +437,7 @@ export class SessionManager {
 		}
 	}
 
-	private cancelResponseModelFade(): void {
+	private cancelResponseModelFade(ctx?: ExtensionContext | null): void {
 		const state = this.#state;
 		state.responseModelFadeGeneration++;
 		if (state.responseModelHoldTimer) {
@@ -449,17 +448,21 @@ export class SessionManager {
 			clearInterval(state.responseModelFadeTimer);
 			state.responseModelFadeTimer = null;
 		}
+		const activeCtx = ctx ?? this.#currentCtx;
+		if (activeCtx && this.usable(activeCtx)) {
+			activeCtx.ui.setStatus(RESPONSE_MODEL_STATUS_KEY, undefined);
+		}
 	}
 
-	private startResponseModelFade(ctx: ExtensionContext, model: string, color: SettingColor, dimmed: boolean, order: readonly LoaderElement[]): void {
-		this.cancelResponseModelFade();
+	private startResponseModelFade(ctx: ExtensionContext, model: string, color: SettingColor, dimmed: boolean): void {
+		this.cancelResponseModelFade(ctx);
 		const generation = this.#state.responseModelFadeGeneration;
 		const render = (shade?: number): void => {
 			const colored = shade === undefined
 				? ctx.ui.theme.fg(color, model)
 				: fadeThemeColorString(model, shade, ctx.ui.theme, color);
 			const responseModel = dimmed ? dimAttribute(colored) : colored;
-			ctx.ui.setWorkingMessage(buildWorkingMessage(ctx.ui.theme, { responseModel }, order));
+			ctx.ui.setStatus(RESPONSE_MODEL_STATUS_KEY, responseModel);
 		};
 		render();
 		this.#state.responseModelHoldTimer = setTimeout(() => {
@@ -470,8 +473,7 @@ export class SessionManager {
 			this.#state.responseModelFadeTimer = setInterval(() => {
 				if (this.#state.responseModelFadeGeneration !== generation) return;
 				if (shade >= TOKEN_RATE_FADE_SHADE_COUNT) {
-					this.cancelResponseModelFade();
-					ctx.ui.setWorkingMessage();
+					this.cancelResponseModelFade(ctx);
 					return;
 				}
 				render(shade++);
