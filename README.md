@@ -6,7 +6,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
-**“Working” Loader** — animated spinner (with color choice), randomized activity word, optional word packs, shimmer, token activity monitor, elapsed timer, output token display, live output-token rate, and the response model (for 'auto' models) — all arrangeable left to right. During a blocking extension prompt, the loader switches to a stable dim waiting line with a pulsing indicator, then resumes afterward.
+**“Working” Loader** — animated spinner (with color choice), randomized activity word, optional word packs, shimmer, token activity monitor, elapsed timer, output token display, live output-token rate, and the response model when it meaningfully differs from the selected model — all arrangeable left to right. During a blocking extension prompt, the loader switches to a stable dim waiting line with a pulsing indicator, then resumes afterward.
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
@@ -131,7 +131,7 @@ full brightness for 1.5 seconds, then fades through five theme-aware shades to t
 the next 0.25 seconds before returning to the placeholder; a new count restores full brightness and
 restarts the cycle.
 
-The response model is captured from assistant responses, displayed as its sanitized value with no label, and defaults to the final loader detail after output tokens. It can be hidden, recolored, permanently dimmed, or reordered. After the agent settles, its final value remains visible for 3 seconds, fades through five theme-aware shades over 0.5 seconds, then clears; new work cancels the pending fade.
+The response model is captured from assistant responses, displayed as its sanitized value with no label only when it meaningfully differs from the selected model, and defaults to the final loader detail after output tokens. Equivalent local paths and decorated filenames are suppressed. It can be hidden, recolored, permanently dimmed, or reordered. After the agent settles, its final value remains visible for 3 seconds, fades through five theme-aware shades over 0.5 seconds, then clears; new work cancels the pending fade.
 
 ## Requirements
 

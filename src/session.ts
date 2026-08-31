@@ -42,7 +42,7 @@ import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type Se
 import { notifyMissingToppingsOnce } from "./toppings.ts";
 import { PreviewRenderer } from "./preview.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
-import { stripControlChars } from "./util.ts";
+import { modelsResemble, stripControlChars } from "./util.ts";
 import { loadBundledWordPacks, loadUserWordPacks, pickWorkingTextSelection, type WorkingTextSelection, type WordPack } from "./word-packs.ts";
 
 type MessageStartEvent = Extract<ExtensionEvent, { type: "message_start" }>;
@@ -447,6 +447,14 @@ export class SessionManager {
 
 	private updateResponseModel(raw: unknown): void {
 		const responseModel = typeof raw === "string" ? stripControlChars(raw).trim() : "";
+		const selectedModel = this.#currentCtx?.model?.id;
+		if (responseModel && modelsResemble(selectedModel, responseModel)) {
+			if (this.#state.responseModel) {
+				this.#state.responseModel = "";
+				this.tick();
+			}
+			return;
+		}
 		if (responseModel && responseModel !== this.#state.responseModel) {
 			this.#state.responseModel = responseModel;
 			this.tick();

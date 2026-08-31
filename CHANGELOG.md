@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Equivalent selected-model names, including local paths and decorated filenames, no longer appear as response-model details.
+
 ## [0.6.4] - 2026-08-29
 
 ### Added

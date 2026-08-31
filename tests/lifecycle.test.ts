@@ -136,6 +136,7 @@ function createContext(
 		mode?: string;
 		notifications?: { message: string; type?: string }[];
 		statuses?: { key: string; text: string | undefined }[];
+		selectedModel?: string;
 		onCustomComponent?: (component: { render(width: number): string[]; handleInput?(data: string): void; dispose?(): void }) => void;
 	},
 ): ExtensionContext {
@@ -151,6 +152,7 @@ function createContext(
 	return {
 		hasUI: true,
 		mode: options?.mode ?? "tui",
+		model: options?.selectedModel ? { provider: "test", id: options.selectedModel } : undefined,
 		ui: {
 			theme,
 			setWorkingMessage(message?: string) {
@@ -738,6 +740,64 @@ test("response model is sanitized, configurable, and holds then fades after sett
 		const fade = intervals.at(-1)!;
 		for (let i = 0; i < 5; i++) fade();
 		assert.equal(statuses.at(-1)!.text, undefined);
+	});
+});
+
+test("resembling response models are suppressed during streaming and settlement", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const statuses: { key: string; text: string | undefined }[] = [];
+		const ctx = createContext(messages, [], undefined, { statuses, selectedModel: "qwen3-27b" });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const partial = assistantMessage(0, "/models/Qwen3.8-27B-UD-IQ4_XS.gguf");
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: partial,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "text", partial },
+		}, ctx);
+		assert.ok(!messages.at(-1)!.includes("Qwen3"));
+
+		await extension.emit("message_end", { type: "message_end", message: partial }, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		assert.ok(statuses.every(({ text }) => text === undefined), "suppressed models must not start a response-model fade");
+	});
+});
+
+test("auto selections retain resolved response models and clear stale streamed values", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const statuses: { key: string; text: string | undefined }[] = [];
+		const ctx = createContext(messages, [], undefined, { statuses, selectedModel: "auto" });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const resolved = assistantMessage(0, "resolved-model");
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: resolved,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "text", partial: resolved },
+		}, ctx);
+		assert.match(messages.at(-1)!, /resolved-model/);
+
+		const selected = assistantMessage(0, "AUTO");
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: selected,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "text", partial: selected },
+		}, ctx);
+		assert.ok(!messages.at(-1)!.includes("resolved-model"));
+
+		await extension.emit("message_end", { type: "message_end", message: resolved }, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		assert.match(statuses.at(-1)!.text!, /resolved-model/);
 	});
 });
 
