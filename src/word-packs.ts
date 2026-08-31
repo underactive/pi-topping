@@ -84,7 +84,6 @@ export function loadBundledWordPacks(): WordPack[] {
 			packs.push(pack);
 		}
 	}
-	if (!packs.some((pack) => pack.id === "simcity")) throw new Error("Missing bundled SimCity word pack");
 	const bundledIds = new Set(packs.map((pack) => pack.id));
 	for (const id of RESERVED_BUNDLED_PACK_IDS) {
 		if (!bundledIds.has(id)) throw new Error(`Missing bundled word pack: ${id}`);
