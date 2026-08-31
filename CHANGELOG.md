@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-08-31
+
+### Changed
+- Working-text selection no longer rebuilds its candidate pool on every pick, and unchanged response-model values skip reprocessing on each streaming token delta, reducing per-token overhead.
+
 ### Fixed
 - Response models that merely restate the selected model — including local paths and decorated filenames of it — no longer appear as response-model details.
 
