@@ -86,6 +86,8 @@ interface SessionState {
 	lastTokenRateSampledAt: number;
 	lastTokenRateTotal: number;
 	responseModel: string;
+	/** Last raw responseModel value seen, or the NOT_SENT sentinel before the first call. */
+	lastResponseModelRaw: unknown;
 	responseModelHoldTimer: ReturnType<typeof setTimeout> | null;
 	responseModelFadeTimer: ReturnType<typeof setInterval> | null;
 	responseModelFadeGeneration: number;
@@ -123,6 +125,7 @@ function makeFreshState(): SessionState {
 		lastTokenRateSampledAt: 0,
 		lastTokenRateTotal: 0,
 		responseModel: "",
+		lastResponseModelRaw: NOT_SENT,
 		responseModelHoldTimer: null,
 		responseModelFadeTimer: null,
 		responseModelFadeGeneration: 0,
@@ -446,6 +449,8 @@ export class SessionManager {
 	}
 
 	private updateResponseModel(raw: unknown): void {
+		if (raw === this.#state.lastResponseModelRaw) return;
+		this.#state.lastResponseModelRaw = raw;
 		const responseModel = typeof raw === "string" ? stripControlChars(raw).trim() : "";
 		const selectedModel = this.#currentCtx?.model?.id;
 		if (responseModel && modelsResemble(selectedModel, responseModel)) {
@@ -531,6 +536,7 @@ export class SessionManager {
 		state.confirmTokens = 0;
 		state.liveTokens = 0;
 		state.responseModel = "";
+		state.lastResponseModelRaw = NOT_SENT;
 		state.activityMeter.reset();
 		resetTokenRateState(state);
 		state.midTurnInputs = 0;
