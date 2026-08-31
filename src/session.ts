@@ -151,6 +151,7 @@ export class SessionManager {
 	#settings = loadSettings();
 	#userPacks: WordPack[] = [];
 	#bundledPacks = loadBundledWordPacks();
+	#allPacks: WordPack[] = [...this.#bundledPacks];
 	#currentCtx: ExtensionContext | null = null;
 	readonly #pi: ExtensionAPI;
 
@@ -166,6 +167,7 @@ export class SessionManager {
 		this.#state = makeFreshState();
 		this.#settings = loadSettings();
 		this.#userPacks = loadUserWordPacks();
+		this.#allPacks = [...this.#bundledPacks, ...this.#userPacks];
 		this.#state.activityMeter.setDirection(this.#settings.decorations.meterDirection);
 		if (this.usable(ctx)) {
 			this.applyIndicator(ctx);
@@ -524,7 +526,7 @@ export class SessionManager {
 	}
 
 	private pickWorkingWord(): WorkingTextSelection {
-		return pickWorkingTextSelection(this.#settings.wordPacks, [...this.#bundledPacks, ...this.#userPacks]);
+		return pickWorkingTextSelection(this.#settings.wordPacks, this.#allPacks);
 	}
 
 	private resetTurn(now: number): void {
@@ -653,6 +655,7 @@ export class SessionManager {
 		}
 
 		this.#userPacks = loadUserWordPacks();
+		this.#allPacks = [...this.#bundledPacks, ...this.#userPacks];
 		const before = this.indicatorFingerprint();
 		const preview = new PreviewRenderer(ctx, [...this.#bundledPacks, ...this.#userPacks]);
 		const result = await showMenu<Record<string, boolean | string>>(ctx, {

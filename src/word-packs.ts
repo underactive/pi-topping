@@ -108,8 +108,10 @@ export function isWordPackEnabled(id: string, enabled: Record<string, boolean>):
 }
 
 export function selectWorkingTextSelection(enabled: Record<string, boolean>, packs: readonly WordPack[], fraction: number): WorkingTextSelection {
-	const pool = [...WORDS, ...packs.filter((pack) => isWordPackEnabled(pack.id, enabled)).flatMap((pack) => pack.words)];
-	const entry = pool[Math.min(pool.length - 1, Math.floor(fraction * pool.length))]!;
+	const enabledWords = packs.filter((pack) => isWordPackEnabled(pack.id, enabled)).flatMap((pack) => pack.words);
+	const total = WORDS.length + enabledWords.length;
+	const idx = Math.min(total - 1, Math.floor(fraction * total));
+	const entry = idx < WORDS.length ? WORDS[idx] : enabledWords[idx - WORDS.length];
 	return { text: `${entry.present_tense}…`, pastTense: entry.past_tense };
 }
 
