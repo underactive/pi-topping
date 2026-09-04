@@ -57,11 +57,12 @@ export interface MenuConfig {
 	/**
 	 * Optional preview renderer, shown in its own "Preview" section above the
 	 * toggle sections. Called on every render with the menu's current (possibly
-	 * toggled but not-yet-applied) values and the number of milliseconds elapsed
-	 * since the menu opened. Lines may contain ANSI styling and are truncated/
-	 * padded to fit automatically.
+	 * toggled but not-yet-applied) values, the milliseconds elapsed since the menu
+	 * opened, the id of the item under the cursor (undefined for an empty menu),
+	 * and the width available to each line. Lines may contain ANSI styling and
+	 * are truncated/padded to fit automatically.
 	 *
-	 * Omitting `nextRefreshInMs` from a `PreviewResult` makes the preview static.
+	 * Omitting `nextRefreshInMs` (or returning a value <= 0) makes the preview static.
 	 */
 	preview?: (values: Record<string, MenuValue>, elapsedMs: number, activeItemId: string | undefined, width: number) => PreviewResult;
 	/** Optional heading for the preview block. Defaults to `Preview`. */
