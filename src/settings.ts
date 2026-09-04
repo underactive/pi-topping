@@ -163,9 +163,7 @@ function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, par
 		else if (key === "borderColor" && isPromptBorderColor(value)) valid = value;
 		else if (key === "doneMarkerBorderColor" && value === "default") valid = "thinking-level";
 		else if (key === "doneMarkerBorderColor" && isDoneMarkerBorderColor(value)) valid = value;
-		else if ((key === "meterColor" || key === "tokenRateColor") && isThinkingLevelColor(value)) valid = value;
-		else if (key === "responseModelColor" && isThinkingLevelColor(value)) valid = value;
-		else if (key.endsWith("Color") && isSettingColor(value)) valid = value;
+		else if ((key === "meterColor" || key === "tokenRateColor" || key === "responseModelColor") && isThinkingLevelColor(value)) valid = value;
 		else if (key === "borderStyle" && isBorderStyle(value)) valid = value;
 		else if (key === "doneMarkerBorderStyle" && isDoneMarkerBorderStyle(value)) valid = value;
 		else if (key === "doneMarkerStyle" && isDoneMarkerStyle(value)) valid = value;
@@ -278,8 +276,6 @@ function setDecorationCycleValue(decorations: DecorationSettings, key: keyof Dec
 			return;
 		case "meterColor":
 		case "tokenRateColor":
-			if (isThinkingLevelColor(stored)) decorations[key] = stored;
-			return;
 		case "responseModelColor":
 			if (isThinkingLevelColor(stored)) decorations[key] = stored;
 			return;
