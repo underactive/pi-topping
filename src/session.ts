@@ -19,6 +19,7 @@ import {
 	DEFAULT_WORKING_WORD,
 	dimAttribute,
 	getThinkingLevelColorizer,
+	isThinkingLevel,
 	ELAPSED_INTERVAL_MS,
 	fadeThemeColorString,
 	formatElapsed,
@@ -349,7 +350,7 @@ export class SessionManager {
 		const borderStyle = this.#settings.decorations.doneMarkerBorderStyle;
 		const borderColor = this.#settings.decorations.doneMarkerBorderColor;
 		const markerStyle = this.#settings.decorations.doneMarkerStyle;
-		const thinkingLevel = entry.data.thinkingLevel;
+		const thinkingLevel = isThinkingLevel(entry.data.thinkingLevel) ? entry.data.thinkingLevel : undefined;
 		if (borderStyle === "none") return new Text(markerContent);
 
 		let cachedWidth: number | undefined;

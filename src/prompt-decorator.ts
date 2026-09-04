@@ -1,6 +1,6 @@
 import type { MessageRenderer } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import { getThinkingLevelColorizer, type ThinkingLevel } from "./format.ts";
+import { getThinkingLevelColorizer, isThinkingLevel, type ThinkingLevel } from "./format.ts";
 import { DEFAULT_SETTINGS, isBorderStyle, isPromptBorderColor, type BorderStyle, type DoneMarkerBorderColor, type DoneMarkerBorderStyle, type DoneMarkerStyle, type PromptBorderColor } from "./settings.ts";
 import { stripControlChars } from "./util.ts";
 
@@ -88,7 +88,8 @@ export function buildPromptBoxLines(
 	const borderStyle = isBorderStyle(options.borderStyle) ? options.borderStyle : "double";
 	const g = BORDER_GLYPHS[borderStyle];
 	const borderColor = isPromptBorderColor(options.borderColor) ? options.borderColor : DEFAULT_SETTINGS.decorations.borderColor;
-	const border = getThinkingLevelColorizer(theme, borderColor, options.thinkingLevel);
+	const thinkingLevel = isThinkingLevel(options.thinkingLevel) ? options.thinkingLevel : undefined;
+	const border = getThinkingLevelColorizer(theme, borderColor, thinkingLevel);
 	const iconColor = (text: string) => theme.fg("text", text);
 	const label = (text: string) => theme.fg("customMessageLabel", text);
 	const muted = (text: string) => theme.fg("dim", text);

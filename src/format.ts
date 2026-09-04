@@ -12,6 +12,12 @@ export const DEFAULT_WORKING_WORD = "Working";
 
 export type ThinkingLevel = Parameters<Theme["getThinkingBorderColor"]>[0];
 
+export const THINKING_LEVEL_VALUES = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
+
+export function isThinkingLevel(value: unknown): value is ThinkingLevel {
+	return typeof value === "string" && THINKING_LEVEL_VALUES.some(level => level === value);
+}
+
 /** Build a colorizer for a configured color, including Pi's active thinking-level color. */
 export function getThinkingLevelColorizer(
 	theme: Pick<Theme, "fg" | "getThinkingBorderColor">,
