@@ -19,6 +19,7 @@ export type PromptBorderColor = ThinkingLevelSettingColor;
 export const DONE_MARKER_BORDER_COLOR_VALUES = THINKING_LEVEL_SETTING_COLOR_VALUES;
 export type DoneMarkerBorderColor = ThinkingLevelSettingColor;
 const THINKING_LEVEL_COLOR_MIGRATION_VERSION = 2;
+const DONE_MARKER_BORDER_COLOR_MIGRATION_VERSION = 3;
 export const SETTINGS_SCHEMA_VERSION = 3;
 
 export const BORDER_STYLE_VALUES = ["double", "single", "rounded", "heavy"] as const;
@@ -358,7 +359,7 @@ export function loadSettings(): DecoratorSettings {
 			settings.decorations.spinnerColor = "thinking-level";
 			if (settings.decorations.borderColor === "borderAccent") settings.decorations.borderColor = "thinking-level";
 		}
-		if (schemaVersion < SETTINGS_SCHEMA_VERSION) {
+		if (schemaVersion < DONE_MARKER_BORDER_COLOR_MIGRATION_VERSION) {
 			settings.decorations.doneMarkerBorderColor = "thinking-level";
 		}
 		for (const entry of MENU_ENTRIES) {
