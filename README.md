@@ -36,7 +36,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╟─ User Prompt ─────────────────────────────────────────────────╢
 ║    [■] High-vis prompt                                ON      ║
 ║    [■] Border style                             ‹ double ›    ║
-║    [■] Border color                     ‹ thinkingLevel ›    ║
+║    [■] Border color                      ‹ thinkingLevel ›    ║
 ║    [■] Pi icon                                        ON      ║
 ║    [■] Timestamp                                      ON      ║
 ║    [■] Provider                                       ON      ║
@@ -76,7 +76,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Show completion marker                         ON      ║
 ║    [■] Marker style                              ‹ elite ›    ║
 ║    [■] Border style                               ‹ none ›    ║
-║    [■] Border color                     ‹ thinkingLevel ›    ║
+║    [■] Border color                      ‹ thinkingLevel ›    ║
 ║    [■] Pi icon                                        ON      ║
 ║    [■] Randomize “Worked” text                        ON      ║
 ║    [■] Tokens spent                                   ON      ║
