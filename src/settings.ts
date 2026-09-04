@@ -318,6 +318,10 @@ export function applyMenuResult(settings: DecoratorSettings, values: Record<stri
  * to defaults on any read/parse error. When a cycle setting's enabled flag is
  * off, its stored value resets to the menu's disabled default so stale choices
  * don't resurface on re-enable.
+ * Files with `schemaVersion` below 2 get spinner color reset to `thinking-level` and
+ * `borderAccent` prompt borders moved to `thinking-level`; below 3, the completion-marker
+ * border color is reset. A legacy `features.simCityWorkingText: true` enables the
+ * `simcity` pack when no explicit preference is stored.
  */
 export function loadSettings(): DecoratorSettings {
 	try {
