@@ -284,6 +284,21 @@ test("left/right cycle multi-value items without changing boolean toggle behavio
 	assert.equal(result!.values.enabled, false);
 });
 
+test("cycle value labels affect rendering without changing published values", () => {
+	let result: MenuResult<Record<string, MenuValue>> | undefined;
+	const menu = new MenuComponent({
+		title: "TEST",
+		sections: [{ title: "S1", items: [{ id: "color", label: "Color", value: "default", cycleValues: ["default", "accent"], cycleValueLabels: { default: "thinkingLevel" } }] }],
+	}, fakeTheme(), (r) => { result = r; });
+
+	assert.ok(menu.render(64).map(stripTags).some((line) => line.includes("‹ thinkingLevel ›")));
+	menu.handleInput(KEY.right);
+	assert.ok(menu.render(64).map(stripTags).some((line) => line.includes("‹ accent ›")));
+	menu.handleInput(KEY.left);
+	menu.handleInput(KEY.enter);
+	assert.equal(result!.values.color, "default");
+});
+
 test("gated cycle item: checkbox resets to disabled value and blocks arrows until re-checked", () => {
 	let result: MenuResult<Record<string, MenuValue>> | undefined;
 	const menu = new MenuComponent({

@@ -37,6 +37,8 @@ type MessageEndEvent = { type: "message_end"; message: AssistantMessage };
 type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown };
 type UIPromptStartEvent = Extract<ExtensionEvent, { type: "ui_prompt_start" }>;
 type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
+import { SPINNER_FRAMES } from "../src/format.ts";
+import { PreviewRenderer } from "../src/preview.ts";
 import { PROMPT_BOX_TYPE } from "../src/prompt-decorator.ts";
 import { buildMenuSections, DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/settings.ts";
 import { loadBundledWordPacks } from "../src/word-packs.ts";
@@ -137,6 +139,7 @@ function createContext(
 		notifications?: { message: string; type?: string }[];
 		statuses?: { key: string; text: string | undefined }[];
 		selectedModel?: string;
+		thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 		onCustomComponent?: (component: { render(width: number): string[]; handleInput?(data: string): void; dispose?(): void }) => void;
 	},
 ): ExtensionContext {
@@ -147,12 +150,14 @@ function createContext(
 		bg: (_color: string, text: string) => text,
 		bold: (text: string) => text,
 		getFgAnsi: (color: string) => color === "dim" ? "\x1b[38;2;96;96;96m" : "\x1b[38;2;224;224;224m",
+		getThinkingBorderColor: (level: "off" | "minimal" | "low" | "medium" | "high" | "xhigh") => (text: string) => fg(`thinking-${level}`, text),
 	};
 	const fakeTui = { requestRender: () => {} };
 	return {
 		hasUI: true,
 		mode: options?.mode ?? "tui",
 		model: options?.selectedModel ? { provider: "test", id: options.selectedModel } : undefined,
+		thinkingLevel: options?.thinkingLevel,
 		ui: {
 			theme,
 			setWorkingMessage(message?: string) {
@@ -290,7 +295,36 @@ test("agent_start preserves the spinner and places the activity meter after the 
 		const message = messages[0]!;
 		const meter = "<dim>⢀</dim>".repeat(8);
 		assert.ok(message.indexOf(meter) > 0);
-		assert.ok(message.indexOf("<dim>0s</dim>") > message.indexOf(meter));
+		assert.ok(message.indexOf("<muted>0s</muted>") > message.indexOf(meter));
+	});
+});
+
+test("thinking-level meter color follows the active thinking level", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, decorations: { ...DEFAULT_SETTINGS.decorations, meterColor: "thinking-level" } });
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`, { thinkingLevel: "high" });
+		let tick: (() => void) | undefined;
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		mockTimers(t, (callback) => {
+			tick = callback;
+		});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const partial = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: partial }, ctx);
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: partial,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two", partial },
+		}, ctx);
+		now = 1_100;
+		tick!();
+
+		assert.match(messages.at(-1)!, /<thinking-high>⣠<\/thinking-high>/);
 	});
 });
 
@@ -356,11 +390,11 @@ test("tracks streamed tokens, usage reconciliation, tool words, and settlement",
 		}, ctx);
 		now = 1_350;
 		tick!();
-		assert.match(stripAnsi(messages.at(-1)!), /^Zigzagging…/);
+		assert.match(stripAnsi(messages.at(-1)!), /^Zigzagging/);
 
 		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
 		assert.equal(messages.at(-1), undefined);
-		assert.equal(indicators.at(-1), undefined);
+		assert.deepEqual(indicators.at(-1), { frames: SPINNER_FRAMES });
 	});
 });
 
@@ -392,7 +426,9 @@ test("blocking UI prompts replace the busy loader with a stable waiting line and
 
 		await extension.emit("ui_prompt_end", { type: "ui_prompt_end", reason: "ui_prompt", kind: "confirm", title: "Allow host?" }, ctx);
 		assert.notEqual(messages.at(-1), "<dim>Waiting: Allow host?</dim>");
-		assert.equal(indicators.at(-1), undefined);
+		assert.deepEqual(indicators.at(-1), {
+			frames: SPINNER_FRAMES.map((frame) => `<thinking-off>${frame}</thinking-off>`),
+		});
 	});
 });
 
@@ -450,7 +486,7 @@ test("settling while waiting restores the loader and retains wall-clock elapsed 
 		now = 6_000;
 		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
 		assert.equal(messages.at(-1), undefined);
-		assert.equal(indicators.at(-1), undefined);
+		assert.deepEqual(indicators.at(-1), { frames: SPINNER_FRAMES });
 		assert.equal((extension.appendedEntries.at(-1)!.data as { elapsedMs: number }).elapsedMs, 5_000);
 
 		const messageCount = messages.length;
@@ -497,7 +533,7 @@ test("SimCity working text refreshes on prompt and tool execution", async (t) =>
 		workingDecorator(extension.asAPI());
 		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
-		assert.match(stripAnsi(messages.at(-1)!), /^Accomplishing…/);
+		assert.match(stripAnsi(messages.at(-1)!), /^Accomplishing/);
 
 		await extension.emit("tool_execution_start", {
 			type: "tool_execution_start",
@@ -505,7 +541,7 @@ test("SimCity working text refreshes on prompt and tool execution", async (t) =>
 			toolName: "read",
 			args: {},
 		}, ctx);
-		assert.match(stripAnsi(messages.at(-1)!), /^Zeroing crime network…/);
+		assert.match(stripAnsi(messages.at(-1)!), /^Zeroing crime network/);
 	});
 });
 
@@ -566,6 +602,35 @@ test("token rate uses the configured theme color", async (t) => {
 		tick!();
 
 		assert.match(messages.at(-1)!, /<success>  8 tps<\/success>/);
+	});
+});
+
+test("token rate follows the active thinking level when configured", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, decorations: { ...DEFAULT_SETTINGS.decorations, tokenRateColor: "thinking-level" } });
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`, { thinkingLevel: "high" });
+		let tick: (() => void) | undefined;
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		mockTimers(t, (callback) => {
+			tick = callback;
+		});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const partial = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: partial }, ctx);
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: partial,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two", partial },
+		}, ctx);
+		now = 1_100;
+		tick!();
+
+		assert.match(messages.at(-1)!, /<thinking-high>  8 tps<\/thinking-high>/);
 	});
 });
 
@@ -743,6 +808,37 @@ test("response model is sanitized, configurable, and holds then fades after sett
 	});
 });
 
+test("thinking-level response model color follows the active thinking level", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			decorations: { ...DEFAULT_SETTINGS.decorations, responseModelColor: "thinking-level" },
+		});
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const statuses: { key: string; text: string | undefined }[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`, { statuses, thinkingLevel: "high" });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
+
+		assert.match(messages.at(-1)!, /<thinking-high>test-model<\/thinking-high>/);
+
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		assert.match(statuses.at(-1)!.text!, /<thinking-high>test-model<\/thinking-high>/);
+	});
+});
+
+test("response model preview follows the active thinking level", () => {
+	const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`, { thinkingLevel: "high" });
+	const preview = new PreviewRenderer(ctx).render({ responseModelColor: "thinking-level" }, 0);
+
+	assert.ok(preview.lines.some((line) => line.includes("<thinking-high>test-model</thinking-high>")));
+});
+
 test("resembling response models are suppressed during streaming and settlement", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
@@ -907,11 +1003,11 @@ test("session_start clears an existing timer before resetting state", async (t) 
 	});
 });
 
-test("substituteDefaultMessage=false shows a Working\u2026 placeholder but other enabled toggles still apply", async (t) => {
+test("substituteDefaultMessage=false shows a Working placeholder but other enabled toggles still apply", async (t) => {
 	await withTempAgentDir(async () => {
 		// The SimCity source is enabled, but substituteDefaultMessage remains the
 		// master switch. The other enabled toggles still show alongside the plain
-		// "Working\u2026" placeholder.
+		// "Working" placeholder.
 		saveSettings({
 			...DEFAULT_SETTINGS,
 			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false },
@@ -930,8 +1026,8 @@ test("substituteDefaultMessage=false shows a Working\u2026 placeholder but other
 
 		assert.equal(messages.length, 1);
 		const message = messages[0]!;
-		assert.match(stripAnsi(message), /^Working\u2026/);
-		assert.ok(!message.includes("Accomplishing\u2026"));
+		assert.match(stripAnsi(message), /^Working/);
+		assert.ok(!message.includes("Accomplishing"));
 		assert.match(message, /--- tps \u00b7 0s \u00b7 \u2193 0 tokens/);
 	});
 });
@@ -1032,7 +1128,7 @@ test("loaderOrder reorders the message and moves the spinner inline when it is n
 		// but the monitor is off so it contributes nothing.
 		assert.match(
 			stripAnsi(messages.at(-1)!),
-			/^0s Working\u2026 [\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f] \u2193 0 tokens \u00b7 --- tps$/,
+			/^0s Working [\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f] \u2193 0 tokens \u00b7 --- tps$/,
 		);
 	});
 });
@@ -1067,11 +1163,32 @@ test("a reordered spinner still animates when nothing else is customized", async
 		// back to pi: it has to carry the spinner, so it ticks at frame rate.
 		assert.deepEqual(intervals, [80]);
 		const first = stripAnsi(messages.at(-1)!);
-		assert.match(first, /^Working\u2026 [\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f]$/);
+		assert.match(first, /^Working [\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f]$/);
 
 		now += 80;
 		tick!();
 		assert.notEqual(stripAnsi(messages.at(-1)!), first);
+	});
+});
+
+test("in-message default spinner uses the active thinking-level color", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			decorations: { ...DEFAULT_SETTINGS.decorations, shimmer: false, tokenActivityMonitor: false },
+			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, elapsedTime: false, outputTokens: false, tokenRate: false },
+			loaderOrder: ["text", "spinner", "meter", "elapsed", "tokens", "tokenRate", "responseModel"],
+		});
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`, { thinkingLevel: "high" });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		const extension = new MockExtension();
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+
+		assert.match(messages.at(-1)!, /<thinking-high>⠹<\/thinking-high>/);
 	});
 });
 
@@ -1099,12 +1216,12 @@ test("animatedSpinner=false hides the spinner via empty frames and stays hidden 
 	});
 });
 
-test("animatedSpinner=true (default) never hides the spinner with empty frames", async (t) => {
+test("animatedSpinner=true (default) uses thinking-level spinner frames", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		const indicators: unknown[] = [];
 		const messages: (string | undefined)[] = [];
-		const ctx = createContext(messages, indicators);
+		const ctx = createContext(messages, indicators, (color, text) => `<${color}>${text}</${color}>`, { thinkingLevel: "high" });
 		t.mock.method(Date, "now", () => 1_000);
 		mockTimers(t, () => {});
 
@@ -1114,6 +1231,25 @@ test("animatedSpinner=true (default) never hides the spinner with empty frames",
 		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
 
 		assert.ok(!indicators.some((i) => JSON.stringify(i) === JSON.stringify({ frames: [] })));
+		assert.deepEqual(indicators.at(-1), {
+			frames: SPINNER_FRAMES.map((frame) => `<thinking-high>${frame}</thinking-high>`),
+		});
+	});
+});
+
+test("accent spinner sends explicit accent frames", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, decorations: { ...DEFAULT_SETTINGS.decorations, spinnerColor: "accent" } });
+		const indicators: unknown[] = [];
+		const ctx = createContext([], indicators, (color, text) => `<${color}>${text}</${color}>`);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		const extension = new MockExtension();
+		workingDecorator(extension.asAPI());
+		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
+
+		assert.deepEqual(indicators.at(-1), { frames: ["<accent>⠋</accent>", "<accent>⠙</accent>", "<accent>⠹</accent>", "<accent>⠸</accent>", "<accent>⠼</accent>", "<accent>⠴</accent>", "<accent>⠦</accent>", "<accent>⠧</accent>", "<accent>⠇</accent>", "<accent>⠏</accent>"] });
 	});
 });
 
@@ -1231,16 +1367,16 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 		previewTick?.();
 		const animatedRaw = capturedComponent!.render(76);
 		const animated = animatedRaw.map(stripAnsi);
-		assert.ok(animated.some((l) => l.includes("Accomplishing\u2026")));
+		assert.ok(animated.some((l) => l.includes("Accomplishing")));
 		assert.ok(animated.some((l) => l.includes(" 28 tps")));
-		const normalShimmer = animatedRaw.find((l) => stripAnsi(l).includes("Accomplishing\u2026"))!;
+		const normalShimmer = animatedRaw.find((l) => stripAnsi(l).includes("Accomplishing"))!;
 		assert.match(normalShimmer, /\x1b\[1m/);
 
 		// Inverting the shimmer keeps the resting text bright, then sweeps a dimmed gradient without bolding it.
 		moveMenuCursor(capturedComponent!, "animatedSpinner", "shimmerInverted");
 		capturedComponent!.handleInput!(" ");
 		const invertedRaw = capturedComponent!.render(76);
-		const invertedShimmer = invertedRaw.find((l) => stripAnsi(l).includes("Accomplishing\u2026"))!;
+		const invertedShimmer = invertedRaw.find((l) => stripAnsi(l).includes("Accomplishing"))!;
 		assert.doesNotMatch(invertedShimmer, /\x1b\[1m/);
 		assert.match(invertedShimmer, /\x1b\[38;2;224;224;224m/);
 		const invertedColors = [...invertedShimmer.matchAll(/\x1b\[38;2;(\d+);(\d+);(\d+)m/g)].map((match) => Number(match[1]));
@@ -1352,7 +1488,7 @@ test("/topping-settings applies enabled packs to the live session", async (t) =>
 
 		const sessionCtx = createContext(messages, []);
 		await extension.emit("agent_start", { type: "agent_start" }, sessionCtx);
-		assert.match(stripAnsi(messages.at(-1)!), /^Zeroing crime network…/);
+		assert.match(stripAnsi(messages.at(-1)!), /^Zeroing crime network/);
 		assert.equal(persisted.features.outputTokens, true);
 	});
 });
@@ -1403,7 +1539,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		const persisted = loadSettings();
 		assert.equal(persisted.decorations.decorateUserPrompt, !DEFAULT_SETTINGS.decorations.decorateUserPrompt);
 		assert.equal(persisted.decorations.borderColorEnabled, false);
-		assert.equal(persisted.decorations.borderColor, "borderAccent");
+		assert.equal(persisted.decorations.borderColor, "thinking-level");
 		assert.equal(persisted.decorations.borderStyleEnabled, false);
 		assert.equal(persisted.decorations.borderStyle, "double");
 		assert.equal(persisted.decorations.promptIcon, !DEFAULT_SETTINGS.decorations.promptIcon);
@@ -1412,7 +1548,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.decorations.promptModel, !DEFAULT_SETTINGS.decorations.promptModel);
 		assert.equal(persisted.decorations.animatedSpinner, !DEFAULT_SETTINGS.decorations.animatedSpinner);
 		assert.equal(persisted.decorations.spinnerColorEnabled, false);
-		assert.equal(persisted.decorations.spinnerColor, "accent");
+		assert.equal(persisted.decorations.spinnerColor, "default");
 		assert.equal(
 			persisted.features.substituteDefaultMessage,
 			!DEFAULT_SETTINGS.features.substituteDefaultMessage,
@@ -1433,7 +1569,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.features.elapsedTime, !DEFAULT_SETTINGS.features.elapsedTime);
 		assert.equal(persisted.features.outputTokens, !DEFAULT_SETTINGS.features.outputTokens);
 		assert.equal(persisted.features.tokenRate, !DEFAULT_SETTINGS.features.tokenRate);
-		assert.equal(persisted.decorations.tokenRateColor, "accent");
+		assert.equal(persisted.decorations.tokenRateColor, "text");
 		assert.equal(persisted.decorations.tokenRateDimmed, !DEFAULT_SETTINGS.decorations.tokenRateDimmed);
 		assert.equal(persisted.features.responseModel, !DEFAULT_SETTINGS.features.responseModel);
 		assert.equal(persisted.decorations.responseModelColor, "border");
@@ -1441,7 +1577,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.features.doneMarker, !DEFAULT_SETTINGS.features.doneMarker);
 		assert.equal(persisted.decorations.doneMarkerStyle, "bookend");
 		assert.equal(persisted.decorations.doneMarkerBorderStyle, "double");
-		assert.equal(persisted.decorations.doneMarkerBorderColor, "success");
+		assert.equal(persisted.decorations.doneMarkerBorderColor, "accent");
 		assert.equal(persisted.features.doneMarkerIcon, !DEFAULT_SETTINGS.features.doneMarkerIcon);
 		assert.equal(persisted.features.randomizeDoneMarker, !DEFAULT_SETTINGS.features.randomizeDoneMarker);
 		assert.equal(persisted.features.doneMarkerTokens, !DEFAULT_SETTINGS.features.doneMarkerTokens);
@@ -1475,16 +1611,16 @@ test("grabbing an Elements Order row reorders the preview and persists the new o
 		for (let i = 0; i < firstReorderRow; i++) capturedComponent!.handleInput!("\x1b[B");
 
 		function previewLine(): string {
-			return capturedComponent!.render(72).map(stripAnsi).find((l) => l.includes("Accomplishing\u2026"))!;
+			return capturedComponent!.render(72).map(stripAnsi).find((l) => l.includes("Accomplishing"))!;
 		}
 
 		const before = previewLine();
-		assert.ok(before.indexOf("\u280b") < before.indexOf("Accomplishing\u2026"), `expected a leading spinner: ${JSON.stringify(before)}`);
+		assert.ok(before.indexOf("\u280b") < before.indexOf("Accomplishing"), `expected a leading spinner: ${JSON.stringify(before)}`);
 
 		capturedComponent!.handleInput!(" "); // grab the spinner row
 		capturedComponent!.handleInput!("\x1b[B"); // slide it past the working text
 		const after = previewLine();
-		assert.ok(after.indexOf("\u280b") > after.indexOf("Accomplishing\u2026"), `expected the spinner to follow the word: ${JSON.stringify(after)}`);
+		assert.ok(after.indexOf("\u280b") > after.indexOf("Accomplishing"), `expected the spinner to follow the word: ${JSON.stringify(after)}`);
 
 		capturedComponent!.handleInput!("\r");
 		await handlerPromise;
@@ -1522,8 +1658,8 @@ test("preview reflects the substituteDefaultMessage fix: toggling it off keeps e
 
 		const lines = capturedComponent!.render(72).map(stripAnsi);
 		// The random activity word is replaced by the plain placeholder...
-		assert.ok(lines.some((l) => l.includes("Working\u2026")));
-		assert.ok(!lines.some((l) => l.includes("Accomplishing\u2026")));
+		assert.ok(lines.some((l) => l.includes("Working")));
+		assert.ok(!lines.some((l) => l.includes("Accomplishing")));
 		// ...but elapsed time and output tokens (still on) keep showing.
 		assert.ok(lines.some((l) => l.includes(" 28 tps \u00b7 0s \u00b7 \u2193 0 tokens")));
 
@@ -1590,7 +1726,7 @@ test("preview's simulated activity meter visibly animates (oscillates) rather th
 test("normal interactive input is re-sent as a decorated custom message", async () => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
-		const ctx = createContext([], []);
+		const ctx = createContext([], [], undefined, { thinkingLevel: "high" });
 		ctx.model = { provider: "anthropic", id: "claude-sonnet-4-5" } as NonNullable<ExtensionContext["model"]>;
 		workingDecorator(extension.asAPI());
 
@@ -1599,7 +1735,7 @@ test("normal interactive input is re-sent as a decorated custom message", async 
 		assert.deepEqual(result, { action: "handled" });
 		assert.equal(extension.sentMessages.length, 1);
 		const sent = extension.sentMessages[0] as {
-			message: { customType: string; content: string; display: boolean; details: { submittedAt: number; showProvider?: boolean; showModel?: boolean; provider?: string; model?: string } };
+			message: { customType: string; content: string; display: boolean; details: { submittedAt: number; showProvider?: boolean; showModel?: boolean; provider?: string; model?: string; thinkingLevel?: string } };
 			options: { triggerTurn: boolean };
 		};
 		assert.equal(sent.message.customType, PROMPT_BOX_TYPE);
@@ -1610,7 +1746,25 @@ test("normal interactive input is re-sent as a decorated custom message", async 
 		assert.equal(sent.message.details.model, "claude-sonnet-4-5");
 		assert.equal(sent.message.details.showProvider, true);
 		assert.equal(sent.message.details.showModel, true);
+		assert.equal(sent.message.details.thinkingLevel, "high");
 		assert.deepEqual(sent.options, { triggerTurn: true });
+	});
+});
+
+test("prompt box renderer paints the thinking-colored border from persisted details.thinkingLevel", async () => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`, { thinkingLevel: "high" });
+		workingDecorator(extension.asAPI());
+
+		const renderer = extension.messageRenderers[PROMPT_BOX_TYPE]!;
+		const component = renderer(
+			{ type: "custom", customType: PROMPT_BOX_TYPE, content: "persisted prompt", details: { borderColor: "thinking-level", thinkingLevel: "high" } },
+			{ expanded: false },
+			ctx.ui.theme,
+		) as { render(width: number): string[] };
+
+		assert.match(component.render(60)[0]!, /^<thinking-high>/);
 	});
 });
 
@@ -1713,7 +1867,7 @@ test("built-in completion marker matches the final working text", async (t) => {
 		workingDecorator(extension.asAPI());
 		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
-		assert.match(stripAnsi(messages.at(-1)!), /^Newspapering…/);
+		assert.match(stripAnsi(messages.at(-1)!), /^Newspapering/);
 		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
 
 		const data = extension.appendedEntries[0]!.data as { word: string };
@@ -1865,6 +2019,36 @@ test("completion marker border color styles the decoration", async () => {
 		) as { render(width: number): string[] };
 
 		assert.match(component.render(200)[1]!, /<success>┗━━/);
+	});
+});
+
+test("completion marker default border uses the active thinking level", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			decorations: { ...DEFAULT_SETTINGS.decorations, doneMarkerBorderStyle: "heavy", doneMarkerBorderColor: "default" },
+		});
+
+		const extension = new MockExtension();
+		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`, { thinkingLevel: "high" });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		const data = extension.appendedEntries[0]!.data as { thinkingLevel?: string };
+		assert.equal(data.thinkingLevel, "high");
+		const renderer = extension.entryRenderers["pi-topping-done"]!;
+		const component = renderer(
+			{ type: "custom", customType: "pi-topping-done", data },
+			{ expanded: false },
+			ctx.ui.theme,
+		) as { render(width: number): string[] };
+
+		assert.match(component.render(200)[1]!, /<thinking-high>┗━━/);
 	});
 });
 

@@ -138,9 +138,9 @@ test("enablement defaults every pack off while respecting overrides", () => {
 test("selection is uniform across base and enabled pack entries and retains its tense", (t) => {
 	const pack = { id: "custom", name: "Custom", words: [{ present_tense: "Making", past_tense: "Made" }], bundled: false };
 	t.mock.method(Math, "random", () => 0.999999);
-	assert.deepEqual(pickWorkingTextSelection({ custom: true }, [pack]), { text: "Making…", pastTense: "Made" });
+	assert.deepEqual(pickWorkingTextSelection({ custom: true }, [pack]), { text: "Making", pastTense: "Made" });
 	t.mock.method(Math, "random", () => 0);
-	assert.deepEqual(pickWorkingTextSelection({ custom: false }, [pack]), { text: `${WORDS[0]!.present_tense}…`, pastTense: WORDS[0]!.past_tense });
+	assert.deepEqual(pickWorkingTextSelection({ custom: false }, [pack]), { text: WORDS[0]!.present_tense, pastTense: WORDS[0]!.past_tense });
 });
 
 test("menu includes custom packs and settings retain unavailable pack preferences", () => withTempAgentDir(() => {

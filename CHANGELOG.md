@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `default` animated spinner color option, which defers to Pi's thinking-level-colored indicator.
+- `default` completion marker border color option, which defers to Pi's thinking-level-colored border.
+- `thinking-level` user-prompt border color option, which follows the thinking level captured at submission.
+- `thinkingLevel` color options for the token activity monitor, token rate, and response model, which follow Pi's active thinking-level color.
+- `text` and `muted` color options for the token activity monitor, token rate, and response model in the working loader.
+
+### Changed
+- The settings TUI now displays `thinkingLevel` instead of the internal color sentinel for prompt, animated-spinner, completion-marker border, token activity monitor, token rate, and response model color options.
+- Default spinner and prompt-border colors now follow Pi 0.85.0's thinking-level presentation, and working text no longer includes an ellipsis.
+- A one-time `schemaVersion: 2` migration resets saved spinner colors to `default` and prior-default `borderAccent` prompt borders to `thinking-level`.
+- Completion marker border colors now default to `default` (thinking-level); a one-time `schemaVersion: 3` migration resets previously saved colors to `default`.
+- The `accent` spinner color now sends explicit accent frames, distinct from Pi's default indicator.
+
+### Fixed
+- The default animated spinner in the working loader now uses the active thinking-level color, matching the settings preview.
+
 ## [0.6.5] - 2026-08-31
 
 ### Changed

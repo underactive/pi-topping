@@ -112,7 +112,7 @@ export function selectWorkingTextSelection(enabled: Record<string, boolean>, pac
 	const total = WORDS.length + enabledWords.length;
 	const idx = Math.min(total - 1, Math.floor(fraction * total));
 	const entry = idx < WORDS.length ? WORDS[idx] : enabledWords[idx - WORDS.length];
-	return { text: `${entry.present_tense}…`, pastTense: entry.past_tense };
+	return { text: entry.present_tense, pastTense: entry.past_tense };
 }
 
 export function pickWorkingTextSelection(enabled: Record<string, boolean>, packs: readonly WordPack[]): WorkingTextSelection {

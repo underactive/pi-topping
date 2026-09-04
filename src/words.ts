@@ -1,5 +1,5 @@
 /**
- * Activity word list for the randomized "Working..." indicator.
+ * Activity word list for the randomized "Working" indicator.
  *
  * A random word is picked on prompt and on tool execution start
  * (see index.ts).
@@ -15,7 +15,7 @@ export function pickRawWord(): WordEntry {
 }
 
 export function pickRandomWord(): string {
-	return `${pickRawWord().present_tense}…`;
+	return pickRawWord().present_tense;
 }
 
 export const WORDS: WordEntry[] = [

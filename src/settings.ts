@@ -8,6 +8,18 @@ import { isPlainObject } from "./util.ts";
 
 export const SETTING_COLOR_VALUES = ["accent", "border", "borderAccent", "success", "error", "warning"] as const;
 export type SettingColor = (typeof SETTING_COLOR_VALUES)[number];
+export const LOADER_COLOR_VALUES = [...SETTING_COLOR_VALUES, "text", "muted"] as const;
+export type LoaderColor = (typeof LOADER_COLOR_VALUES)[number];
+export const THINKING_LEVEL_COLOR_VALUES = ["thinking-level", ...LOADER_COLOR_VALUES] as const;
+export type ThinkingLevelColor = (typeof THINKING_LEVEL_COLOR_VALUES)[number];
+export const SPINNER_COLOR_VALUES = ["default", ...SETTING_COLOR_VALUES] as const;
+export type SpinnerColor = (typeof SPINNER_COLOR_VALUES)[number];
+export const PROMPT_BORDER_COLOR_VALUES = ["thinking-level", ...SETTING_COLOR_VALUES] as const;
+export type PromptBorderColor = (typeof PROMPT_BORDER_COLOR_VALUES)[number];
+export const DONE_MARKER_BORDER_COLOR_VALUES = ["default", ...SETTING_COLOR_VALUES] as const;
+export type DoneMarkerBorderColor = (typeof DONE_MARKER_BORDER_COLOR_VALUES)[number];
+const THINKING_LEVEL_COLOR_MIGRATION_VERSION = 2;
+export const SETTINGS_SCHEMA_VERSION = 3;
 
 export const BORDER_STYLE_VALUES = ["double", "single", "rounded", "heavy"] as const;
 export type BorderStyle = (typeof BORDER_STYLE_VALUES)[number];
@@ -32,6 +44,26 @@ export function isSettingColor(value: unknown): value is SettingColor {
 	return typeof value === "string" && SETTING_COLOR_VALUES.some(color => color === value);
 }
 
+export function isLoaderColor(value: unknown): value is LoaderColor {
+	return typeof value === "string" && LOADER_COLOR_VALUES.some(color => color === value);
+}
+
+export function isThinkingLevelColor(value: unknown): value is ThinkingLevelColor {
+	return typeof value === "string" && THINKING_LEVEL_COLOR_VALUES.some(color => color === value);
+}
+
+export function isSpinnerColor(value: unknown): value is SpinnerColor {
+	return typeof value === "string" && SPINNER_COLOR_VALUES.some(color => color === value);
+}
+
+export function isPromptBorderColor(value: unknown): value is PromptBorderColor {
+	return typeof value === "string" && PROMPT_BORDER_COLOR_VALUES.some(color => color === value);
+}
+
+export function isDoneMarkerBorderColor(value: unknown): value is DoneMarkerBorderColor {
+	return typeof value === "string" && DONE_MARKER_BORDER_COLOR_VALUES.some(color => color === value);
+}
+
 export interface DecoratorSettings {
 	decorations: {
 		animatedSpinner: boolean;
@@ -45,21 +77,21 @@ export interface DecoratorSettings {
 		meterDirection: "ltr" | "rtl";
 		meterDirectionEnabled: boolean;
 		decorateUserPrompt: boolean;
-		borderColor: SettingColor;
+		borderColor: PromptBorderColor;
 		borderColorEnabled: boolean;
 		borderStyle: BorderStyle;
 		borderStyleEnabled: boolean;
 		doneMarkerBorderStyle: DoneMarkerBorderStyle;
-		doneMarkerBorderColor: SettingColor;
+		doneMarkerBorderColor: DoneMarkerBorderColor;
 		doneMarkerStyle: DoneMarkerStyle;
-		spinnerColor: SettingColor;
+		spinnerColor: SpinnerColor;
 		spinnerColorEnabled: boolean;
-		meterColor: SettingColor;
+		meterColor: ThinkingLevelColor;
 		meterColorEnabled: boolean;
 		meterDimmed: boolean;
-		tokenRateColor: SettingColor;
+		tokenRateColor: ThinkingLevelColor;
 		tokenRateDimmed: boolean;
-		responseModelColor: SettingColor;
+		responseModelColor: ThinkingLevelColor;
 		responseModelDimmed: boolean;
 		promptIcon: boolean;
 		promptTimestamp: boolean;
@@ -84,7 +116,7 @@ export interface DecoratorSettings {
 }
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
-	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "borderAccent", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "borderAccent", doneMarkerStyle: "elite", spinnerColor: "accent", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, responseModelColor: "accent", responseModelDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
+	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "thinking-level", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "default", doneMarkerStyle: "elite", spinnerColor: "default", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, responseModelColor: "accent", responseModelDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
 	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, responseModel: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 	wordPacks: {},
@@ -128,6 +160,11 @@ function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, par
 		if (typeof merged[key] === "boolean" && typeof value === "boolean") valid = value;
 		else if ((key === "meterDirection" || key === "shimmerDirection") && (value === "ltr" || value === "rtl")) valid = value;
 		else if (key === "shimmerSpeed" && (value === "slow" || value === "normal" || value === "fast")) valid = value;
+		else if (key === "spinnerColor" && isSpinnerColor(value)) valid = value;
+		else if (key === "borderColor" && isPromptBorderColor(value)) valid = value;
+		else if (key === "doneMarkerBorderColor" && isDoneMarkerBorderColor(value)) valid = value;
+		else if ((key === "meterColor" || key === "tokenRateColor") && isThinkingLevelColor(value)) valid = value;
+		else if (key === "responseModelColor" && isThinkingLevelColor(value)) valid = value;
 		else if (key.endsWith("Color") && isSettingColor(value)) valid = value;
 		else if (key === "borderStyle" && isBorderStyle(value)) valid = value;
 		else if (key === "doneMarkerBorderStyle" && isDoneMarkerBorderStyle(value)) valid = value;
@@ -174,42 +211,43 @@ type DecorationSettings = DecoratorSettings["decorations"];
 type FeatureSettings = DecoratorSettings["features"];
 type DecorationBooleanKey = { [Key in keyof DecorationSettings]: DecorationSettings[Key] extends boolean ? Key : never }[keyof DecorationSettings];
 type MenuEntryBase = { id: string; label: string; section: MenuSectionName };
-type DecorationMenuEntry = MenuEntryBase & { group: "decorations"; key: keyof DecorationSettings; cycleValues?: readonly string[]; cycleEnabledBy?: DecorationBooleanKey; cycleDisabledValue?: string };
-type FeatureMenuEntry = MenuEntryBase & { group: "features"; key: keyof FeatureSettings; cycleValues?: never; cycleEnabledBy?: never; cycleDisabledValue?: never };
+type DecorationMenuEntry = MenuEntryBase & { group: "decorations"; key: keyof DecorationSettings; cycleValues?: readonly string[]; cycleValueLabels?: Readonly<Record<string, string>>; cycleEnabledBy?: DecorationBooleanKey; cycleDisabledValue?: string };
+type FeatureMenuEntry = MenuEntryBase & { group: "features"; key: keyof FeatureSettings; cycleValues?: never; cycleValueLabels?: never; cycleEnabledBy?: never; cycleDisabledValue?: never };
 type MenuEntry = DecorationMenuEntry | FeatureMenuEntry;
+const THINKING_LEVEL_CYCLE_LABELS = { default: "thinkingLevel", "thinking-level": "thinkingLevel" } as const;
 export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "decorateUserPrompt", label: "High-vis prompt", section: "User Prompt", group: "decorations", key: "decorateUserPrompt" },
 	{ id: "borderStyle", label: "Border style", section: "User Prompt", group: "decorations", key: "borderStyle", cycleValues: BORDER_STYLE_VALUES, cycleEnabledBy: "borderStyleEnabled", cycleDisabledValue: "double" },
-	{ id: "borderColor", label: "Border color", section: "User Prompt", group: "decorations", key: "borderColor", cycleValues: SETTING_COLOR_VALUES, cycleEnabledBy: "borderColorEnabled", cycleDisabledValue: "borderAccent" },
+	{ id: "borderColor", label: "Border color", section: "User Prompt", group: "decorations", key: "borderColor", cycleValues: PROMPT_BORDER_COLOR_VALUES, cycleValueLabels: THINKING_LEVEL_CYCLE_LABELS, cycleEnabledBy: "borderColorEnabled", cycleDisabledValue: "thinking-level" },
 	{ id: "promptIcon", label: "Pi icon", section: "User Prompt", group: "decorations", key: "promptIcon" },
 	{ id: "promptTimestamp", label: "Timestamp", section: "User Prompt", group: "decorations", key: "promptTimestamp" },
 	{ id: "promptProvider", label: "Provider", section: "User Prompt", group: "decorations", key: "promptProvider" },
 	{ id: "promptModel", label: "Model", section: "User Prompt", group: "decorations", key: "promptModel" },
 	{ id: "animatedSpinner", label: "Animated spinner", section: "“Working” Loader", group: "decorations", key: "animatedSpinner" },
-	{ id: "spinnerColor", label: "Animated spinner color", section: "“Working” Loader", group: "decorations", key: "spinnerColor", cycleValues: SETTING_COLOR_VALUES, cycleEnabledBy: "spinnerColorEnabled", cycleDisabledValue: "accent" },
+	{ id: "spinnerColor", label: "Animated spinner color", section: "“Working” Loader", group: "decorations", key: "spinnerColor", cycleValues: SPINNER_COLOR_VALUES, cycleValueLabels: THINKING_LEVEL_CYCLE_LABELS, cycleEnabledBy: "spinnerColorEnabled", cycleDisabledValue: "default" },
 	{ id: "substituteDefaultMessage", label: "Randomize “Working” text", section: "“Working” Loader", group: "features", key: "substituteDefaultMessage" },
 	{ id: "shimmer", label: "Text shimmer", section: "“Working” Loader", group: "decorations", key: "shimmer" },
 	{ id: "shimmerInverted", label: "Invert shimmer", section: "“Working” Loader", group: "decorations", key: "shimmerInverted" },
 	{ id: "shimmerDirection", label: "Text shimmer direction", section: "“Working” Loader", group: "decorations", key: "shimmerDirection", cycleValues: ["Left to Right", "Right to Left"], cycleEnabledBy: "shimmerDirectionEnabled", cycleDisabledValue: "Left to Right" },
 	{ id: "shimmerSpeed", label: "Text shimmer speed", section: "“Working” Loader", group: "decorations", key: "shimmerSpeed", cycleValues: ["Slow", "Normal", "Fast"], cycleEnabledBy: "shimmerSpeedEnabled", cycleDisabledValue: "Normal" },
 	{ id: "tokenActivityMonitor", label: "Token activity monitor", section: "“Working” Loader", group: "decorations", key: "tokenActivityMonitor" },
-	{ id: "meterColor", label: "Token activity monitor color", section: "“Working” Loader", group: "decorations", key: "meterColor", cycleValues: SETTING_COLOR_VALUES, cycleEnabledBy: "meterColorEnabled", cycleDisabledValue: "accent" },
+	{ id: "meterColor", label: "Token activity monitor color", section: "“Working” Loader", group: "decorations", key: "meterColor", cycleValues: THINKING_LEVEL_COLOR_VALUES, cycleValueLabels: THINKING_LEVEL_CYCLE_LABELS, cycleEnabledBy: "meterColorEnabled", cycleDisabledValue: "accent" },
 	{ id: "meterDirection", label: "Token activity monitor direction", section: "“Working” Loader", group: "decorations", key: "meterDirection", cycleValues: ["Left to Right", "Right to Left"], cycleEnabledBy: "meterDirectionEnabled", cycleDisabledValue: "Right to Left" },
 	{ id: "meterDimmed", label: "Token activity monitor dimmed", section: "“Working” Loader", group: "decorations", key: "meterDimmed" },
 	{ id: "elapsedTime", label: "Elapsed time since prompt", section: "“Working” Loader", group: "features", key: "elapsedTime" },
 	{ id: "outputTokens", label: "Show output tokens", section: "“Working” Loader", group: "features", key: "outputTokens" },
 	// id differs from key: the Elements Order row already owns "tokenRate" in the menu's shared value namespace.
 	{ id: "showTokenRate", label: "Token rate", section: "“Working” Loader", group: "features", key: "tokenRate" },
-	{ id: "tokenRateColor", label: "Token rate color", section: "“Working” Loader", group: "decorations", key: "tokenRateColor", cycleValues: SETTING_COLOR_VALUES },
+	{ id: "tokenRateColor", label: "Token rate color", section: "“Working” Loader", group: "decorations", key: "tokenRateColor", cycleValues: THINKING_LEVEL_COLOR_VALUES, cycleValueLabels: THINKING_LEVEL_CYCLE_LABELS },
 	{ id: "tokenRateDimmed", label: "Token rate dimmed", section: "“Working” Loader", group: "decorations", key: "tokenRateDimmed" },
 	// id differs from key: the Elements Order row already owns "responseModel" in the menu's shared value namespace.
 	{ id: "showResponseModel", label: "Response model", section: "“Working” Loader", group: "features", key: "responseModel" },
-	{ id: "responseModelColor", label: "Response model color", section: "“Working” Loader", group: "decorations", key: "responseModelColor", cycleValues: SETTING_COLOR_VALUES },
+	{ id: "responseModelColor", label: "Response model color", section: "“Working” Loader", group: "decorations", key: "responseModelColor", cycleValues: THINKING_LEVEL_COLOR_VALUES, cycleValueLabels: THINKING_LEVEL_CYCLE_LABELS },
 	{ id: "responseModelDimmed", label: "Response model dimmed", section: "“Working” Loader", group: "decorations", key: "responseModelDimmed" },
 	{ id: "doneMarker", label: "Show completion marker", section: "Completion Marker", group: "features", key: "doneMarker" },
 	{ id: "doneMarkerStyle", label: "Marker style", section: "Completion Marker", group: "decorations", key: "doneMarkerStyle", cycleValues: DONE_MARKER_STYLE_VALUES },
 	{ id: "doneMarkerBorderStyle", label: "Border style", section: "Completion Marker", group: "decorations", key: "doneMarkerBorderStyle", cycleValues: DONE_MARKER_BORDER_STYLE_VALUES },
-	{ id: "doneMarkerBorderColor", label: "Border color", section: "Completion Marker", group: "decorations", key: "doneMarkerBorderColor", cycleValues: SETTING_COLOR_VALUES },
+	{ id: "doneMarkerBorderColor", label: "Border color", section: "Completion Marker", group: "decorations", key: "doneMarkerBorderColor", cycleValues: DONE_MARKER_BORDER_COLOR_VALUES, cycleValueLabels: THINKING_LEVEL_CYCLE_LABELS },
 	{ id: "doneMarkerIcon", label: "Pi icon", section: "Completion Marker", group: "features", key: "doneMarkerIcon" },
 	{ id: "randomizeDoneMarker", label: "Randomize “Worked” text", section: "Completion Marker", group: "features", key: "randomizeDoneMarker" },
 	{ id: "doneMarkerTokens", label: "Tokens spent", section: "Completion Marker", group: "features", key: "doneMarkerTokens" },
@@ -222,7 +260,7 @@ function menuItem(entry: MenuEntry, settings: DecoratorSettings): MenuSection["i
 	const cycleEnabled = entry.group === "decorations" && entry.cycleEnabledBy
 		? settings.decorations[entry.cycleEnabledBy]
 		: undefined;
-	return { id: entry.id, label: entry.label, cycleValues: entry.cycleValues, cycleEnabledBy: entry.cycleEnabledBy, cycleDisabledValue: entry.cycleDisabledValue, cycleEnabled, value: entry.cycleValues ? toCycleValue(value) : value };
+	return { id: entry.id, label: entry.label, cycleValues: entry.cycleValues, cycleValueLabels: entry.cycleValueLabels, cycleEnabledBy: entry.cycleEnabledBy, cycleDisabledValue: entry.cycleDisabledValue, cycleEnabled, value: entry.cycleValues ? toCycleValue(value) : value };
 }
 
 function isDecorationBooleanKey(key: keyof DecorationSettings): key is DecorationBooleanKey {
@@ -233,12 +271,20 @@ function setDecorationCycleValue(decorations: DecorationSettings, key: keyof Dec
 	const stored = fromCycleValue(value);
 	switch (key) {
 		case "borderColor":
+			if (isPromptBorderColor(stored)) decorations[key] = stored;
+			return;
 		case "spinnerColor":
+			if (isSpinnerColor(stored)) decorations[key] = stored;
+			return;
 		case "meterColor":
 		case "tokenRateColor":
+			if (isThinkingLevelColor(stored)) decorations[key] = stored;
+			return;
 		case "responseModelColor":
+			if (isThinkingLevelColor(stored)) decorations[key] = stored;
+			return;
 		case "doneMarkerBorderColor":
-			if (isSettingColor(stored)) decorations[key] = stored;
+			if (isDoneMarkerBorderColor(stored)) decorations[key] = stored;
 			return;
 		case "borderStyle":
 			if (isBorderStyle(stored)) decorations[key] = stored;
@@ -321,6 +367,14 @@ export function loadSettings(): DecoratorSettings {
 			wordPacks.simcity = true;
 		}
 		const settings = { decorations: mergeGroup(DEFAULT_SETTINGS.decorations, parsed.decorations), features: mergeGroup(DEFAULT_SETTINGS.features, parsed.features), loaderOrder: parseLoaderOrder(parsed.loaderOrder), wordPacks };
+		const schemaVersion = typeof parsed.schemaVersion === "number" ? parsed.schemaVersion : 1;
+		if (schemaVersion < THINKING_LEVEL_COLOR_MIGRATION_VERSION) {
+			settings.decorations.spinnerColor = "default";
+			if (settings.decorations.borderColor === "borderAccent") settings.decorations.borderColor = "thinking-level";
+		}
+		if (schemaVersion < SETTINGS_SCHEMA_VERSION) {
+			settings.decorations.doneMarkerBorderColor = "default";
+		}
 		for (const entry of MENU_ENTRIES) {
 			if (entry.group === "decorations" && entry.cycleEnabledBy && entry.cycleDisabledValue !== undefined && !settings.decorations[entry.cycleEnabledBy]) {
 				setDecorationCycleValue(settings.decorations, entry.key, entry.cycleDisabledValue);
@@ -343,5 +397,5 @@ export function atomicWriteFile(path: string, contents: string): void {
 }
 
 export function saveSettings(settings: DecoratorSettings): void {
-	atomicWriteFile(settingsPath(), `${JSON.stringify(settings, null, 2)}\n`);
+	atomicWriteFile(settingsPath(), `${JSON.stringify({ schemaVersion: SETTINGS_SCHEMA_VERSION, ...settings }, null, 2)}\n`);
 }

@@ -1,6 +1,7 @@
-import type { MessageRenderer, ThemeColor } from "@earendil-works/pi-coding-agent";
+import type { MessageRenderer } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import { DEFAULT_SETTINGS, isBorderStyle, isSettingColor, type BorderStyle, type DoneMarkerBorderStyle, type DoneMarkerStyle, type SettingColor } from "./settings.ts";
+import type { ThinkingLevel } from "./format.ts";
+import { DEFAULT_SETTINGS, isBorderStyle, isPromptBorderColor, type BorderStyle, type DoneMarkerBorderColor, type DoneMarkerBorderStyle, type DoneMarkerStyle, type PromptBorderColor } from "./settings.ts";
 import { stripControlChars } from "./util.ts";
 
 export const PROMPT_BOX_TYPE = "pi-topping-prompt";
@@ -25,11 +26,15 @@ export interface PromptBoxDetails {
 	icon?: string;
 	provider?: string;
 	model?: string;
-	borderColor?: ThemeColor;
+	borderColor?: PromptBorderColor;
 	borderStyle?: BorderStyle;
+	thinkingLevel?: ThinkingLevel;
 }
 
-type PromptTheme = { fg(color: string, text: string): string };
+type PromptTheme = {
+	fg(color: string, text: string): string;
+	getThinkingBorderColor(level: ThinkingLevel): (text: string) => string;
+};
 
 const COMPLETION_MARKER_TRAIL_RUNS = [6, 4, 2, 1] as const;
 
@@ -51,15 +56,18 @@ export function buildCompletionMarkerLine(
 	width: number,
 	theme: PromptTheme,
 	borderStyle: DoneMarkerBorderStyle,
-	borderColor: SettingColor,
+	borderColor: DoneMarkerBorderColor,
 	markerStyle: DoneMarkerStyle = DEFAULT_SETTINGS.decorations.doneMarkerStyle,
+	thinkingLevel?: ThinkingLevel,
 ): string {
 	const safeWidth = Math.max(0, Math.floor(width));
 	if (safeWidth === 0) return "";
 	if (borderStyle === "none") return truncateToWidth(content, safeWidth);
 
 	const g = BORDER_GLYPHS[borderStyle];
-	const border = (text: string) => theme.fg(borderColor, text);
+	const border = borderColor === "default"
+		? theme.getThinkingBorderColor(thinkingLevel ?? "off")
+		: (text: string) => theme.fg(borderColor, text);
 	const prefix = `${g.bl}${g.h.repeat(2)} `;
 
 	const suffix = markerStyle === "bookend"
@@ -81,8 +89,11 @@ export function buildPromptBoxLines(
 
 	const borderStyle = isBorderStyle(options.borderStyle) ? options.borderStyle : "double";
 	const g = BORDER_GLYPHS[borderStyle];
-	const borderColor = isSettingColor(options.borderColor) ? options.borderColor : DEFAULT_SETTINGS.decorations.borderColor;
-	const border = (text: string) => theme.fg(borderColor, text);
+	const borderColor = isPromptBorderColor(options.borderColor) ? options.borderColor : DEFAULT_SETTINGS.decorations.borderColor;
+	const border = borderColor === "thinking-level"
+		? theme.getThinkingBorderColor(options.thinkingLevel ?? "off")
+		: (text: string) => theme.fg(borderColor, text);
+	const iconColor = (text: string) => theme.fg("text", text);
 	const label = (text: string) => theme.fg("customMessageLabel", text);
 	const muted = (text: string) => theme.fg("dim", text);
 	const bodyText = (text: string) => theme.fg("customMessageText", text);
@@ -113,7 +124,7 @@ export function buildPromptBoxLines(
 	const titleLength = icon ? visibleWidth(`${g.h}${g.h} ${icon} `) : 0;
 	const timeLength = time ? time.length + 3 : 0; // time + right-side " ═"
 	const topFill = Math.max(0, innerWidth - titleLength - timeLength);
-	const iconSeg = icon ? `${border(`${g.h}${g.h} `)}${label(icon)}${border(" ")}` : "";
+	const iconSeg = icon ? `${border(`${g.h}${g.h} `)}${iconColor(icon)}${border(" ")}` : "";
 	const timeSeg = time ? `${border(" ")}${muted(time)}${border(` ${g.h}`)}` : "";
 	const topLine = border(g.tl) + iconSeg + border(g.h.repeat(topFill)) + timeSeg + border(g.tr);
 	const lines = [visibleWidth(topLine) > width ? truncateToWidth(topLine, width) : topLine];

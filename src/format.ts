@@ -1,4 +1,5 @@
 import type { Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
+import type { SpinnerColor, ThinkingLevelColor } from "./settings.ts";
 
 /** Pi's default working-indicator frames (same braille spinner as pi-tui's Loader). */
 export const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -6,8 +7,31 @@ export const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", 
 /** Milliseconds per spinner frame, matching pi-tui's Loader cadence. */
 export const SPINNER_FRAME_MS = 80;
 
-/** Default "Working…" text shown when text randomization/substitution is off. */
-export const DEFAULT_WORKING_WORD = "Working…";
+/** Default "Working" text shown when text randomization/substitution is off. */
+export const DEFAULT_WORKING_WORD = "Working";
+
+export type ThinkingLevel = Parameters<Theme["getThinkingBorderColor"]>[0];
+
+/** Build a colorizer for a configured color, including Pi's active thinking-level color. */
+export function getThinkingLevelColorizer(
+	theme: Pick<Theme, "fg" | "getThinkingBorderColor">,
+	color: ThinkingLevelColor,
+	thinkingLevel: ThinkingLevel | undefined,
+): (text: string) => string {
+	return color === "thinking-level"
+		? theme.getThinkingBorderColor(thinkingLevel ?? "off")
+		: (text: string) => theme.fg(color, text);
+}
+
+/** Render a spinner frame with Pi's default thinking-level color or a configured theme color. */
+export function spinnerFrame(
+	theme: Pick<Theme, "fg" | "getThinkingBorderColor">,
+	color: SpinnerColor,
+	thinkingLevel: ThinkingLevel | undefined,
+	frame: string,
+): string {
+	return color === "default" ? theme.getThinkingBorderColor(thinkingLevel ?? "off")(frame) : theme.fg(color, frame);
+}
 
 /** Milliseconds between activity meter sample pushes. */
 export const METER_INTERVAL_MS = 100;
@@ -24,7 +48,7 @@ export type LoaderElement = "spinner" | "text" | "meter" | "elapsed" | "tokens" 
 /** Default first-use working-indicator element order. */
 export const DEFAULT_LOADER_ORDER: readonly LoaderElement[] = ["spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel"];
 
-/** Elements share a detail group; separators and non-rate details are dimmed. */
+/** Elements share a detail group; separators are dimmed and non-rate details use muted. */
 const DETAIL_ELEMENTS: ReadonlySet<LoaderElement> = new Set(["elapsed", "tokens", "tokenRate", "responseModel"]);
 
 const TOKEN_UNITS = [
@@ -85,12 +109,17 @@ export function fadeThemeColorString(
 	text: string,
 	shade: number,
 	theme: Pick<Theme, "getFgAnsi" | "fg">,
-	color: ThemeColor,
+	color: ThemeColor | undefined,
+	colorizer?: (text: string) => string,
 ): string {
 	if (!text) return "";
-	const source = ansiToRgb(theme.getFgAnsi(color));
+	const source = colorizer
+		? ansiToRgb(colorizer("x"))
+		: color === undefined
+			? null
+			: ansiToRgb(theme.getFgAnsi(color));
 	const dim = ansiToRgb(theme.getFgAnsi("dim"));
-	if (!source || !dim) return theme.fg(color, text);
+	if (!source || !dim) return colorizer ? colorizer(text) : color === undefined ? text : theme.fg(color, text);
 	const clampedShade = Math.max(0, Math.min(TOKEN_RATE_FADE_SHADE_COUNT - 1, Math.floor(shade)));
 	const progress = (clampedShade + 1) / TOKEN_RATE_FADE_SHADE_COUNT;
 	const eased = 0.5 * (1 - Math.cos(Math.PI * progress));
@@ -151,7 +180,7 @@ export function buildWorkingMessage(
 		if (!value) continue;
 		if (DETAIL_ELEMENTS.has(element)) {
 			// tokenRate and responseModel arrive pre-colored; dimming them here would replace their configured colors.
-			details.push(element === "tokenRate" || element === "responseModel" ? value : theme.fg("dim", value));
+			details.push(element === "tokenRate" || element === "responseModel" ? value : theme.fg("muted", value));
 			continue;
 		}
 		flushDetails();
@@ -220,7 +249,7 @@ export function shimmerString(
 }
 
 function ansiToRgb(ansi: string): [number, number, number] | null {
-	const match = ansi.match(/^\x1b\[38;2;(\d+);(\d+);(\d+)m$/);
+	const match = ansi.match(/\x1b\[38;2;(\d+);(\d+);(\d+)m/);
 	if (!match) return null;
 	return [Number(match[1]), Number(match[2]), Number(match[3])];
 }

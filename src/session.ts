@@ -18,6 +18,7 @@ import {
 	buildWorkingMessage,
 	DEFAULT_WORKING_WORD,
 	dimAttribute,
+	getThinkingLevelColorizer,
 	ELAPSED_INTERVAL_MS,
 	fadeThemeColorString,
 	formatElapsed,
@@ -29,16 +30,18 @@ import {
 	RESPONSE_MODEL_HOLD_MS,
 	SHIMMER_INTERVAL_MS,
 	shimmerString,
+	spinnerFrame,
 	SPINNER_FRAME_MS,
 	SPINNER_FRAMES,
 	TOKEN_RATE_FADE_SHADE_COUNT,
 	TOKEN_RATE_PLACEHOLDER,
 	StreamingWordCounter,
+	type ThinkingLevel,
 } from "./format.ts";
 import { isSiblingSetupEnabled } from "./flags.ts";
 import { showMenu } from "./menu.ts";
 import { registerSetupCommand } from "./setup-command.ts";
-import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type SettingColor } from "./settings.ts";
+import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type SpinnerColor, type ThinkingLevelColor } from "./settings.ts";
 import { notifyMissingToppingsOnce } from "./toppings.ts";
 import { PreviewRenderer } from "./preview.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
@@ -73,6 +76,7 @@ interface DoneEntryData {
 	elapsedMs: number;
 	tokens?: number;
 	midTurnInputs?: number;
+	thinkingLevel?: ThinkingLevel;
 }
 
 interface SessionState {
@@ -199,6 +203,7 @@ export class SessionManager {
 							model: ctx.model?.id,
 							borderColor: this.#settings.decorations.borderColor,
 							borderStyle: this.#settings.decorations.borderStyle,
+							thinkingLevel: ctx.thinkingLevel,
 						},
 					},
 					{ triggerTurn: true },
@@ -319,6 +324,7 @@ export class SessionManager {
 				elapsedMs,
 				tokens: this.#state.confirmTokens,
 				midTurnInputs: this.#state.midTurnInputs,
+				thinkingLevel: ctx.thinkingLevel,
 			});
 		}
 		this.#currentCtx = null;
@@ -345,6 +351,7 @@ export class SessionManager {
 		const borderStyle = this.#settings.decorations.doneMarkerBorderStyle;
 		const borderColor = this.#settings.decorations.doneMarkerBorderColor;
 		const markerStyle = this.#settings.decorations.doneMarkerStyle;
+		const thinkingLevel = entry.data.thinkingLevel;
 		if (borderStyle === "none") return new Text(markerContent);
 
 		let cachedWidth: number | undefined;
@@ -353,7 +360,7 @@ export class SessionManager {
 			render(width: number): string[] {
 				if (cachedWidth !== width) {
 					cachedWidth = width;
-					cachedLines = ["", buildCompletionMarkerLine(markerContent, width, theme, borderStyle, borderColor, markerStyle), ""];
+					cachedLines = ["", buildCompletionMarkerLine(markerContent, width, theme, borderStyle, borderColor, markerStyle, thinkingLevel), ""];
 				}
 				return cachedLines!;
 			},
@@ -412,9 +419,9 @@ export class SessionManager {
 		return this.#settings.decorations.animatedSpinner && this.#settings.loaderOrder[0] !== "spinner";
 	}
 
-	private spinnerColor(): SettingColor {
+	private spinnerColor(): SpinnerColor {
 		const decorations = this.#settings.decorations;
-		return decorations.spinnerColorEnabled ? decorations.spinnerColor : "accent";
+		return decorations.spinnerColorEnabled ? decorations.spinnerColor : "default";
 	}
 
 	private indicatorFingerprint(): string {
@@ -436,11 +443,9 @@ export class SessionManager {
 		}
 
 		const color = this.spinnerColor();
-		if (color === "accent") {
-			ctx.ui.setWorkingIndicator(undefined);
-			return;
-		}
-		ctx.ui.setWorkingIndicator({ frames: SPINNER_FRAMES.map((frame) => ctx.ui.theme.fg(color, frame)) });
+		ctx.ui.setWorkingIndicator({
+			frames: SPINNER_FRAMES.map((frame) => spinnerFrame(ctx.ui.theme, color, ctx.thinkingLevel, frame)),
+		});
 	}
 
 	private stopTimer(): void {
@@ -485,13 +490,20 @@ export class SessionManager {
 		}
 	}
 
-	private startResponseModelFade(ctx: ExtensionContext, model: string, color: SettingColor, dimmed: boolean): void {
+	private startResponseModelFade(ctx: ExtensionContext, model: string, color: ThinkingLevelColor, dimmed: boolean): void {
 		this.cancelResponseModelFade(ctx);
 		const generation = this.#state.responseModelFadeGeneration;
+		const colorizer = getThinkingLevelColorizer(ctx.ui.theme, color, ctx.thinkingLevel);
 		const render = (shade?: number): void => {
 			const colored = shade === undefined
-				? ctx.ui.theme.fg(color, model)
-				: fadeThemeColorString(model, shade, ctx.ui.theme, color);
+				? colorizer(model)
+				: fadeThemeColorString(
+					model,
+					shade,
+					ctx.ui.theme,
+					color === "thinking-level" ? undefined : color,
+					color === "thinking-level" ? colorizer : undefined,
+				);
 			const responseModel = dimmed ? dimAttribute(colored) : colored;
 			ctx.ui.setStatus(RESPONSE_MODEL_STATUS_KEY, responseModel);
 		};
@@ -573,10 +585,11 @@ export class SessionManager {
 			state.lastTokenRateSampledAt = now;
 		}
 		const spinner = this.spinnerInMessage()
-			? ctx.ui.theme.fg(this.spinnerColor(), SPINNER_FRAMES[Math.floor(now / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!)
+			? spinnerFrame(ctx.ui.theme, this.spinnerColor(), ctx.thinkingLevel, SPINNER_FRAMES[Math.floor(now / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!)
 			: "";
+		const responseModelColorizer = getThinkingLevelColorizer(ctx.ui.theme, decorations.responseModelColor, ctx.thinkingLevel);
 		const responseModelColored = features.responseModel && state.responseModel
-			? ctx.ui.theme.fg(decorations.responseModelColor, state.responseModel)
+			? responseModelColorizer(state.responseModel)
 			: "";
 		const responseModel = responseModelColored && decorations.responseModelDimmed ? dimAttribute(responseModelColored) : responseModelColored;
 		if (isFullyDefaultAppearance(features, decorations)) {
@@ -594,15 +607,14 @@ export class SessionManager {
 		const styled = decorations.shimmer
 			? shimmerString(word, now - state.shimmerOrigin, ctx.ui.theme, decorations.shimmerDirection, decorations.shimmerSpeed, decorations.shimmerInverted)
 			: ctx.ui.theme.fg("text", word);
+		const meterColorizer = getThinkingLevelColorizer(
+			ctx.ui.theme,
+			decorations.meterColorEnabled ? decorations.meterColor : "accent",
+			ctx.thinkingLevel,
+		);
 		const meter = decorations.tokenActivityMonitor
 			? state.activityMeter.render((level, char) =>
-				ActivityMeter.colorizeCell(
-					level,
-					char,
-					ctx.ui.theme,
-					decorations.meterColorEnabled ? decorations.meterColor : "accent",
-					decorations.meterDimmed,
-				),
+				ActivityMeter.colorizeCell(level, char, ctx.ui.theme, meterColorizer, decorations.meterDimmed),
 			)
 			: "";
 		let tokenRateText = "";
@@ -616,17 +628,19 @@ export class SessionManager {
 			}
 			tokenRateText = state.tokenRateText;
 		}
+		const tokenRateColorizer = getThinkingLevelColorizer(ctx.ui.theme, decorations.tokenRateColor, ctx.thinkingLevel);
 		const tokenRateSegment = !features.tokenRate
 			? ""
 			: !tokenRateText
 				? ctx.ui.theme.fg("dim", TOKEN_RATE_PLACEHOLDER)
 				: now < state.tokenRateFadeStartsAt
-					? ctx.ui.theme.fg(decorations.tokenRateColor, tokenRateText)
+					? tokenRateColorizer(tokenRateText)
 					: fadeThemeColorString(
 						tokenRateText,
 						Math.floor((now - state.tokenRateFadeStartsAt) / (TOKEN_RATE_FADE_MS / TOKEN_RATE_FADE_SHADE_COUNT)),
 						ctx.ui.theme,
-						decorations.tokenRateColor,
+						decorations.tokenRateColor === "thinking-level" ? undefined : decorations.tokenRateColor,
+						decorations.tokenRateColor === "thinking-level" ? tokenRateColorizer : undefined,
 					);
 		const tokenRateStyled = tokenRateSegment && decorations.tokenRateDimmed ? dimAttribute(tokenRateSegment) : tokenRateSegment;
 		const msg = buildWorkingMessage(

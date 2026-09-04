@@ -3,8 +3,9 @@ import test from "node:test";
 
 import { visibleWidth } from "@earendil-works/pi-tui";
 import { buildCompletionMarkerLine, buildPromptBoxLines } from "../src/prompt-decorator.ts";
+import { DONE_MARKER_BORDER_COLOR_VALUES, PROMPT_BORDER_COLOR_VALUES } from "../src/settings.ts";
 
-const theme = { fg: (_color: string, text: string) => text };
+const theme = { fg: (_color: string, text: string) => text, getThinkingBorderColor: (_level: "off" | "minimal" | "low" | "medium" | "high" | "xhigh") => (text: string) => text };
 
 test("prompt box includes its icon, submission time, and provider/model", () => {
 	const submittedAt = new Date(2026, 6, 18, 14, 32, 5).getTime();
@@ -74,29 +75,46 @@ test("prompt box returns no lines when the display is too narrow", () => {
 	assert.deepEqual(buildPromptBoxLines("hello", undefined, 9, theme), []);
 });
 
-test("prompt box accepts every setting border color", () => {
-	const taggedTheme = { fg: (color: string, text: string) => `<${color}>${text}</${color}>` };
-	for (const color of ["accent", "border", "borderAccent", "success", "error", "warning"] as const) {
+const taggedTheme = {
+	fg: (color: string, text: string) => `<${color}>${text}</${color}>`,
+	getThinkingBorderColor: (level: "off" | "minimal" | "low" | "medium" | "high" | "xhigh") => (text: string) => `<thinking-${level}>${text}</thinking-${level}>`,
+};
+
+test("prompt box styles its icon with the theme text color", () => {
+	const lines = buildPromptBoxLines("ping", undefined, 80, taggedTheme);
+	assert.match(lines[0]!, /<text><\/text>/);
+});
+
+test("prompt box accepts every prompt border color", () => {
+	for (const color of PROMPT_BORDER_COLOR_VALUES) {
 		const lines = buildPromptBoxLines("ping", undefined, 40, taggedTheme, { borderColor: color });
-		assert.ok(lines[0]!.includes(`<${color}>`));
+		assert.ok(lines[0]!.includes(color === "thinking-level" ? "<thinking-off>" : `<${color}>`));
 	}
 });
 
-test("prompt box defaults to borderAccent when no color is specified", () => {
-	const taggedTheme = { fg: (color: string, text: string) => `<${color}>${text}</${color}>` };
+test("prompt box defaults to the off thinking-level border when no color is specified", () => {
 	const lines = buildPromptBoxLines("ping", undefined, 40, taggedTheme);
-	assert.match(lines[0]!, /^<borderAccent>/);
+	assert.match(lines[0]!, /^<thinking-off>/);
+});
+
+test("prompt box uses its captured thinking level for the thinking-level border", () => {
+	const lines = buildPromptBoxLines("ping", undefined, 40, taggedTheme, { borderColor: "thinking-level", thinkingLevel: "high" });
+	assert.match(lines[0]!, /^<thinking-high>/);
 });
 
 test("completion marker uses the selected border color", () => {
-	const colors = ["accent", "border", "borderAccent", "success", "error", "warning"] as const;
-	const taggedTheme = { fg: (color: string, text: string) => `<${color}>${text}</${color}>` };
-	for (const color of colors) {
-		assert.match(
-			buildCompletionMarkerLine(" Mustered", 80, taggedTheme, "heavy", color),
-			new RegExp(`^<${color}>┗━━`),
-		);
+	for (const color of DONE_MARKER_BORDER_COLOR_VALUES) {
+		const line = buildCompletionMarkerLine(" Mustered", 80, taggedTheme, "heavy", color);
+		if (color === "default") assert.match(line, /^<thinking-off>┗━━/);
+		else assert.match(line, new RegExp(`^<${color}>┗━━`));
 	}
+});
+
+test("completion marker default border uses its thinking-level color", () => {
+	assert.match(
+		buildCompletionMarkerLine(" Mustered", 80, taggedTheme, "heavy", "default", "elite", "high"),
+		/^<thinking-high>┗━━/,
+	);
 });
 
 test("completion marker uses the selected border glyphs and requested trail", () => {

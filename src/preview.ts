@@ -1,9 +1,9 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_PREVIEW_WIDTH, type PreviewResult } from "./menu.ts";
 import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
-import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatElapsed, formatTokenRate, formatTokens, isFullyDefaultAppearance, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
+import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatElapsed, formatTokenRate, formatTokens, getThinkingLevelColorizer, isFullyDefaultAppearance, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, shimmerString, spinnerFrame, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
-import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderStyle, isDoneMarkerStyle, isSettingColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
+import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderColor, isDoneMarkerBorderStyle, isDoneMarkerStyle, isPromptBorderColor, isSpinnerColor, isThinkingLevelColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
 import { isWordPackEnabled, selectWorkingTextSelection, wordPacksPath, type WordPack } from "./word-packs.ts";
 import { pickRandomWord } from "./words.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tps for the meter,
@@ -54,17 +54,18 @@ export class PreviewRenderer {
 		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false, responseModel: values.showResponseModel !== false };
 		const decorations = { shimmer: values.shimmer !== false, shimmerInverted: values.shimmerInverted === true, tokenActivityMonitor: values.tokenActivityMonitor !== false };
 		let spinnerColor = DEFAULT_SETTINGS.decorations.spinnerColor;
-		if (values.spinnerColorEnabled !== false && isSettingColor(values.spinnerColor)) {
+		if (values.spinnerColorEnabled !== false && isSpinnerColor(values.spinnerColor)) {
 			spinnerColor = values.spinnerColor;
 		}
 		let spinner = "";
 		if (values.animatedSpinner !== false) {
-			spinner = this.#ctx.ui.theme.fg(spinnerColor, SPINNER_FRAMES[Math.floor(elapsedMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!);
+			spinner = spinnerFrame(this.#ctx.ui.theme, spinnerColor, this.#ctx.thinkingLevel, SPINNER_FRAMES[Math.floor(elapsedMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!);
 		}
 		const order = parseLoaderOrder(values[LOADER_ORDER_ID]);
 		let responseModelColor = DEFAULT_SETTINGS.decorations.responseModelColor;
-		if (isSettingColor(values.responseModelColor)) responseModelColor = values.responseModelColor;
-		const responseModelColored = features.responseModel ? this.#ctx.ui.theme.fg(responseModelColor, "test-model") : "";
+		if (isThinkingLevelColor(values.responseModelColor)) responseModelColor = values.responseModelColor;
+		const responseModelColorizer = getThinkingLevelColorizer(this.#ctx.ui.theme, responseModelColor, this.#ctx.thinkingLevel);
+		const responseModelColored = features.responseModel ? responseModelColorizer("test-model") : "";
 		const responseModel = responseModelColored && values.responseModelDimmed === true ? dimAttribute(responseModelColored) : responseModelColored;
 		if (isFullyDefaultAppearance(features, decorations)) {
 			return buildWorkingMessage(this.#ctx.ui.theme, { spinner, text: this.#ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD), responseModel }, order);
@@ -87,24 +88,26 @@ export class PreviewRenderer {
 			styledWord = this.#ctx.ui.theme.fg("text", word);
 		}
 		let meterColor = DEFAULT_SETTINGS.decorations.meterColor;
-		if (values.meterColorEnabled !== false && isSettingColor(values.meterColor)) {
+		if (values.meterColorEnabled !== false && isThinkingLevelColor(values.meterColor)) {
 			meterColor = values.meterColor;
 		}
 		let meter = "";
 		if (decorations.tokenActivityMonitor) {
-			meter = this.#meter.render((level, char) => ActivityMeter.colorizeCell(level, char, this.#ctx.ui.theme, meterColor, values.meterDimmed === true));
+			const meterColorizer = getThinkingLevelColorizer(this.#ctx.ui.theme, meterColor, this.#ctx.thinkingLevel);
+			meter = this.#meter.render((level, char) => ActivityMeter.colorizeCell(level, char, this.#ctx.ui.theme, meterColorizer, values.meterDimmed === true));
 		}
 		let tokenRateText = "";
 		if (features.tokenRate) {
 			tokenRateText = formatTokenRate(TOKEN_RATE_PER_SEC);
 		}
 		let tokenRateColor = DEFAULT_SETTINGS.decorations.tokenRateColor;
-		if (isSettingColor(values.tokenRateColor)) {
+		if (isThinkingLevelColor(values.tokenRateColor)) {
 			tokenRateColor = values.tokenRateColor;
 		}
 		let tokenRateColored = "";
 		if (tokenRateText) {
-			tokenRateColored = this.#ctx.ui.theme.fg(tokenRateColor, tokenRateText);
+			const tokenRateColorizer = getThinkingLevelColorizer(this.#ctx.ui.theme, tokenRateColor, this.#ctx.thinkingLevel);
+			tokenRateColored = tokenRateColorizer(tokenRateText);
 		}
 		let tokenRate = tokenRateColored;
 		if (tokenRateColored && values.tokenRateDimmed === true) {
@@ -157,8 +160,9 @@ export class PreviewRenderer {
 			icon: values.useNerdFont ? "" : "π",
 			provider: this.#ctx.model?.provider,
 			model: this.#ctx.model?.id,
-			borderColor: isSettingColor(borderColor) ? borderColor : DEFAULT_SETTINGS.decorations.borderColor,
+			borderColor: isPromptBorderColor(borderColor) ? borderColor : DEFAULT_SETTINGS.decorations.borderColor,
 			borderStyle: isBorderStyle(borderStyle) ? borderStyle : "double",
+			thinkingLevel: this.#ctx.thinkingLevel,
 		});
 		return timestamp === undefined
 			? { lines }
@@ -174,9 +178,9 @@ export class PreviewRenderer {
 		if (values.doneMarkerInputs === true) details.push("2 mid-turn inputs");
 		const content = buildCompletionMarkerContent(theme, icon, word, "2m 52s", details);
 		const borderStyle = isDoneMarkerBorderStyle(values.doneMarkerBorderStyle) ? values.doneMarkerBorderStyle : "none";
-		const borderColor = isSettingColor(values.doneMarkerBorderColor) ? values.doneMarkerBorderColor : DEFAULT_SETTINGS.decorations.doneMarkerBorderColor;
+		const borderColor = isDoneMarkerBorderColor(values.doneMarkerBorderColor) ? values.doneMarkerBorderColor : DEFAULT_SETTINGS.decorations.doneMarkerBorderColor;
 		const markerStyle = isDoneMarkerStyle(values.doneMarkerStyle) ? values.doneMarkerStyle : DEFAULT_SETTINGS.decorations.doneMarkerStyle;
-		const marker = buildCompletionMarkerLine(content, width, theme, borderStyle, borderColor, markerStyle);
+		const marker = buildCompletionMarkerLine(content, width, theme, borderStyle, borderColor, markerStyle, this.#ctx.thinkingLevel);
 		return { lines: ["", marker, ""] };
 	}
 }

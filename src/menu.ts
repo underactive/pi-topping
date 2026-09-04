@@ -28,6 +28,8 @@ export interface MenuItem {
 	value: MenuValue;
 	/** Values cycled with left/right arrows. Omit for a boolean space-toggle. */
 	cycleValues?: readonly string[];
+	/** Optional display labels for cycle values; the keys remain the published values. */
+	cycleValueLabels?: Readonly<Record<string, string>>;
 	/** ID of the boolean value that gates cycling; space toggles it. */
 	cycleEnabledBy?: string;
 	/** Initial enabled state when `cycleEnabledBy` is set (default true). */
@@ -557,7 +559,9 @@ export class MenuComponent implements Component {
 
 		if (item.cycleValues) {
 			const enabled = item.cycleEnabledBy ? this.values[item.cycleEnabledBy] as boolean : true;
-			const stateWord = `‹ ${value} ›`;
+			const rawValue = typeof value === "string" ? value : String(value);
+			const displayValue = item.cycleValueLabels?.[rawValue] ?? rawValue;
+			const stateWord = `‹ ${displayValue} ›`;
 			const maxLabelLen = Math.max(0, innerWidth - ROW_PREFIX_WIDTH - visibleWidth(stateWord) - 1);
 			const label = visibleWidth(item.label) > maxLabelLen ? truncateToWidth(item.label, maxLabelLen) : item.label;
 			const leftPlain = `  ${marker} [${enabled ? "■" : " "}] ${label}`;

@@ -31,12 +31,12 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╔═[ Pi Topping: Settings ]══════════════════════════════════════╗
 ╟─ Preview ─────────────────────────────────────────────────────╢
 ║                                                               ║
-║ ⠋ Crafting… ⣠⣤⣶⣶⣤⣠⣀⢀ 28 tps · 3s · ↓ 84 tokens · test-model  ║
+║ ⠋ Crafting ⣠⣤⣶⣶⣤⣠⣀⢀ 28 tps · 3s · ↓ 84 tokens · test-model   ║
 ║                                                               ║
 ╟─ User Prompt ─────────────────────────────────────────────────╢
 ║    [■] High-vis prompt                                ON      ║
 ║    [■] Border style                             ‹ double ›    ║
-║    [■] Border color                       ‹ borderAccent ›    ║
+║    [■] Border color                     ‹ thinkingLevel ›    ║
 ║    [■] Pi icon                                        ON      ║
 ║    [■] Timestamp                                      ON      ║
 ║    [■] Provider                                       ON      ║
@@ -44,7 +44,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║                                                               ║
 ╟─ “Working” Loader ────────────────────────────────────────────╢
 ║    [■] Animated spinner                               ON      ║
-║  ❯ [■] Animated spinner color                   ‹ accent ›    ║
+║  ❯ [■] Animated spinner color            ‹ thinkingLevel ›    ║
 ║    [■] Randomize “Working” text                       ON      ║
 ║    [■] Text shimmer                                   ON      ║
 ║    [■] Invert shimmer                                OFF      ║
@@ -76,7 +76,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Show completion marker                         ON      ║
 ║    [■] Marker style                              ‹ elite ›    ║
 ║    [■] Border style                               ‹ none ›    ║
-║    [■] Border color                       ‹ borderAccent ›    ║
+║    [■] Border color                     ‹ thinkingLevel ›    ║
 ║    [■] Pi icon                                        ON      ║
 ║    [■] Randomize “Worked” text                        ON      ║
 ║    [■] Tokens spent                                   ON      ║
@@ -118,6 +118,10 @@ Bundled packs live in [`wordpacks/`](wordpacks/). Copy `wordpacks/doctor-who.jso
 ```
 
 Pack IDs must start with a lowercase letter and contain only lowercase letters, digits, and `-`. Each pack needs a non-empty `name` and at least one word with non-empty `present_tense` and `past_tense` strings. Invalid entries are ignored. Packs reload when a session starts and whenever `/topping-settings` opens, not while a turn is running. Preferences for missing packs are retained so they apply when the pack returns.
+
+The `default` animated spinner and completion marker border colors defer to Pi's thinking-level color. The `thinking-level` prompt border color follows the level captured when the prompt is submitted. The `thinkingLevel` color option for the token activity monitor, token rate, and response model follows Pi's active thinking-level color.
+
+On Pi 0.85.0, the border-embedded indicator truncates long loaders rather than wrapping them.
 
 Under **Elements Order**, press `␣` to grab a row, then `↑`/`↓` to slide that element
 left or right within the loader. Elapsed time, output tokens, token rate, and response model are joined with

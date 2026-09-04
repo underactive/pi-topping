@@ -61,18 +61,18 @@ test("fade and shimmer fall back for non-truecolor themes", () => {
 test("token rate joins the adjacent detail group", () => {
 	const theme = { fg: (color: string, text: string) => `<${color}>${text}</${color}>` };
 	const message = buildWorkingMessage(theme as never, {
-		text: "Working…",
+		text: "Working",
 		elapsed: "3s",
 		tokens: "↓ 84 tokens",
 		tokenRate: "<warning> 28 tps</warning>",
 	});
 
-	assert.equal(message, "Working… <warning> 28 tps</warning><dim> · </dim><dim>3s</dim><dim> · </dim><dim>↓ 84 tokens</dim>");
+	assert.equal(message, "Working <warning> 28 tps</warning><dim> · </dim><muted>3s</muted><dim> · </dim><muted>↓ 84 tokens</muted>");
 });
 
 test("detail styling survives a token rate moved before another detail", () => {
 	const theme = {
-		fg: (color: string, text: string) => `\x1b[38;5;${color === "dim" ? 8 : 7}m${text}\x1b[39m`,
+		fg: (color: string, text: string) => `\x1b[38;5;${color === "dim" ? 8 : color === "muted" ? 6 : 7}m${text}\x1b[39m`,
 	};
 	const message = buildWorkingMessage(theme as never, {
 		elapsed: "3s",
@@ -82,32 +82,32 @@ test("detail styling survives a token rate moved before another detail", () => {
 
 	assert.equal(
 		message,
-		"\x1b[38;5;8m3s\x1b[39m\x1b[38;5;8m · \x1b[39m\x1b[38;5;3m 28 tps\x1b[39m\x1b[38;5;8m · \x1b[39m\x1b[38;5;8m↓ 84 tokens\x1b[39m",
+		"\x1b[38;5;6m3s\x1b[39m\x1b[38;5;8m · \x1b[39m\x1b[38;5;3m 28 tps\x1b[39m\x1b[38;5;8m · \x1b[39m\x1b[38;5;6m↓ 84 tokens\x1b[39m",
 	);
 });
 
 test("detail separators do not surround a detail element moved outside its group", () => {
 	const theme = { fg: (color: string, text: string) => `<${color}>${text}</${color}>` };
 	const message = buildWorkingMessage(theme as never, {
-		text: "Working…",
+		text: "Working",
 		elapsed: "3s",
 		tokens: "↓ 84 tokens",
 		tokenRate: "<warning>28 tps</warning>",
 	}, ["elapsed", "text", "tokens", "tokenRate"]);
 
-	assert.equal(message, "<dim>3s</dim> Working… <dim>↓ 84 tokens</dim><dim> · </dim><warning>28 tps</warning>");
+	assert.equal(message, "<muted>3s</muted> Working <muted>↓ 84 tokens</muted><dim> · </dim><warning>28 tps</warning>");
 });
 
 test("response model is a pre-colored detail and follows the default trailing separator", () => {
 	const theme = { fg: (color: string, text: string) => `<${color}>${text}</${color}>` };
 	assert.equal(
-		buildWorkingMessage(theme as never, { text: "Working…", tokens: "↓ 84 tokens", responseModel: "<accent>test-model</accent>" }),
-		"Working… <dim>↓ 84 tokens</dim><dim> · </dim><accent>test-model</accent>",
+		buildWorkingMessage(theme as never, { text: "Working", tokens: "↓ 84 tokens", responseModel: "<accent>test-model</accent>" }),
+		"Working <muted>↓ 84 tokens</muted><dim> · </dim><accent>test-model</accent>",
 	);
 	assert.equal(buildWorkingMessage(theme as never, { responseModel: "<accent>test-model</accent>" }), "<accent>test-model</accent>");
 	assert.equal(
-		buildWorkingMessage(theme as never, { text: "Working…", responseModel: "\x1b[2m<accent>test-model</accent>\x1b[22m" }, ["responseModel", "text"]),
-		"\x1b[2m<accent>test-model</accent>\x1b[22m Working…",
+		buildWorkingMessage(theme as never, { text: "Working", responseModel: "\x1b[2m<accent>test-model</accent>\x1b[22m" }, ["responseModel", "text"]),
+		"\x1b[2m<accent>test-model</accent>\x1b[22m Working",
 	);
 });
 
