@@ -340,8 +340,8 @@ export class SessionManager {
 		const elapsedMs = typeof entry.data.elapsedMs === "number" && Number.isFinite(entry.data.elapsedMs) ? entry.data.elapsedMs : 0;
 		const features = this.#settings.features;
 		const details: string[] = [];
-		if (features.doneMarkerTokens && typeof entry.data.tokens === "number") details.push(`↓ ${formatTokens(entry.data.tokens)} tokens`);
-		if (features.doneMarkerInputs && typeof entry.data.midTurnInputs === "number" && entry.data.midTurnInputs) {
+		if (features.doneMarkerTokens && typeof entry.data.tokens === "number" && Number.isFinite(entry.data.tokens) && entry.data.tokens >= 0) details.push(`↓ ${formatTokens(entry.data.tokens)} tokens`);
+		if (features.doneMarkerInputs && typeof entry.data.midTurnInputs === "number" && Number.isInteger(entry.data.midTurnInputs) && entry.data.midTurnInputs > 0) {
 			details.push(`${entry.data.midTurnInputs} mid-turn input${entry.data.midTurnInputs === 1 ? "" : "s"}`);
 		}
 		const icon = features.doneMarkerIcon ? theme.fg("text", this.#settings.decorations.useNerdFont ? "" : "π") : "";
