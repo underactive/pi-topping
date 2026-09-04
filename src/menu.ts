@@ -4,7 +4,7 @@
  * contract and `ctx.ui.custom()` overlay API.
  *
  * Renders a titled box containing one or more sections of boolean toggle,
- * multi-value cycle, or drag-to-reorder items, plus an optional live-updating
+ * multi-value cycle, or keyboard-reorderable items, plus an optional live-updating
  * preview section driven by a caller-supplied render callback.
  *
  * Intended to be reused by any extension that needs a simple modal toggle
