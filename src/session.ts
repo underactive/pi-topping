@@ -662,7 +662,7 @@ export class SessionManager {
 		this.#userPacks = loadUserWordPacks();
 		this.#allPacks = [...this.#bundledPacks, ...this.#userPacks];
 		const before = this.indicatorFingerprint();
-		const preview = new PreviewRenderer(ctx, [...this.#bundledPacks, ...this.#userPacks]);
+		const preview = new PreviewRenderer(ctx, this.#allPacks);
 		const result = await showMenu<Record<string, boolean | string>>(ctx, {
 			title: "Pi Topping: Settings",
 			maxHeight: "75%",
