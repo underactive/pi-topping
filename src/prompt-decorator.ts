@@ -15,7 +15,10 @@ const BORDER_GLYPHS: Record<BorderStyle, { tl: string; tr: string; bl: string; b
 
 /**
  * False visibility options hide each corresponding part; present provider and
- * model values join with `/` in the bottom border.
+ * model values join with `/` in the bottom border. `thinkingLevel` is the level
+ * captured at submission and is only used when `borderColor` is `thinking-level`.
+ * Unrecognised `borderStyle` / `borderColor` values fall back to `double` and the
+ * default border color.
  */
 export interface PromptBoxDetails {
 	submittedAt?: number;
