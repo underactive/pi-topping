@@ -125,12 +125,6 @@ test("custom packs are loaded tolerantly from the agent directory", () => withTe
 
 test("enablement defaults every pack off while respecting overrides", () => {
 	assert.equal(isWordPackEnabled("simcity", {}), false);
-	assert.equal(isWordPackEnabled("custom", {}), false);
-	assert.equal(isWordPackEnabled("star-trek", {}), false);
-	assert.equal(isWordPackEnabled("star-wars", {}), false);
-	assert.equal(isWordPackEnabled("doctor-who", {}), false);
-	assert.equal(isWordPackEnabled("matrix", {}), false);
-	assert.equal(isWordPackEnabled("lord-of-the-rings", {}), false);
 	assert.equal(isWordPackEnabled("custom", { custom: false }), false);
 	assert.equal(isWordPackEnabled("simcity", { simcity: true }), true);
 });

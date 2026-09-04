@@ -101,7 +101,7 @@ test("scrolls the item body to fit a 24-row terminal while keeping chrome and cu
 	const menu = new MenuComponent({
 		title: "TEST",
 		sections: [{ title: "Many settings", items: Array.from({ length: 20 }, (_, i) => ({ id: `item-${i}`, label: `Item ${i}`, value: true })) }],
-		preview: () => ["preview"],
+		preview: () => ({ lines: ["preview"] }),
 	}, fakeTheme(), () => {}, tui);
 	t.after(() => menu.dispose());
 
@@ -484,7 +484,7 @@ test("preview renders a Preview section reflecting the current toggle values", (
 	const menu = makeMenu(() => {}, {
 		preview: (values, elapsedMs) => {
 			calls.push({ values: { ...values }, elapsedMs });
-			return [`preview: a=${values.a} b=${values.b}`];
+			return { lines: [`preview: a=${values.a} b=${values.b}`] };
 		},
 	});
 
@@ -501,7 +501,7 @@ test("preview renders a Preview section reflecting the current toggle values", (
 });
 
 test("preview section has a blank row above the content and a one-space left indent", () => {
-	const menu = makeMenu(() => {}, { preview: () => ["X"] });
+	const menu = makeMenu(() => {}, { preview: () => ({ lines: ["X"] }) });
 
 	const lines = menu.render(64).map(stripTags);
 	const dividerIndex = lines.findIndex((l) => l.includes("\u255f\u2500 Preview "));
@@ -523,7 +523,7 @@ test("preview is sampled exactly once per render, even for repeated calls at the
 	const menu = makeMenu(() => {}, {
 		preview: () => {
 			callCount++;
-			return ["static preview"];
+			return { lines: ["static preview"] };
 		},
 	});
 
@@ -548,7 +548,7 @@ test("without a preview config, no Preview section is rendered", () => {
 
 test("preview lines are padded/truncated to fit and never exceed the requested width", () => {
 	const menu = makeMenu(() => {}, {
-		preview: () => ["a very long simulated working message that could overflow the box width easily"],
+		preview: () => ({ lines: ["a very long simulated working message that could overflow the box width easily"] }),
 	});
 
 	const lines = menu.render(40);
@@ -568,7 +568,7 @@ test("dispose() stops the preview refresh timer when a TUI is provided", (t) => 
 	}) as typeof clearTimeout);
 
 	const fakeTui = { requestRender: () => {} } as unknown as TUI;
-	const menu = makeMenu(() => {}, { preview: () => ["x"] }, fakeTui);
+	const menu = makeMenu(() => {}, { preview: () => ({ lines: ["x"], nextRefreshInMs: 50 }) }, fakeTui);
 
 	assert.deepEqual(timers.delays, [50]);
 	menu.dispose();
@@ -644,7 +644,7 @@ test("dispose() is a safe no-op when there is no preview or no TUI", () => {
 	const withoutPreview = makeMenu(() => {});
 	assert.doesNotThrow(() => withoutPreview.dispose());
 
-	const withPreviewNoTui = makeMenu(() => {}, { preview: () => ["x"] });
+	const withPreviewNoTui = makeMenu(() => {}, { preview: () => ({ lines: ["x"] }) });
 	assert.doesNotThrow(() => withPreviewNoTui.dispose());
 });
 

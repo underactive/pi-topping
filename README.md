@@ -121,8 +121,6 @@ Pack IDs must start with a lowercase letter and contain only lowercase letters, 
 
 The `default` animated spinner and completion marker border colors defer to Pi's thinking-level color. The `thinking-level` prompt border color follows the level captured when the prompt is submitted. The `thinkingLevel` color option for the token activity monitor, token rate, and response model follows Pi's active thinking-level color.
 
-On Pi 0.85.0, the border-embedded indicator truncates long loaders rather than wrapping them.
-
 Under **Elements Order**, press `␣` to grab a row, then `↑`/`↓` to slide that element
 left or right within the loader. Elapsed time, output tokens, token rate, and response model are joined with
 `·` separators whenever adjacent. When reordering separates them, each adjacent run is rendered
@@ -140,6 +138,7 @@ The response model is captured from assistant responses, displayed as its saniti
 ## Requirements
 
 - [Pi](https://github.com/earendil-works/pi-coding-agent). Pi ≥0.84.4 is required for the waiting-for-input loader state; older Pi versions keep the animated loader.
+- On Pi ≥0.85.0, the working indicator is embedded in the default editor border and long loaders are truncated to the border width instead of wrapping; custom editors that do not opt in keep the standalone wrapping indicator.
 - Node.js ≥22.19.0
 
 ## Development

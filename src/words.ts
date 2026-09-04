@@ -10,14 +10,6 @@ export interface WordEntry {
 	past_tense: string;
 }
 
-export function pickRawWord(): WordEntry {
-	return WORDS[Math.floor(Math.random() * WORDS.length)]!;
-}
-
-export function pickRandomWord(): string {
-	return pickRawWord().present_tense;
-}
-
 export const WORDS: WordEntry[] = [
 	{ present_tense: "Accomplishing", past_tense: "Accomplished" },
 	{ present_tense: "Actioning", past_tense: "Actioned" },

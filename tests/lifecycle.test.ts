@@ -344,7 +344,7 @@ test("tracks streamed tokens, usage reconciliation, tool words, and settlement",
 		const ctx = createContext(messages, indicators);
 		let tick: (() => void) | undefined;
 		let now = 1_000;
-		// One Math.random() call per pickRandomWord() invocation: the first (on
+		// One Math.random() call per pickWorkingTextSelection() invocation: the first (on
 		// "input") picks the first word alphabetically, the second (on
 		// "tool_execution_start") picks the last.
 		const randomValues = [0, 0.999];
@@ -845,6 +845,13 @@ test("response model preview follows the active thinking level", () => {
 	const preview = new PreviewRenderer(ctx).render({ responseModelColor: "thinking-level" }, 0);
 
 	assert.ok(preview.lines.some((line) => line.includes("<thinking-high>test-model</thinking-high>")));
+});
+
+test("preview without word packs selects from the shared base-word pool", (t) => {
+	t.mock.method(Math, "random", () => 0);
+	const preview = new PreviewRenderer(createContext([], [])).render({ shimmer: false }, 0);
+
+	assert.ok(preview.lines.some((line) => line.includes(WORDS[0]!.present_tense)));
 });
 
 test("resembling response models are suppressed during streaming and settlement", async (t) => {

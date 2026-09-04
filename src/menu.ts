@@ -61,11 +61,9 @@ export interface MenuConfig {
 	 * since the menu opened. Lines may contain ANSI styling and are truncated/
 	 * padded to fit automatically.
 	 *
-	 * Return `string[]` for legacy interval-based animation (defaults to 50ms
-	 * refresh), or a `PreviewResult` to declare the next refresh interval.
 	 * Omitting `nextRefreshInMs` from a `PreviewResult` makes the preview static.
 	 */
-	preview?: (values: Record<string, MenuValue>, elapsedMs: number, activeItemId: string | undefined, width: number) => string[] | PreviewResult;
+	preview?: (values: Record<string, MenuValue>, elapsedMs: number, activeItemId: string | undefined, width: number) => PreviewResult;
 	/** Optional heading for the preview block. Defaults to `Preview`. */
 	previewTitle?: string;
 	/** Maximum overlay height in rows or as a percentage of the terminal height. */
@@ -305,11 +303,6 @@ export class MenuComponent implements Component {
 			this.flat[this.cursor]?.item.id,
 			width,
 		);
-		if (Array.isArray(result)) {
-			this.previewNextRefreshMs = 50;
-			return result;
-		}
-
 		this.previewNextRefreshMs = result.nextRefreshInMs;
 		return result.lines;
 	}

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- Legacy `string[]` menu preview results; preview callbacks must now return `PreviewResult` (use `nextRefreshInMs: 50` for the previous default animation interval).
+
 ### Added
 - `default` animated spinner color option, which defers to Pi's thinking-level-colored indicator.
 - `default` completion marker border color option, which defers to Pi's thinking-level-colored border.

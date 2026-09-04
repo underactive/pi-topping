@@ -5,7 +5,6 @@ import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERV
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
 import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderColor, isDoneMarkerBorderStyle, isDoneMarkerStyle, isPromptBorderColor, isSpinnerColor, isThinkingLevelColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
 import { isWordPackEnabled, selectWorkingTextSelection, wordPacksPath, type WordPack } from "./word-packs.ts";
-import { pickRandomWord } from "./words.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tps for the meter,
 // flat 28 tps for the token readouts.
 const METER_PERIOD_MS = 2400, METER_PEAK_RATE = 46, TOKEN_RATE_PER_SEC = 28;
@@ -16,7 +15,6 @@ function meterRate(elapsedMs: number): number { return ((1 - Math.cos((2 * Math.
 /** Stateful, per-menu preview renderer that follows the active settings section. */
 export class PreviewRenderer {
 	// Preserve constructor-time randomness so rendering never changes the preview phrase.
-	readonly #word = pickRandomWord();
 	readonly #poolFraction = Math.random();
 	readonly #packs: readonly WordPack[];
 	readonly #meter = new ActivityMeter();
@@ -75,8 +73,7 @@ export class PreviewRenderer {
 			const packValues = this.packValues(values);
 			const signature = JSON.stringify(Object.keys(packValues).sort().map(k => `${k}=${packValues[k]}`));
 			if (signature !== this.#cachedPackSignature) {
-				const enabledPacks = this.#packs.filter((pack) => isWordPackEnabled(pack.id, packValues));
-				this.#cachedPackWord = enabledPacks.length ? selectWorkingTextSelection(packValues, this.#packs, this.#poolFraction).text : this.#word;
+				this.#cachedPackWord = selectWorkingTextSelection(packValues, this.#packs, this.#poolFraction).text;
 				this.#cachedPackSignature = signature;
 			}
 			word = this.#cachedPackWord;

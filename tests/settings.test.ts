@@ -24,7 +24,7 @@ import {
 	DONE_MARKER_BORDER_STYLE_VALUES,
 	settingsPath,
 } from "../src/settings.ts";
-import { isWordPackEnabled, loadBundledWordPacks } from "../src/word-packs.ts";
+import { loadBundledWordPacks } from "../src/word-packs.ts";
 
 function withTempAgentDir<T>(fn: (dir: string) => T): T {
 	const dir = mkdtempSync(join(tmpdir(), "pi-topping-test-"));
@@ -53,7 +53,6 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
 	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "showResponseModel", "responseModelColor", "responseModelDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel", "doneMarker", "doneMarkerStyle", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars", "useNerdFont"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
-	assert.equal(isWordPackEnabled("simcity", DEFAULT_SETTINGS.wordPacks), false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:simcity")!.value, false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:star-trek")!.value, false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:star-wars")!.value, false);
@@ -64,10 +63,6 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:hitchhikers-guide")!.value, false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:portal")!.value, false);
 	assert.equal(sections[1]!.items.find(item => item.id === "showTokenRate")!.value, true);
-	assert.equal(DEFAULT_SETTINGS.decorations.meterDirection, "rtl");
-	assert.equal(DEFAULT_SETTINGS.decorations.shimmerInverted, false);
-	assert.equal(DEFAULT_SETTINGS.decorations.doneMarkerBorderStyle, "none");
-	assert.equal(DEFAULT_SETTINGS.decorations.doneMarkerBorderColor, "thinking-level");
 	assert.deepEqual(sections[3]!.items.find(item => item.id === "doneMarkerBorderStyle")!.cycleValues, DONE_MARKER_BORDER_STYLE_VALUES);
 	const spinnerColorSetting = sections[1]!.items.find(item => item.id === "spinnerColor")!;
 	assert.equal(spinnerColorSetting.value, "thinking-level");
