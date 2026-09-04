@@ -580,9 +580,8 @@ export class SessionManager {
 		const spinner = this.spinnerInMessage()
 			? getThinkingLevelColorizer(ctx.ui.theme, decorations.spinnerColor, ctx.thinkingLevel)(SPINNER_FRAMES[Math.floor(now / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!)
 			: "";
-		const responseModelColorizer = getThinkingLevelColorizer(ctx.ui.theme, decorations.responseModelColor, ctx.thinkingLevel);
 		const responseModelColored = features.responseModel && state.responseModel
-			? responseModelColorizer(state.responseModel)
+			? getThinkingLevelColorizer(ctx.ui.theme, decorations.responseModelColor, ctx.thinkingLevel)(state.responseModel)
 			: "";
 		const responseModel = responseModelColored && decorations.responseModelDimmed ? dimAttribute(responseModelColored) : responseModelColored;
 		if (isFullyDefaultAppearance(features, decorations)) {
@@ -600,16 +599,13 @@ export class SessionManager {
 		const styled = decorations.shimmer
 			? shimmerString(word, now - state.shimmerOrigin, ctx.ui.theme, decorations.shimmerDirection, decorations.shimmerSpeed, decorations.shimmerInverted)
 			: ctx.ui.theme.fg("text", word);
-		const meterColorizer = getThinkingLevelColorizer(
-			ctx.ui.theme,
-			decorations.meterColor,
-			ctx.thinkingLevel,
-		);
-		const meter = decorations.tokenActivityMonitor
-			? state.activityMeter.render((level, char) =>
+		let meter = "";
+		if (decorations.tokenActivityMonitor) {
+			const meterColorizer = getThinkingLevelColorizer(ctx.ui.theme, decorations.meterColor, ctx.thinkingLevel);
+			meter = state.activityMeter.render((level, char) =>
 				ActivityMeter.colorizeCell(level, char, ctx.ui.theme, meterColorizer, decorations.meterDimmed),
-			)
-			: "";
+			);
+		}
 		let tokenRateText = "";
 		if (features.tokenRate) {
 			const latestTokenRate = formatTokenRate(state.rateTracker.tokenRate);
@@ -621,12 +617,13 @@ export class SessionManager {
 			}
 			tokenRateText = state.tokenRateText;
 		}
-		const tokenRateColorizer = getThinkingLevelColorizer(ctx.ui.theme, decorations.tokenRateColor, ctx.thinkingLevel);
-		const tokenRateSegment = !features.tokenRate
-			? ""
-			: !tokenRateText
-				? ctx.ui.theme.fg("dim", TOKEN_RATE_PLACEHOLDER)
-				: now < state.tokenRateFadeStartsAt
+		let tokenRateSegment = "";
+		if (features.tokenRate) {
+			if (!tokenRateText) {
+				tokenRateSegment = ctx.ui.theme.fg("dim", TOKEN_RATE_PLACEHOLDER);
+			} else {
+				const tokenRateColorizer = getThinkingLevelColorizer(ctx.ui.theme, decorations.tokenRateColor, ctx.thinkingLevel);
+				tokenRateSegment = now < state.tokenRateFadeStartsAt
 					? tokenRateColorizer(tokenRateText)
 					: fadeThemeColorString(
 						tokenRateText,
@@ -634,6 +631,8 @@ export class SessionManager {
 						ctx.ui.theme,
 						tokenRateColorizer,
 					);
+			}
+		}
 		const tokenRateStyled = tokenRateSegment && decorations.tokenRateDimmed ? dimAttribute(tokenRateSegment) : tokenRateSegment;
 		const msg = buildWorkingMessage(
 			ctx.ui.theme,
