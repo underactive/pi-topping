@@ -27,7 +27,6 @@ const BRAILLE: Record<ActivityMeterLevel, string> = {
 };
 const WIDTH = 8;
 const RATE_THRESHOLDS = [0, 5, 10, 15, 22, 30, 40] as const;
-type CellColor = ThemeColor | ((text: string) => string);
 type CellColorizer = (level: ActivityMeterLevel, char: string) => string;
 
 /** Convert an estimated output-token rate to a display level. */
@@ -124,16 +123,16 @@ export class ActivityMeter {
 		this.#levels.fill(0);
 	}
 
-	/** Colorize a meter cell using the default theme mapping (dim at IDLE, `color` otherwise). */
+	/** Colorize a meter cell (dim at IDLE, `colorize` otherwise). */
 	static colorizeCell(
 		level: ActivityMeterLevel,
 		char: string,
 		theme: { fg: (style: ThemeColor, s: string) => string },
-		color: CellColor = "accent",
+		colorize: (text: string) => string,
 		dimmed?: boolean,
 	): string {
 		if (level === ActivityMeterLevel.IDLE) return theme.fg("dim", char);
-		const colored = typeof color === "function" ? color(char) : theme.fg(color, char);
+		const colored = colorize(char);
 		return dimmed ? dimAttribute(colored) : colored;
 	}
 }
