@@ -163,36 +163,14 @@ function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, par
 	return merged;
 }
 
-/** Map a persisted setting value to its menu cycle label (directions and speeds only; colors pass through). */
-function toCycleValue(stored: unknown): string {
-	if (stored === "ltr") return "Left to Right";
-	if (stored === "rtl") return "Right to Left";
-	if (stored === "slow") return "Slow";
-	if (stored === "normal") return "Normal";
-	if (stored === "fast") return "Fast";
-	return String(stored);
-}
-
-/** Map a menu cycle label back to its persisted value. */
-function fromCycleValue(value: string): string {
-	if (value === "Left to Right") return "ltr";
-	if (value === "Right to Left") return "rtl";
-	if (value === "Slow") return "slow";
-	if (value === "Normal") return "normal";
-	if (value === "Fast") return "fast";
-	return value;
-}
-
 /** Convert a persisted or menu direction to a safe preview direction. */
 export function fromCycleDirection(value: unknown): "ltr" | "rtl" {
-	const stored = typeof value === "string" ? fromCycleValue(value) : "";
-	return stored === "rtl" ? "rtl" : "ltr";
+	return value === "rtl" ? "rtl" : "ltr";
 }
 
 /** Convert a persisted or menu speed to a safe preview speed. */
 export function fromCycleSpeed(value: unknown): "slow" | "normal" | "fast" {
-	const stored = typeof value === "string" ? fromCycleValue(value) : "";
-	return stored === "slow" || stored === "fast" ? stored : "normal";
+	return value === "slow" || value === "fast" ? value : "normal";
 }
 
 type MenuSectionName = "User Prompt" | "“Working” Loader" | "Completion Marker" | "Options";
@@ -204,6 +182,8 @@ type DecorationMenuEntry = MenuEntryBase & { group: "decorations"; key: keyof De
 type FeatureMenuEntry = MenuEntryBase & { group: "features"; key: keyof FeatureSettings; cycleValues?: never; cycleValueLabels?: never; cycleEnabledBy?: never; cycleDisabledValue?: never };
 type MenuEntry = DecorationMenuEntry | FeatureMenuEntry;
 const THINKING_LEVEL_CYCLE_LABELS = { "thinking-level": "thinkingLevel" } as const;
+const DIRECTION_CYCLE_LABELS = { ltr: "Left to Right", rtl: "Right to Left" } as const;
+const SPEED_CYCLE_LABELS = { slow: "Slow", normal: "Normal", fast: "Fast" } as const;
 export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "decorateUserPrompt", label: "High-vis prompt", section: "User Prompt", group: "decorations", key: "decorateUserPrompt" },
 	{ id: "borderStyle", label: "Border style", section: "User Prompt", group: "decorations", key: "borderStyle", cycleValues: BORDER_STYLE_VALUES, cycleEnabledBy: "borderStyleEnabled", cycleDisabledValue: "double" },
@@ -217,11 +197,11 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "substituteDefaultMessage", label: "Randomize “Working” text", section: "“Working” Loader", group: "features", key: "substituteDefaultMessage" },
 	{ id: "shimmer", label: "Text shimmer", section: "“Working” Loader", group: "decorations", key: "shimmer" },
 	{ id: "shimmerInverted", label: "Invert shimmer", section: "“Working” Loader", group: "decorations", key: "shimmerInverted" },
-	{ id: "shimmerDirection", label: "Text shimmer direction", section: "“Working” Loader", group: "decorations", key: "shimmerDirection", cycleValues: ["Left to Right", "Right to Left"], cycleEnabledBy: "shimmerDirectionEnabled", cycleDisabledValue: "Left to Right" },
-	{ id: "shimmerSpeed", label: "Text shimmer speed", section: "“Working” Loader", group: "decorations", key: "shimmerSpeed", cycleValues: ["Slow", "Normal", "Fast"], cycleEnabledBy: "shimmerSpeedEnabled", cycleDisabledValue: "Normal" },
+	{ id: "shimmerDirection", label: "Text shimmer direction", section: "“Working” Loader", group: "decorations", key: "shimmerDirection", cycleValues: ["ltr", "rtl"], cycleValueLabels: DIRECTION_CYCLE_LABELS, cycleEnabledBy: "shimmerDirectionEnabled", cycleDisabledValue: "ltr" },
+	{ id: "shimmerSpeed", label: "Text shimmer speed", section: "“Working” Loader", group: "decorations", key: "shimmerSpeed", cycleValues: ["slow", "normal", "fast"], cycleValueLabels: SPEED_CYCLE_LABELS, cycleEnabledBy: "shimmerSpeedEnabled", cycleDisabledValue: "normal" },
 	{ id: "tokenActivityMonitor", label: "Token activity monitor", section: "“Working” Loader", group: "decorations", key: "tokenActivityMonitor" },
 	{ id: "meterColor", label: "Token activity monitor color", section: "“Working” Loader", group: "decorations", key: "meterColor", cycleValues: THINKING_LEVEL_COLOR_VALUES, cycleValueLabels: THINKING_LEVEL_CYCLE_LABELS, cycleEnabledBy: "meterColorEnabled", cycleDisabledValue: "accent" },
-	{ id: "meterDirection", label: "Token activity monitor direction", section: "“Working” Loader", group: "decorations", key: "meterDirection", cycleValues: ["Left to Right", "Right to Left"], cycleEnabledBy: "meterDirectionEnabled", cycleDisabledValue: "Right to Left" },
+	{ id: "meterDirection", label: "Token activity monitor direction", section: "“Working” Loader", group: "decorations", key: "meterDirection", cycleValues: ["ltr", "rtl"], cycleValueLabels: DIRECTION_CYCLE_LABELS, cycleEnabledBy: "meterDirectionEnabled", cycleDisabledValue: "rtl" },
 	{ id: "meterDimmed", label: "Token activity monitor dimmed", section: "“Working” Loader", group: "decorations", key: "meterDimmed" },
 	{ id: "elapsedTime", label: "Elapsed time since prompt", section: "“Working” Loader", group: "features", key: "elapsedTime" },
 	{ id: "outputTokens", label: "Show output tokens", section: "“Working” Loader", group: "features", key: "outputTokens" },
@@ -249,7 +229,7 @@ function menuItem(entry: MenuEntry, settings: DecoratorSettings): MenuSection["i
 	const cycleEnabled = entry.group === "decorations" && entry.cycleEnabledBy
 		? settings.decorations[entry.cycleEnabledBy]
 		: undefined;
-	return { id: entry.id, label: entry.label, cycleValues: entry.cycleValues, cycleValueLabels: entry.cycleValueLabels, cycleEnabledBy: entry.cycleEnabledBy, cycleDisabledValue: entry.cycleDisabledValue, cycleEnabled, value: entry.cycleValues ? toCycleValue(value) : value };
+	return { id: entry.id, label: entry.label, cycleValues: entry.cycleValues, cycleValueLabels: entry.cycleValueLabels, cycleEnabledBy: entry.cycleEnabledBy, cycleDisabledValue: entry.cycleDisabledValue, cycleEnabled, value };
 }
 
 function isDecorationBooleanKey(key: keyof DecorationSettings): key is DecorationBooleanKey {
@@ -257,37 +237,36 @@ function isDecorationBooleanKey(key: keyof DecorationSettings): key is Decoratio
 }
 
 function setDecorationCycleValue(decorations: DecorationSettings, key: keyof DecorationSettings, value: string): void {
-	const stored = fromCycleValue(value);
 	switch (key) {
 		case "borderColor":
-			if (isPromptBorderColor(stored)) decorations[key] = stored;
+			if (isPromptBorderColor(value)) decorations[key] = value;
 			return;
 		case "spinnerColor":
-			if (isSpinnerColor(stored)) decorations[key] = stored;
+			if (isSpinnerColor(value)) decorations[key] = value;
 			return;
 		case "meterColor":
 		case "tokenRateColor":
 		case "responseModelColor":
-			if (isThinkingLevelColor(stored)) decorations[key] = stored;
+			if (isThinkingLevelColor(value)) decorations[key] = value;
 			return;
 		case "doneMarkerBorderColor":
-			if (isDoneMarkerBorderColor(stored)) decorations[key] = stored;
+			if (isDoneMarkerBorderColor(value)) decorations[key] = value;
 			return;
 		case "borderStyle":
-			if (isBorderStyle(stored)) decorations[key] = stored;
+			if (isBorderStyle(value)) decorations[key] = value;
 			return;
 		case "doneMarkerBorderStyle":
-			if (isDoneMarkerBorderStyle(stored)) decorations[key] = stored;
+			if (isDoneMarkerBorderStyle(value)) decorations[key] = value;
 			return;
 		case "doneMarkerStyle":
-			if (isDoneMarkerStyle(stored)) decorations[key] = stored;
+			if (isDoneMarkerStyle(value)) decorations[key] = value;
 			return;
 		case "shimmerDirection":
 		case "meterDirection":
-			if (stored === "ltr" || stored === "rtl") decorations[key] = stored;
+			if (value === "ltr" || value === "rtl") decorations[key] = value;
 			return;
 		case "shimmerSpeed":
-			if (stored === "slow" || stored === "normal" || stored === "fast") decorations[key] = stored;
+			if (value === "slow" || value === "normal" || value === "fast") decorations[key] = value;
 			return;
 		default:
 			// Fail loudly if a MENU_ENTRIES cycle entry is added without a handler here.

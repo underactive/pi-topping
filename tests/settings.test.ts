@@ -121,12 +121,12 @@ test("applyMenuResult adopts the reordered element list from the menu", () => {
 	assert.deepEqual(DEFAULT_SETTINGS.loaderOrder, ["spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel"]);
 });
 
-test("cycle values normalize labels and invalid preview inputs", () => {
-	assert.equal(fromCycleDirection("Right to Left"), "rtl");
+test("cycle values validate stored values and invalid preview inputs", () => {
+	assert.equal(fromCycleDirection("rtl"), "rtl");
 	assert.equal(fromCycleDirection("ltr"), "ltr");
 	assert.equal(fromCycleDirection(undefined), "ltr");
 	assert.equal(fromCycleDirection("unexpected"), "ltr");
-	assert.equal(fromCycleSpeed("Fast"), "fast");
+	assert.equal(fromCycleSpeed("fast"), "fast");
 	assert.equal(fromCycleSpeed("normal"), "normal");
 	assert.equal(fromCycleSpeed(undefined), "normal");
 	assert.equal(fromCycleSpeed("unexpected"), "normal");
@@ -137,8 +137,8 @@ test("applyMenuResult clones settings and applies known partial values", () => {
 	const updated = applyMenuResult(original, {
 		shimmer: false,
 		"pack:simcity": true,
-		meterDirection: "Right to Left",
-		shimmerSpeed: "Fast",
+		meterDirection: "rtl",
+		shimmerSpeed: "fast",
 		shimmerInverted: true,
 		showResponseModel: false,
 		responseModelDimmed: true,
@@ -157,8 +157,8 @@ test("applyMenuResult clones settings and applies known partial values", () => {
 	assert.equal(updated.decorations.responseModelColor, "success");
 	assert.equal(updated.features.doneMarker, true);
 
-	assert.equal(applyMenuResult(updated, { meterDirection: "Left to Right" }).decorations.meterDirection, "ltr");
-	assert.equal(applyMenuResult(updated, { shimmerSpeed: "Slow" }).decorations.shimmerSpeed, "slow");
+	assert.equal(applyMenuResult(updated, { meterDirection: "ltr" }).decorations.meterDirection, "ltr");
+	assert.equal(applyMenuResult(updated, { shimmerSpeed: "slow" }).decorations.shimmerSpeed, "slow");
 });
 
 test("applyMenuResult accepts every completion marker border style", () => {
