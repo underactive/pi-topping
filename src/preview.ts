@@ -54,7 +54,7 @@ export class PreviewRenderer {
 		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false, responseModel: values.showResponseModel !== false };
 		const decorations = { shimmer: values.shimmer !== false, shimmerInverted: values.shimmerInverted === true, tokenActivityMonitor: values.tokenActivityMonitor !== false };
 		let spinnerColor = DEFAULT_SETTINGS.decorations.spinnerColor;
-		if (values.spinnerColorEnabled !== false && isSpinnerColor(values.spinnerColor)) {
+		if (isSpinnerColor(values.spinnerColor)) {
 			spinnerColor = values.spinnerColor;
 		}
 		let spinner = "";
@@ -88,7 +88,7 @@ export class PreviewRenderer {
 			styledWord = this.#ctx.ui.theme.fg("text", word);
 		}
 		let meterColor = DEFAULT_SETTINGS.decorations.meterColor;
-		if (values.meterColorEnabled !== false && isThinkingLevelColor(values.meterColor)) {
+		if (isThinkingLevelColor(values.meterColor)) {
 			meterColor = values.meterColor;
 		}
 		let meter = "";

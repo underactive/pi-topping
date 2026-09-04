@@ -41,7 +41,7 @@ import {
 import { isSiblingSetupEnabled } from "./flags.ts";
 import { showMenu } from "./menu.ts";
 import { registerSetupCommand } from "./setup-command.ts";
-import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type SpinnerColor, type ThinkingLevelColor } from "./settings.ts";
+import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type ThinkingLevelColor } from "./settings.ts";
 import { notifyMissingToppingsOnce } from "./toppings.ts";
 import { PreviewRenderer } from "./preview.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
@@ -418,11 +418,6 @@ export class SessionManager {
 		return this.#settings.decorations.animatedSpinner && this.#settings.loaderOrder[0] !== "spinner";
 	}
 
-	private spinnerColor(): SpinnerColor {
-		const decorations = this.#settings.decorations;
-		return decorations.spinnerColorEnabled ? decorations.spinnerColor : "thinking-level";
-	}
-
 	private indicatorFingerprint(): string {
 		const decorations = this.#settings.decorations;
 		return `${decorations.animatedSpinner}:${decorations.spinnerColor}:${decorations.spinnerColorEnabled}:${this.#settings.loaderOrder[0]}`;
@@ -441,7 +436,7 @@ export class SessionManager {
 			return;
 		}
 
-		const color = this.spinnerColor();
+		const color = this.#settings.decorations.spinnerColor;
 		ctx.ui.setWorkingIndicator({
 			frames: SPINNER_FRAMES.map((frame) => getThinkingLevelColorizer(ctx.ui.theme, color, ctx.thinkingLevel)(frame)),
 		});
@@ -583,7 +578,7 @@ export class SessionManager {
 			state.lastTokenRateSampledAt = now;
 		}
 		const spinner = this.spinnerInMessage()
-			? getThinkingLevelColorizer(ctx.ui.theme, this.spinnerColor(), ctx.thinkingLevel)(SPINNER_FRAMES[Math.floor(now / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!)
+			? getThinkingLevelColorizer(ctx.ui.theme, decorations.spinnerColor, ctx.thinkingLevel)(SPINNER_FRAMES[Math.floor(now / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!)
 			: "";
 		const responseModelColorizer = getThinkingLevelColorizer(ctx.ui.theme, decorations.responseModelColor, ctx.thinkingLevel);
 		const responseModelColored = features.responseModel && state.responseModel
@@ -607,7 +602,7 @@ export class SessionManager {
 			: ctx.ui.theme.fg("text", word);
 		const meterColorizer = getThinkingLevelColorizer(
 			ctx.ui.theme,
-			decorations.meterColorEnabled ? decorations.meterColor : "accent",
+			decorations.meterColor,
 			ctx.thinkingLevel,
 		);
 		const meter = decorations.tokenActivityMonitor
