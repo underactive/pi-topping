@@ -500,8 +500,7 @@ export class SessionManager {
 					model,
 					shade,
 					ctx.ui.theme,
-					color === "thinking-level" ? undefined : color,
-					color === "thinking-level" ? colorizer : undefined,
+					colorizer,
 				);
 			const responseModel = dimmed ? dimAttribute(colored) : colored;
 			ctx.ui.setStatus(RESPONSE_MODEL_STATUS_KEY, responseModel);
@@ -638,8 +637,7 @@ export class SessionManager {
 						tokenRateText,
 						Math.floor((now - state.tokenRateFadeStartsAt) / (TOKEN_RATE_FADE_MS / TOKEN_RATE_FADE_SHADE_COUNT)),
 						ctx.ui.theme,
-						decorations.tokenRateColor === "thinking-level" ? undefined : decorations.tokenRateColor,
-						decorations.tokenRateColor === "thinking-level" ? tokenRateColorizer : undefined,
+						tokenRateColorizer,
 					);
 		const tokenRateStyled = tokenRateSegment && decorations.tokenRateDimmed ? dimAttribute(tokenRateSegment) : tokenRateSegment;
 		const msg = buildWorkingMessage(

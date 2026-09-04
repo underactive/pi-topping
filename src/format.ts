@@ -1,4 +1,4 @@
-import type { Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
+import type { Theme } from "@earendil-works/pi-coding-agent";
 import type { ThinkingLevelColor, ThinkingLevelSettingColor } from "./settings.ts";
 
 /** Pi's default working-indicator frames (same braille spinner as pi-tui's Loader). */
@@ -98,18 +98,13 @@ export const RESPONSE_MODEL_FADE_MS = 500;
 export function fadeThemeColorString(
 	text: string,
 	shade: number,
-	theme: Pick<Theme, "getFgAnsi" | "fg">,
-	color: ThemeColor | undefined,
-	colorizer?: (text: string) => string,
+	theme: Pick<Theme, "getFgAnsi">,
+	colorizer: (text: string) => string,
 ): string {
 	if (!text) return "";
-	const source = colorizer
-		? ansiToRgb(colorizer("x"))
-		: color === undefined
-			? null
-			: ansiToRgb(theme.getFgAnsi(color));
+	const source = ansiToRgb(colorizer("x"));
 	const dim = ansiToRgb(theme.getFgAnsi("dim"));
-	if (!source || !dim) return colorizer ? colorizer(text) : color === undefined ? text : theme.fg(color, text);
+	if (!source || !dim) return colorizer(text);
 	const clampedShade = Math.max(0, Math.min(TOKEN_RATE_FADE_SHADE_COUNT - 1, Math.floor(shade)));
 	const progress = (clampedShade + 1) / TOKEN_RATE_FADE_SHADE_COUNT;
 	const eased = 0.5 * (1 - Math.cos(Math.PI * progress));

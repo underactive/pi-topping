@@ -130,6 +130,12 @@ type CustomFactory<T> = (
 	done: (result: T) => void,
 ) => unknown;
 
+/** Mock fg that matches createContext's getFgAnsi so fadeThemeColorString can probe the colorizer. */
+function truecolorThemeFg(color: string, text: string): string {
+	const ansi = color === "dim" ? "\x1b[38;2;96;96;96m" : "\x1b[38;2;224;224;224m";
+	return `${ansi}${text}\x1b[0m`;
+}
+
 function createContext(
 	messages: (string | undefined)[],
 	indicators: unknown[],
@@ -667,7 +673,7 @@ test("token rate holds, fades, and resets to full brightness on updates", async 
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];
-		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`);
+		const ctx = createContext(messages, [], truecolorThemeFg);
 		let tick: (() => void) | undefined;
 		let now = 1_000;
 		t.mock.method(Date, "now", () => now);
@@ -690,7 +696,7 @@ test("token rate holds, fades, and resets to full brightness on updates", async 
 
 		now = 1_350;
 		tick!();
-		assert.match(messages.at(-1)!, /<warning>  8 tps<\/warning>/);
+		assert.match(messages.at(-1)!, /\x1b\[38;2;224;224;224m  8 tps\x1b\[0m/);
 
 		const second = assistantMessage();
 		await extension.emit("message_start", { type: "message_start", message: second }, ctx);
@@ -701,12 +707,12 @@ test("token rate holds, fades, and resets to full brightness on updates", async 
 		}, ctx);
 		now = 1_450;
 		tick!();
-		assert.match(messages.at(-1)!, /<warning> 20 tps<\/warning>/);
+		assert.match(messages.at(-1)!, /\x1b\[38;2;224;224;224m 20 tps\x1b\[0m/);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(5) }, ctx);
 
 		now = 2_949;
 		tick!();
-		assert.match(messages.at(-1)!, /<warning> 20 tps<\/warning>/);
+		assert.match(messages.at(-1)!, /\x1b\[38;2;224;224;224m 20 tps\x1b\[0m/);
 		now = 2_950;
 		tick!();
 		assert.match(messages.at(-1)!, /\x1b\[38;2;212;212;212m 20 tps\x1b\[0m/);
@@ -723,7 +729,7 @@ test("token rate holds, fades, and resets to full brightness on updates", async 
 		}, ctx);
 		now = 3_049;
 		tick!();
-		assert.match(messages.at(-1)!, /<warning> 20 tps<\/warning>/);
+		assert.match(messages.at(-1)!, /\x1b\[38;2;224;224;224m 20 tps\x1b\[0m/);
 
 		now = 4_549;
 		tick!();
@@ -733,7 +739,7 @@ test("token rate holds, fades, and resets to full brightness on updates", async 
 		assert.match(messages.at(-1)!, /\x1b\[38;2;96;96;96m 20 tps\x1b\[0m/);
 		now = 4_799;
 		tick!();
-		assert.match(messages.at(-1)!, /<dim>--- tps<\/dim>/);
+		assert.match(messages.at(-1)!, /\x1b\[38;2;96;96;96m--- tps\x1b\[0m/);
 	});
 });
 
@@ -776,7 +782,7 @@ test("response model is sanitized, configurable, and holds then fades after sett
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];
 		const statuses: { key: string; text: string | undefined }[] = [];
-		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`, { statuses });
+		const ctx = createContext(messages, [], truecolorThemeFg, { statuses });
 		const timeouts: (() => void)[] = [];
 		const intervals: (() => void)[] = [];
 		t.mock.method(Date, "now", () => 1_000);
@@ -794,10 +800,10 @@ test("response model is sanitized, configurable, and holds then fades after sett
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "\u0000 test-model \u001b") }, ctx);
-		assert.match(messages.at(-1)!, /\x1b\[2m<success>test-model<\/success>\x1b\[22m$/);
+		assert.match(messages.at(-1)!, /\x1b\[2m\x1b\[38;2;224;224;224mtest-model\x1b\[0m\x1b\[22m$/);
 
 		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
-		assert.match(statuses.at(-1)!.text!, /\x1b\[2m<success>test-model<\/success>\x1b\[22m$/);
+		assert.match(statuses.at(-1)!.text!, /\x1b\[2m\x1b\[38;2;224;224;224mtest-model\x1b\[0m\x1b\[22m$/);
 		assert.equal(timeouts.length, 1);
 		timeouts[0]!();
 		assert.match(statuses.at(-1)!.text!, /\x1b\[2m\x1b\[38;2;/);

@@ -25,7 +25,7 @@ test("fadeThemeColorString uses five cosine-eased warning-to-dim shades", () => 
 		getFgAnsi: (color: string) => color === "warning" ? "\x1b[38;2;110;120;130m" : "\x1b[38;2;10;20;30m",
 		fg: (_color: string, text: string) => text,
 	};
-	const shades = Array.from({ length: TOKEN_RATE_FADE_SHADE_COUNT }, (_, level) => fadeThemeColorString(" 20 tps", level, theme, "warning"));
+	const shades = Array.from({ length: TOKEN_RATE_FADE_SHADE_COUNT }, (_, level) => fadeThemeColorString(" 20 tps", level, theme, (t) => `${theme.getFgAnsi("warning")}${t}`));
 
 	assert.deepEqual(shades, [
 		"\x1b[38;2;100;110;120m 20 tps\x1b[0m",
@@ -43,7 +43,7 @@ test("fadeThemeColorString blends the selected color toward dim", () => {
 	};
 
 	assert.equal(
-		fadeThemeColorString(" 20 tps", 0, theme, "success"),
+		fadeThemeColorString(" 20 tps", 0, theme, (t) => `${theme.getFgAnsi("success")}${t}`),
 		"\x1b[38;2;100;110;120m 20 tps\x1b[0m",
 	);
 });
@@ -54,7 +54,7 @@ test("fade and shimmer fall back for non-truecolor themes", () => {
 		fg: (color: string, text: string) => `<${color}>${text}</${color}>`,
 	};
 
-	assert.equal(fadeThemeColorString("rate", 0, theme, "error"), "<error>rate</error>");
+	assert.equal(fadeThemeColorString("rate", 0, theme, (t) => theme.fg("error", t)), "<error>rate</error>");
 	assert.equal(shimmerString("text", 0, theme), "<text>text</text>");
 });
 
