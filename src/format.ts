@@ -91,7 +91,7 @@ export function dimAttribute(text: string): string {
 	return `\x1b[2m${text}\x1b[22m`;
 }
 
-/** Number of discrete, eased warning-to-dim shades used for the token-rate fade. */
+/** Number of discrete, eased shades used by the token-rate and response-model fades. */
 export const TOKEN_RATE_FADE_SHADE_COUNT = 5;
 
 /** Milliseconds a settled response model remains fully visible before fading. */
@@ -100,7 +100,7 @@ export const RESPONSE_MODEL_HOLD_MS = 3_000;
 /** Milliseconds over which a settled response model fades through the theme shades. */
 export const RESPONSE_MODEL_FADE_MS = 500;
 
-/** Render one token-rate fade shade by blending the selected color toward the active theme's dim color. */
+/** Render one fade shade by blending the colorizer's color toward the active theme's dim color. */
 export function fadeThemeColorString(
 	text: string,
 	shade: number,
