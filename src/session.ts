@@ -237,19 +237,17 @@ export class SessionManager {
 
 	#onMessageUpdate = async (event: MessageUpdateEvent, ctx: ExtensionContext): Promise<void> => {
 		this.#currentCtx = ctx;
+		if (!this.usable(ctx)) return;
 		const assistantEvent = event.assistantMessageEvent;
 		if (
-			this.usable(ctx) &&
 			assistantEvent &&
 			(assistantEvent.type === "text_delta" || assistantEvent.type === "thinking_delta")
 		) {
 			this.#state.liveTokens += this.#counter.count(assistantEvent.delta, assistantEvent.type);
 		}
-		if (this.usable(ctx)) {
-			const rawResponseModel = (assistantEvent as { partial?: { responseModel?: unknown } } | undefined)?.partial?.responseModel
-				?? (event.message as { responseModel?: unknown } | undefined)?.responseModel;
-			this.updateResponseModel(rawResponseModel);
-		}
+		const rawResponseModel = (assistantEvent as { partial?: { responseModel?: unknown } } | undefined)?.partial?.responseModel
+			?? (event.message as { responseModel?: unknown } | undefined)?.responseModel;
+		this.updateResponseModel(rawResponseModel);
 	};
 
 	#onMessageEnd = async (event: MessageEndEvent, ctx: ExtensionContext): Promise<void> => {
