@@ -13,10 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Legacy `string[]` menu preview results; preview callbacks must now return `PreviewResult` (use `nextRefreshInMs: 50` for the previous default animation interval).
 
 ### Added
-- `default` animated spinner color option, which defers to Pi's thinking-level-colored indicator.
-- `default` completion marker border color option, which defers to Pi's thinking-level-colored border.
+- `thinking-level` animated spinner color option (shown as `thinkingLevel`), which defers to Pi's thinking-level-colored indicator.
+- `thinking-level` completion marker border color option, which defers to Pi's thinking-level-colored border.
 - `thinking-level` user-prompt border color option, which follows the thinking level captured at submission.
-- `thinkingLevel` color options for the token activity monitor, token rate, and response model, which follow Pi's active thinking-level color.
+- `thinking-level` color options for the token activity monitor, token rate, and response model, which follow Pi's active thinking-level color.
 - `text` and `muted` color options for the token activity monitor, token rate, and response model in the working loader.
 
 ### Changed
