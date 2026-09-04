@@ -1,6 +1,6 @@
 import type { MessageRenderer } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import type { ThinkingLevel } from "./format.ts";
+import { getThinkingLevelColorizer, type ThinkingLevel } from "./format.ts";
 import { DEFAULT_SETTINGS, isBorderStyle, isPromptBorderColor, type BorderStyle, type DoneMarkerBorderColor, type DoneMarkerBorderStyle, type DoneMarkerStyle, type PromptBorderColor } from "./settings.ts";
 import { stripControlChars } from "./util.ts";
 
@@ -65,9 +65,7 @@ export function buildCompletionMarkerLine(
 	if (borderStyle === "none") return truncateToWidth(content, safeWidth);
 
 	const g = BORDER_GLYPHS[borderStyle];
-	const border = borderColor === "default"
-		? theme.getThinkingBorderColor(thinkingLevel ?? "off")
-		: (text: string) => theme.fg(borderColor, text);
+	const border = getThinkingLevelColorizer(theme, borderColor, thinkingLevel);
 	const prefix = `${g.bl}${g.h.repeat(2)} `;
 
 	const suffix = markerStyle === "bookend"
@@ -90,9 +88,7 @@ export function buildPromptBoxLines(
 	const borderStyle = isBorderStyle(options.borderStyle) ? options.borderStyle : "double";
 	const g = BORDER_GLYPHS[borderStyle];
 	const borderColor = isPromptBorderColor(options.borderColor) ? options.borderColor : DEFAULT_SETTINGS.decorations.borderColor;
-	const border = borderColor === "thinking-level"
-		? theme.getThinkingBorderColor(options.thinkingLevel ?? "off")
-		: (text: string) => theme.fg(borderColor, text);
+	const border = getThinkingLevelColorizer(theme, borderColor, options.thinkingLevel);
 	const iconColor = (text: string) => theme.fg("text", text);
 	const label = (text: string) => theme.fg("customMessageLabel", text);
 	const muted = (text: string) => theme.fg("dim", text);

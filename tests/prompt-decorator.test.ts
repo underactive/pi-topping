@@ -105,14 +105,14 @@ test("prompt box uses its captured thinking level for the thinking-level border"
 test("completion marker uses the selected border color", () => {
 	for (const color of DONE_MARKER_BORDER_COLOR_VALUES) {
 		const line = buildCompletionMarkerLine(" Mustered", 80, taggedTheme, "heavy", color);
-		if (color === "default") assert.match(line, /^<thinking-off>┗━━/);
+		if (color === "thinking-level") assert.match(line, /^<thinking-off>┗━━/);
 		else assert.match(line, new RegExp(`^<${color}>┗━━`));
 	}
 });
 
 test("completion marker default border uses its thinking-level color", () => {
 	assert.match(
-		buildCompletionMarkerLine(" Mustered", 80, taggedTheme, "heavy", "default", "elite", "high"),
+		buildCompletionMarkerLine(" Mustered", 80, taggedTheme, "heavy", "thinking-level", "elite", "high"),
 		/^<thinking-high>┗━━/,
 	);
 });

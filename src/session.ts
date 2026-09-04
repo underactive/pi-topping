@@ -30,7 +30,6 @@ import {
 	RESPONSE_MODEL_HOLD_MS,
 	SHIMMER_INTERVAL_MS,
 	shimmerString,
-	spinnerFrame,
 	SPINNER_FRAME_MS,
 	SPINNER_FRAMES,
 	TOKEN_RATE_FADE_SHADE_COUNT,
@@ -421,7 +420,7 @@ export class SessionManager {
 
 	private spinnerColor(): SpinnerColor {
 		const decorations = this.#settings.decorations;
-		return decorations.spinnerColorEnabled ? decorations.spinnerColor : "default";
+		return decorations.spinnerColorEnabled ? decorations.spinnerColor : "thinking-level";
 	}
 
 	private indicatorFingerprint(): string {
@@ -444,7 +443,7 @@ export class SessionManager {
 
 		const color = this.spinnerColor();
 		ctx.ui.setWorkingIndicator({
-			frames: SPINNER_FRAMES.map((frame) => spinnerFrame(ctx.ui.theme, color, ctx.thinkingLevel, frame)),
+			frames: SPINNER_FRAMES.map((frame) => getThinkingLevelColorizer(ctx.ui.theme, color, ctx.thinkingLevel)(frame)),
 		});
 	}
 
@@ -585,7 +584,7 @@ export class SessionManager {
 			state.lastTokenRateSampledAt = now;
 		}
 		const spinner = this.spinnerInMessage()
-			? spinnerFrame(ctx.ui.theme, this.spinnerColor(), ctx.thinkingLevel, SPINNER_FRAMES[Math.floor(now / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!)
+			? getThinkingLevelColorizer(ctx.ui.theme, this.spinnerColor(), ctx.thinkingLevel)(SPINNER_FRAMES[Math.floor(now / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!)
 			: "";
 		const responseModelColorizer = getThinkingLevelColorizer(ctx.ui.theme, decorations.responseModelColor, ctx.thinkingLevel);
 		const responseModelColored = features.responseModel && state.responseModel

@@ -12,12 +12,14 @@ export const LOADER_COLOR_VALUES = [...SETTING_COLOR_VALUES, "text", "muted"] as
 export type LoaderColor = (typeof LOADER_COLOR_VALUES)[number];
 export const THINKING_LEVEL_COLOR_VALUES = ["thinking-level", ...LOADER_COLOR_VALUES] as const;
 export type ThinkingLevelColor = (typeof THINKING_LEVEL_COLOR_VALUES)[number];
-export const SPINNER_COLOR_VALUES = ["default", ...SETTING_COLOR_VALUES] as const;
-export type SpinnerColor = (typeof SPINNER_COLOR_VALUES)[number];
-export const PROMPT_BORDER_COLOR_VALUES = ["thinking-level", ...SETTING_COLOR_VALUES] as const;
-export type PromptBorderColor = (typeof PROMPT_BORDER_COLOR_VALUES)[number];
-export const DONE_MARKER_BORDER_COLOR_VALUES = ["default", ...SETTING_COLOR_VALUES] as const;
-export type DoneMarkerBorderColor = (typeof DONE_MARKER_BORDER_COLOR_VALUES)[number];
+export const THINKING_LEVEL_SETTING_COLOR_VALUES = ["thinking-level", ...SETTING_COLOR_VALUES] as const;
+export type ThinkingLevelSettingColor = (typeof THINKING_LEVEL_SETTING_COLOR_VALUES)[number];
+export const SPINNER_COLOR_VALUES = THINKING_LEVEL_SETTING_COLOR_VALUES;
+export type SpinnerColor = ThinkingLevelSettingColor;
+export const PROMPT_BORDER_COLOR_VALUES = THINKING_LEVEL_SETTING_COLOR_VALUES;
+export type PromptBorderColor = ThinkingLevelSettingColor;
+export const DONE_MARKER_BORDER_COLOR_VALUES = THINKING_LEVEL_SETTING_COLOR_VALUES;
+export type DoneMarkerBorderColor = ThinkingLevelSettingColor;
 const THINKING_LEVEL_COLOR_MIGRATION_VERSION = 2;
 export const SETTINGS_SCHEMA_VERSION = 3;
 
@@ -52,17 +54,13 @@ export function isThinkingLevelColor(value: unknown): value is ThinkingLevelColo
 	return typeof value === "string" && THINKING_LEVEL_COLOR_VALUES.some(color => color === value);
 }
 
-export function isSpinnerColor(value: unknown): value is SpinnerColor {
-	return typeof value === "string" && SPINNER_COLOR_VALUES.some(color => color === value);
+export function isThinkingLevelSettingColor(value: unknown): value is ThinkingLevelSettingColor {
+	return typeof value === "string" && THINKING_LEVEL_SETTING_COLOR_VALUES.some(color => color === value);
 }
 
-export function isPromptBorderColor(value: unknown): value is PromptBorderColor {
-	return typeof value === "string" && PROMPT_BORDER_COLOR_VALUES.some(color => color === value);
-}
-
-export function isDoneMarkerBorderColor(value: unknown): value is DoneMarkerBorderColor {
-	return typeof value === "string" && DONE_MARKER_BORDER_COLOR_VALUES.some(color => color === value);
-}
+export const isSpinnerColor = isThinkingLevelSettingColor;
+export const isPromptBorderColor = isThinkingLevelSettingColor;
+export const isDoneMarkerBorderColor = isThinkingLevelSettingColor;
 
 export interface DecoratorSettings {
 	decorations: {
@@ -116,7 +114,7 @@ export interface DecoratorSettings {
 }
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
-	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "thinking-level", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "default", doneMarkerStyle: "elite", spinnerColor: "default", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, responseModelColor: "accent", responseModelDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
+	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "thinking-level", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "thinking-level", doneMarkerStyle: "elite", spinnerColor: "thinking-level", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, responseModelColor: "accent", responseModelDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
 	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, responseModel: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 	wordPacks: {},
@@ -160,8 +158,10 @@ function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, par
 		if (typeof merged[key] === "boolean" && typeof value === "boolean") valid = value;
 		else if ((key === "meterDirection" || key === "shimmerDirection") && (value === "ltr" || value === "rtl")) valid = value;
 		else if (key === "shimmerSpeed" && (value === "slow" || value === "normal" || value === "fast")) valid = value;
+		else if (key === "spinnerColor" && value === "default") valid = "thinking-level";
 		else if (key === "spinnerColor" && isSpinnerColor(value)) valid = value;
 		else if (key === "borderColor" && isPromptBorderColor(value)) valid = value;
+		else if (key === "doneMarkerBorderColor" && value === "default") valid = "thinking-level";
 		else if (key === "doneMarkerBorderColor" && isDoneMarkerBorderColor(value)) valid = value;
 		else if ((key === "meterColor" || key === "tokenRateColor") && isThinkingLevelColor(value)) valid = value;
 		else if (key === "responseModelColor" && isThinkingLevelColor(value)) valid = value;
@@ -214,7 +214,7 @@ type MenuEntryBase = { id: string; label: string; section: MenuSectionName };
 type DecorationMenuEntry = MenuEntryBase & { group: "decorations"; key: keyof DecorationSettings; cycleValues?: readonly string[]; cycleValueLabels?: Readonly<Record<string, string>>; cycleEnabledBy?: DecorationBooleanKey; cycleDisabledValue?: string };
 type FeatureMenuEntry = MenuEntryBase & { group: "features"; key: keyof FeatureSettings; cycleValues?: never; cycleValueLabels?: never; cycleEnabledBy?: never; cycleDisabledValue?: never };
 type MenuEntry = DecorationMenuEntry | FeatureMenuEntry;
-const THINKING_LEVEL_CYCLE_LABELS = { default: "thinkingLevel", "thinking-level": "thinkingLevel" } as const;
+const THINKING_LEVEL_CYCLE_LABELS = { "thinking-level": "thinkingLevel" } as const;
 export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "decorateUserPrompt", label: "High-vis prompt", section: "User Prompt", group: "decorations", key: "decorateUserPrompt" },
 	{ id: "borderStyle", label: "Border style", section: "User Prompt", group: "decorations", key: "borderStyle", cycleValues: BORDER_STYLE_VALUES, cycleEnabledBy: "borderStyleEnabled", cycleDisabledValue: "double" },
@@ -224,7 +224,7 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "promptProvider", label: "Provider", section: "User Prompt", group: "decorations", key: "promptProvider" },
 	{ id: "promptModel", label: "Model", section: "User Prompt", group: "decorations", key: "promptModel" },
 	{ id: "animatedSpinner", label: "Animated spinner", section: "“Working” Loader", group: "decorations", key: "animatedSpinner" },
-	{ id: "spinnerColor", label: "Animated spinner color", section: "“Working” Loader", group: "decorations", key: "spinnerColor", cycleValues: SPINNER_COLOR_VALUES, cycleValueLabels: THINKING_LEVEL_CYCLE_LABELS, cycleEnabledBy: "spinnerColorEnabled", cycleDisabledValue: "default" },
+	{ id: "spinnerColor", label: "Animated spinner color", section: "“Working” Loader", group: "decorations", key: "spinnerColor", cycleValues: SPINNER_COLOR_VALUES, cycleValueLabels: THINKING_LEVEL_CYCLE_LABELS, cycleEnabledBy: "spinnerColorEnabled", cycleDisabledValue: "thinking-level" },
 	{ id: "substituteDefaultMessage", label: "Randomize “Working” text", section: "“Working” Loader", group: "features", key: "substituteDefaultMessage" },
 	{ id: "shimmer", label: "Text shimmer", section: "“Working” Loader", group: "decorations", key: "shimmer" },
 	{ id: "shimmerInverted", label: "Invert shimmer", section: "“Working” Loader", group: "decorations", key: "shimmerInverted" },
@@ -369,11 +369,11 @@ export function loadSettings(): DecoratorSettings {
 		const settings = { decorations: mergeGroup(DEFAULT_SETTINGS.decorations, parsed.decorations), features: mergeGroup(DEFAULT_SETTINGS.features, parsed.features), loaderOrder: parseLoaderOrder(parsed.loaderOrder), wordPacks };
 		const schemaVersion = typeof parsed.schemaVersion === "number" ? parsed.schemaVersion : 1;
 		if (schemaVersion < THINKING_LEVEL_COLOR_MIGRATION_VERSION) {
-			settings.decorations.spinnerColor = "default";
+			settings.decorations.spinnerColor = "thinking-level";
 			if (settings.decorations.borderColor === "borderAccent") settings.decorations.borderColor = "thinking-level";
 		}
 		if (schemaVersion < SETTINGS_SCHEMA_VERSION) {
-			settings.decorations.doneMarkerBorderColor = "default";
+			settings.decorations.doneMarkerBorderColor = "thinking-level";
 		}
 		for (const entry of MENU_ENTRIES) {
 			if (entry.group === "decorations" && entry.cycleEnabledBy && entry.cycleDisabledValue !== undefined && !settings.decorations[entry.cycleEnabledBy]) {

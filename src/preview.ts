@@ -1,7 +1,7 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_PREVIEW_WIDTH, type PreviewResult } from "./menu.ts";
 import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
-import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatElapsed, formatTokenRate, formatTokens, getThinkingLevelColorizer, isFullyDefaultAppearance, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, shimmerString, spinnerFrame, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
+import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatElapsed, formatTokenRate, formatTokens, getThinkingLevelColorizer, isFullyDefaultAppearance, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
 import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderColor, isDoneMarkerBorderStyle, isDoneMarkerStyle, isPromptBorderColor, isSpinnerColor, isThinkingLevelColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
 import { isWordPackEnabled, selectWorkingTextSelection, wordPacksPath, type WordPack } from "./word-packs.ts";
@@ -59,7 +59,7 @@ export class PreviewRenderer {
 		}
 		let spinner = "";
 		if (values.animatedSpinner !== false) {
-			spinner = spinnerFrame(this.#ctx.ui.theme, spinnerColor, this.#ctx.thinkingLevel, SPINNER_FRAMES[Math.floor(elapsedMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!);
+			spinner = getThinkingLevelColorizer(this.#ctx.ui.theme, spinnerColor, this.#ctx.thinkingLevel)(SPINNER_FRAMES[Math.floor(elapsedMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!);
 		}
 		const order = parseLoaderOrder(values[LOADER_ORDER_ID]);
 		let responseModelColor = DEFAULT_SETTINGS.decorations.responseModelColor;

@@ -1548,7 +1548,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.decorations.promptModel, !DEFAULT_SETTINGS.decorations.promptModel);
 		assert.equal(persisted.decorations.animatedSpinner, !DEFAULT_SETTINGS.decorations.animatedSpinner);
 		assert.equal(persisted.decorations.spinnerColorEnabled, false);
-		assert.equal(persisted.decorations.spinnerColor, "default");
+		assert.equal(persisted.decorations.spinnerColor, "thinking-level");
 		assert.equal(
 			persisted.features.substituteDefaultMessage,
 			!DEFAULT_SETTINGS.features.substituteDefaultMessage,
@@ -2026,7 +2026,7 @@ test("completion marker default border uses the active thinking level", async (t
 	await withTempAgentDir(async () => {
 		saveSettings({
 			...DEFAULT_SETTINGS,
-			decorations: { ...DEFAULT_SETTINGS.decorations, doneMarkerBorderStyle: "heavy", doneMarkerBorderColor: "default" },
+			decorations: { ...DEFAULT_SETTINGS.decorations, doneMarkerBorderStyle: "heavy", doneMarkerBorderColor: "thinking-level" },
 		});
 
 		const extension = new MockExtension();
