@@ -378,12 +378,7 @@ export class MenuComponent implements Component {
 	}
 
 	/** Render the scrolling settings body while keeping the selected item in view. */
-	private buildResponsiveToggleSections(innerWidth: number, maxRows: number, allLines: string[]): string[] {
-		if (allLines.length <= maxRows) {
-			this.scrollStart = 0;
-			this.pageItemCount = Math.max(1, this.flat.length);
-			return allLines;
-		}
+	private buildResponsiveToggleSections(innerWidth: number, maxRows: number): string[] {
 		if (maxRows <= 0) {
 			this.pageItemCount = 1;
 			return [];
@@ -448,15 +443,16 @@ export class MenuComponent implements Component {
 		const previewLines = this.samplePreview(Math.max(0, innerWidth - 1));
 		const header = [this.renderTopBorder(innerWidth), ...this.buildPreviewBlock(previewLines, innerWidth)];
 		const footer = this.buildFooter(innerWidth);
-		const naturalBody = this.buildToggleSections(innerWidth);
-		const naturalHeight = header.length + naturalBody.length + footer.length;
-		if (maxRows === undefined || naturalHeight <= maxRows) {
+		const sectionsWithItems = new Set(this.flat.map(f => f.sectionIndex)).size;
+		const naturalBodyLength = this.flat.length + 2 * sectionsWithItems;
+		if (maxRows === undefined || header.length + naturalBodyLength + footer.length <= maxRows) {
+			const naturalBody = this.buildToggleSections(innerWidth);
 			this.pageItemCount = Math.max(1, this.flat.length);
 			return [...header, ...naturalBody, ...footer].map(line => truncateToWidth(line, boxWidth, ""));
 		}
 
 		const bodyRows = Math.max(0, maxRows - header.length - footer.length);
-		const body = this.buildResponsiveToggleSections(innerWidth, bodyRows, naturalBody);
+		const body = this.buildResponsiveToggleSections(innerWidth, bodyRows);
 		return [...header, ...body, ...footer].slice(0, maxRows).map(line => truncateToWidth(line, boxWidth, ""));
 	}
 
