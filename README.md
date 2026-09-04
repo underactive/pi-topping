@@ -112,12 +112,13 @@ Bundled packs live in [`wordpacks/`](wordpacks/). Copy `wordpacks/doctor-who.jso
   "packs": [{
     "id": "cooking",
     "name": "Cooking",
+    "description": "Kitchen operations.",
     "words": [{ "present_tense": "Sautéing onions", "past_tense": "Sautéed" }]
   }]
 }
 ```
 
-Pack IDs must start with a lowercase letter and contain only lowercase letters, digits, and `-`. Each pack needs a non-empty `name` and at least one word with non-empty `present_tense` and `past_tense` strings. Invalid entries are ignored. Packs reload when a session starts and whenever `/topping-settings` opens, not while a turn is running. Preferences for missing packs are retained so they apply when the pack returns.
+Pack IDs must start with a lowercase letter, contain only lowercase letters, digits, and `-`, and be at most 64 characters. Each pack needs a non-empty `name` and at least one word with non-empty `present_tense` and `past_tense` strings. An optional `description` appears in the settings preview when the pack row is selected, and an optional `attribution` records the source. Invalid entries are ignored. Packs reload when a session starts and whenever `/topping-settings` opens, not while a turn is running. Preferences for missing packs are retained so they apply when the pack returns.
 
 The `default` animated spinner and completion marker border colors defer to Pi's thinking-level color. The `thinking-level` prompt border color follows the level captured when the prompt is submitted. The `thinkingLevel` color option for the token activity monitor, token rate, and response model follows Pi's active thinking-level color.
 
