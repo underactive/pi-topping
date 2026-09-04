@@ -145,16 +145,19 @@ export function buildPromptBoxLines(
 export const promptBoxRenderer: MessageRenderer<PromptBoxDetails> = (message, _options, theme) => {
 	const content = typeof message.content === "string" ? message.content.replace(/(?![\n\t])[\p{Cc}\p{Cf}]/gu, "") : "";
 	const details = (message.details ?? {}) as PromptBoxDetails;
-	const linesByWidth = new Map<number, string[]>();
+	let cachedWidth: number | undefined;
+	let cachedLines: string[] | undefined;
 	return {
 		render(width: number): string[] {
-			let lines = linesByWidth.get(width);
-			if (!lines) {
-				lines = buildPromptBoxLines(content, details.submittedAt, width, theme, details);
-				linesByWidth.set(width, lines);
+			if (cachedWidth !== width) {
+				cachedWidth = width;
+				cachedLines = buildPromptBoxLines(content, details.submittedAt, width, theme, details);
 			}
-			return lines;
+			return cachedLines!;
 		},
-		invalidate() { linesByWidth.clear(); },
+		invalidate() {
+			cachedWidth = undefined;
+			cachedLines = undefined;
+		},
 	};
 };
