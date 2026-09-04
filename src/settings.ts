@@ -7,9 +7,7 @@ import { isWordPackEnabled, isWordPackId, type WordPack } from "./word-packs.ts"
 import { isPlainObject } from "./util.ts";
 
 export const SETTING_COLOR_VALUES = ["accent", "border", "borderAccent", "success", "error", "warning"] as const;
-export type SettingColor = (typeof SETTING_COLOR_VALUES)[number];
 export const LOADER_COLOR_VALUES = [...SETTING_COLOR_VALUES, "text", "muted"] as const;
-export type LoaderColor = (typeof LOADER_COLOR_VALUES)[number];
 export const THINKING_LEVEL_COLOR_VALUES = ["thinking-level", ...LOADER_COLOR_VALUES] as const;
 export type ThinkingLevelColor = (typeof THINKING_LEVEL_COLOR_VALUES)[number];
 export const THINKING_LEVEL_SETTING_COLOR_VALUES = ["thinking-level", ...SETTING_COLOR_VALUES] as const;
@@ -40,14 +38,6 @@ export function isDoneMarkerBorderStyle(value: unknown): value is DoneMarkerBord
 
 export function isDoneMarkerStyle(value: unknown): value is DoneMarkerStyle {
 	return typeof value === "string" && DONE_MARKER_STYLE_VALUES.some(style => style === value);
-}
-
-export function isSettingColor(value: unknown): value is SettingColor {
-	return typeof value === "string" && SETTING_COLOR_VALUES.some(color => color === value);
-}
-
-export function isLoaderColor(value: unknown): value is LoaderColor {
-	return typeof value === "string" && LOADER_COLOR_VALUES.some(color => color === value);
 }
 
 export function isThinkingLevelColor(value: unknown): value is ThinkingLevelColor {
