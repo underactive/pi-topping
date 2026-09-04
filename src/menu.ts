@@ -90,12 +90,6 @@ function closeTruncatedHyperlink(text: string): string {
 }
 
 interface FlatItem {
-	id: string;
-	label: string;
-	cycleValues?: readonly string[];
-	cycleEnabledBy?: string;
-	cycleDisabledValue?: string;
-	reorderGroup?: string;
 	item: MenuItem;
 	sectionIndex: number;
 }
@@ -161,7 +155,7 @@ export class MenuComponent implements Component {
 		this.flat = [];
 		for (const [sectionIndex, section] of config.sections.entries()) {
 			for (const item of section.items) {
-				this.flat.push({ id: item.id, label: item.label, cycleValues: item.cycleValues, cycleEnabledBy: item.cycleEnabledBy, cycleDisabledValue: item.cycleDisabledValue, reorderGroup: item.reorderGroup, item, sectionIndex });
+				this.flat.push({ item, sectionIndex });
 			}
 		}
 		this.initialValues = { ...this.values };
@@ -221,7 +215,7 @@ export class MenuComponent implements Component {
 			[Key.left]: () => this.cycleCurrentValue(-1),
 			[Key.right]: () => this.cycleCurrentValue(1),
 			[Key.space]: () => {
-				const item = this.flat[this.cursor]!;
+				const item = this.flat[this.cursor]!.item;
 				if (item.cycleValues && item.cycleEnabledBy) {
 					this.values[item.cycleEnabledBy] = !this.values[item.cycleEnabledBy] as boolean;
 					if (!this.values[item.cycleEnabledBy] && item.cycleDisabledValue !== undefined) this.values[item.id] = item.cycleDisabledValue;
@@ -260,20 +254,20 @@ export class MenuComponent implements Component {
 	 */
 	private moveGrabbedItem(delta: number): boolean {
 		const grabbed = this.flat[this.cursor]!;
-		const group = grabbed.reorderGroup;
-		if (group === undefined || this.values[grabbed.id] !== true) return false;
+		const group = grabbed.item.reorderGroup;
+		if (group === undefined || this.values[grabbed.item.id] !== true) return false;
 
 		let start = this.cursor;
-		while (start > 0 && this.flat[start - 1]!.reorderGroup === group) start--;
+		while (start > 0 && this.flat[start - 1]!.item.reorderGroup === group) start--;
 		let end = this.cursor;
-		while (end < this.flat.length - 1 && this.flat[end + 1]!.reorderGroup === group) end++;
+		while (end < this.flat.length - 1 && this.flat[end + 1]!.item.reorderGroup === group) end++;
 
 		const target = Math.max(start, Math.min(end, this.cursor + delta));
 		if (target !== this.cursor) {
 			this.flat.splice(this.cursor, 1);
 			this.flat.splice(target, 0, grabbed);
 			this.cursor = target;
-			this.values[group] = this.flat.slice(start, end + 1).map(flat => flat.id).join(",");
+			this.values[group] = this.flat.slice(start, end + 1).map(flat => flat.item.id).join(",");
 			this.invalidate();
 		}
 		return true;
@@ -294,7 +288,7 @@ export class MenuComponent implements Component {
 	}
 
 	private cycleCurrentValue(delta: number): void {
-		const item = this.flat[this.cursor]!;
+		const item = this.flat[this.cursor]!.item;
 		if (!item.cycleValues?.length || (item.cycleEnabledBy && !this.values[item.cycleEnabledBy])) return;
 		const current = item.cycleValues.indexOf(this.values[item.id] as string);
 		const index = (current + delta + item.cycleValues.length) % item.cycleValues.length;
@@ -308,7 +302,7 @@ export class MenuComponent implements Component {
 		const result = this.previewFn(
 			this.values,
 			this.previewOrigin !== undefined ? Date.now() - this.previewOrigin : 0,
-			this.flat[this.cursor]?.id,
+			this.flat[this.cursor]?.item.id,
 			width,
 		);
 		if (Array.isArray(result)) {
