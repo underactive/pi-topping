@@ -221,6 +221,7 @@ export class SessionManager {
 		if (!this.usable(ctx)) return;
 		if (!this.#state.startTime) this.resetTurn(Date.now());
 		this.#state.busy = true;
+		if (!this.#state.waiting) this.applyIndicator(ctx);
 		this.startTimer();
 		this.tick();
 	};

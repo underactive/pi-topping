@@ -297,7 +297,9 @@ test("agent_start preserves the spinner and places the activity meter after the 
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 
-		assert.equal(indicators.length, 0);
+		assert.deepEqual(indicators.at(-1), {
+			frames: SPINNER_FRAMES.map((frame) => `<thinking-off>${frame}</thinking-off>`),
+		});
 		const message = messages[0]!;
 		const meter = "<dim>⢀</dim>".repeat(8);
 		assert.ok(message.indexOf(meter) > 0);
@@ -1237,6 +1239,33 @@ test("animatedSpinner=true (default) uses thinking-level spinner frames", async 
 		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
 
 		assert.ok(!indicators.some((i) => JSON.stringify(i) === JSON.stringify({ frames: [] })));
+		assert.deepEqual(indicators.at(-1), {
+			frames: SPINNER_FRAMES.map((frame) => `<thinking-high>${frame}</thinking-high>`),
+		});
+	});
+});
+
+test("agent_start refreshes the leading spinner when thinking level changes between turns", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const indicators: unknown[] = [];
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, indicators, (color, text) => `<${color}>${text}</${color}>`, { thinkingLevel: "off" });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		assert.deepEqual(indicators.at(-1), {
+			frames: SPINNER_FRAMES.map((frame) => `<thinking-off>${frame}</thinking-off>`),
+		});
+
+		(ctx as ExtensionContext & { thinkingLevel: "high" }).thinkingLevel = "high";
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+
 		assert.deepEqual(indicators.at(-1), {
 			frames: SPINNER_FRAMES.map((frame) => `<thinking-high>${frame}</thinking-high>`),
 		});
