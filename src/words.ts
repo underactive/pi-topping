@@ -2,7 +2,7 @@
  * Activity word list for the randomized "Working" indicator.
  *
  * A random word is picked on prompt and on tool execution start
- * (see index.ts).
+ * (see SessionManager in src/session.ts).
  */
 
 export interface WordEntry {
