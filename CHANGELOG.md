@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `/topping-setup` now lists sibling toppings installed through Pi in an "Installed Toppings" section and uninstalls checked rows with `pi remove`; removal rows default off and only packages recorded in Pi's user settings are offered.
+
 ## [0.7.0] - 2026-09-04
 
 ### Removed

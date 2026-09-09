@@ -9,17 +9,16 @@ export interface PiInstallResult {
 const SIGKILL_GRACE_MS = 5_000;
 const EXIT_TIMEOUT = 124;
 
-/** Run `pi install <spec>` without relying on Pi's shell-less exec wrapper on Windows. */
-export function spawnPiInstall(spec: string, timeoutMs: number): Promise<PiInstallResult> {
+function spawnPiPackageCommand(command: "install" | "remove", spec: string, timeoutMs: number): Promise<PiInstallResult> {
 	if (!/^npm:@?[\w.-]+(\/[\w.-]+)?$/.test(spec)) {
 		return Promise.resolve({ code: 1, stdout: "", stderr: `invalid spec: ${spec}` });
 	}
 	return new Promise((resolve) => {
 		const isWindows = process.platform === "win32";
-		const [command, args, options] = isWindows
-			? (["cmd.exe", ["/c", "pi", "install", spec], { windowsHide: true }] as const)
-			: (["pi", ["install", spec], {}] as const);
-		const processHandle = spawn(command, args, { ...options, stdio: ["ignore", "pipe", "pipe"] });
+		const [executable, args, options] = isWindows
+			? (["cmd.exe", ["/c", "pi", command, spec], { windowsHide: true }] as const)
+			: (["pi", [command, spec], {}] as const);
+		const processHandle = spawn(executable, args, { ...options, stdio: ["ignore", "pipe", "pipe"] });
 		let stdout = "";
 		let stderr = "";
 		let settled = false;
@@ -60,4 +59,14 @@ export function spawnPiInstall(spec: string, timeoutMs: number): Promise<PiInsta
 			finish({ code: code ?? 1, stdout, stderr });
 		});
 	});
+}
+
+/** Run `pi install <spec>` without relying on Pi's shell-less exec wrapper on Windows. */
+export function spawnPiInstall(spec: string, timeoutMs: number): Promise<PiInstallResult> {
+	return spawnPiPackageCommand("install", spec, timeoutMs);
+}
+
+/** Run `pi remove <spec>` without relying on Pi's shell-less exec wrapper on Windows. */
+export function spawnPiRemove(spec: string, timeoutMs: number): Promise<PiInstallResult> {
+	return spawnPiPackageCommand("remove", spec, timeoutMs);
 }

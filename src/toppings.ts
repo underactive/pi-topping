@@ -15,6 +15,8 @@ export interface ToppingStatus {
 	readonly topping: Topping;
 	readonly active: boolean;
 	readonly onDisk: boolean;
+	/** Exact npm source recorded in Pi's user settings for this topping. */
+	readonly packageSource: string | undefined;
 }
 
 export const TOPPINGS: readonly Topping[] = [
@@ -51,6 +53,7 @@ interface PiSettings {
 
 interface SettingsToppingState {
 	packageInstalled: boolean;
+	packageSource?: string;
 	extensionPresent: boolean;
 	extensionActive: boolean;
 }
@@ -59,6 +62,22 @@ let setupNoticeHandled = false;
 
 function stringEntries(value: unknown): string[] {
 	return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
+}
+
+function sourceEntries(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	return value.flatMap((entry) => {
+		if (typeof entry === "string") return [entry];
+		return isPlainObject(entry) && typeof entry.source === "string" ? [entry.source] : [];
+	});
+}
+
+function npmPackageName(source: string): string | undefined {
+	const value = source.trim();
+	if (!value.startsWith("npm:")) return undefined;
+	const spec = value.slice("npm:".length);
+	const versionIndex = spec.lastIndexOf("@");
+	return versionIndex > 0 ? spec.slice(0, versionIndex) : spec;
 }
 
 function readPiSettings(): PiSettings | undefined {
@@ -78,10 +97,12 @@ function extensionEntry(entry: string): { value: string; disabled: boolean } {
 
 function settingsState(settings: PiSettings | undefined, topping: Topping): SettingsToppingState {
 	let packageInstalled = false;
+	let packageSource: string | undefined;
 	let extensionPresent = false;
 	let extensionActive = false;
-	for (const entry of stringEntries(settings?.packages)) {
+	for (const entry of sourceEntries(settings?.packages)) {
 		if (topping.matches.test(entry)) packageInstalled = true;
+		if (npmPackageName(entry) === topping.pkg) packageSource = entry;
 	}
 	for (const entry of stringEntries(settings?.extensions)) {
 		const normalized = extensionEntry(entry);
@@ -89,7 +110,7 @@ function settingsState(settings: PiSettings | undefined, topping: Topping): Sett
 		extensionPresent = true;
 		if (!normalized.disabled) extensionActive = true;
 	}
-	return { packageInstalled, extensionPresent, extensionActive };
+	return { packageInstalled, packageSource, extensionPresent, extensionActive };
 }
 
 function runtimeActiveToppings(pi: ExtensionAPI): Array<true | undefined> | undefined {
@@ -117,7 +138,7 @@ export function detectToppings(pi: ExtensionAPI): ToppingStatus[] {
 		const checkoutPresent = existsSync(join(extensionsDir, topping.dir));
 		const onDisk = configured.packageInstalled || configured.extensionPresent || checkoutPresent;
 		const fallbackActive = configured.packageInstalled || configured.extensionActive || checkoutPresent;
-		return { topping, active: runtime?.[index] ?? fallbackActive, onDisk };
+		return { topping, active: runtime?.[index] ?? fallbackActive, onDisk, packageSource: configured.packageSource };
 	});
 }
 
