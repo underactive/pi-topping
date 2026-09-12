@@ -59,12 +59,20 @@ function runtimeCommands(): RuntimeCommand[] {
 		{ name: "topping-splash-settings", source: "extension", sourceInfo: { path: "/extensions/pi-topping-splash/index.ts" } },
 		{ name: "persona-audit", source: "extension", sourceInfo: { path: "/extensions/pi-topping-persona-audit/index.ts" } },
 		{ name: "browser", source: "extension", sourceInfo: { path: "/extensions/pi-topping-web-tools/index.ts" } },
+		{ name: "mf-plan", source: "extension", sourceInfo: { path: "/extensions/pi-topping-moa-fusion/index.ts" } },
 	];
 }
 
-function createContext(notifications: Notification[], options?: { mode?: "tui" | "print"; onCustomComponent?: (component: CustomComponent) => void }): ExtensionCommandContext {
+function createContext(
+	notifications: Notification[],
+	options?: {
+		mode?: "tui" | "print";
+		onCustomComponent?: (component: CustomComponent) => void;
+		fg?: (color: string, text: string) => string;
+	},
+): ExtensionCommandContext {
 	const theme = {
-		fg: (_color: string, text: string) => text,
+		fg: options?.fg ?? ((_color: string, text: string) => text),
 		bg: (_color: string, text: string) => text,
 		bold: (text: string) => text,
 		getThinkingBorderColor: (_level: string) => (text: string) => text,
@@ -164,6 +172,28 @@ test("detectToppings falls back to settings packages and handles unavailable run
 	});
 });
 
+test("detectToppings publishes only exact package sources as removable", async () => {
+	await withTempAgentDir((dir) => {
+		writeFileSync(join(dir, "settings.json"), JSON.stringify({
+			packages: [
+				"npm:@underactive/pi-topping-statusline",
+				"npm:@underactive/pi-topping-splash@1.2.3",
+				{ source: "npm:@underactive/pi-topping-persona-audit" },
+				"npm:@other/pi-topping-web-tools",
+			],
+			extensions: ["npm:@underactive/pi-topping-web-tools"],
+		}));
+		mkdirSync(join(dir, "extensions", "pi-topping-moa-fusion"), { recursive: true });
+
+		const statuses = detectToppings(new MockExtension().asAPI());
+		assert.equal(statuses.find(({ topping }) => topping.pkg.endsWith("statusline"))!.packageSource, "npm:@underactive/pi-topping-statusline");
+		assert.equal(statuses.find(({ topping }) => topping.pkg.endsWith("splash"))!.packageSource, "npm:@underactive/pi-topping-splash@1.2.3");
+		assert.equal(statuses.find(({ topping }) => topping.pkg.endsWith("persona-audit"))!.packageSource, "npm:@underactive/pi-topping-persona-audit");
+		assert.equal(statuses.find(({ topping }) => topping.pkg.endsWith("web-tools"))!.packageSource, undefined);
+		assert.equal(statuses.find(({ topping }) => topping.pkg.endsWith("moa-fusion"))!.packageSource, undefined);
+	});
+});
+
 test("/topping-setup reports when all extensions are active and requires TUI mode", async () => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension(runtimeCommands);
@@ -207,19 +237,32 @@ test("/topping-setup disable-side-toppings-check suppresses the missing-extensio
 
 		__resetSetupNotice();
 		const warningNotifications: Notification[] = [];
-		notifyMissingToppingsOnce(extension.asAPI(), createContext(warningNotifications).ui);
+		notifyMissingToppingsOnce(extension.asAPI(), createContext(warningNotifications, {
+			fg: (color, text) => `<${color}>${text}</${color}>`,
+		}).ui);
 		assert.equal(warningNotifications.length, 1);
-		assert.match(warningNotifications[0]!.message, /Run `\/topping-setup disable-side-toppings-check` to suppress this message/);
+		assert.match(warningNotifications[0]!.message, /<text>pi-topping: 5 topping extensions missing<\/text>/);
+		assert.match(warningNotifications[0]!.message, /<warning>╭─<\/warning>/);
+		assert.match(warningNotifications[0]!.message, /<warning>│<\/warning>/);
+		assert.match(warningNotifications[0]!.message, /<warning>╰<\/warning><warning>─+<\/warning><warning>╯<\/warning>/);
+		assert.match(warningNotifications[0]!.message, /<accent>@underactive\/pi-topping-moa-fusion<\/accent>/);
+		assert.match(warningNotifications[0]!.message, /<accent>\/topping-setup<\/accent>/);
+		assert.match(warningNotifications[0]!.message, /<accent>\/topping-setup disable-side-toppings-check<\/accent>/);
+		assert.doesNotMatch(warningNotifications[0]!.message, /`/);
 		__resetSetupNotice();
 	});
 });
 
-test("/topping-setup cancels without invoking its installer", async () => {
+test("/topping-setup cancels without invoking its package runners", async () => {
 	await withTempAgentDir(async () => {
 		const installs: string[] = [];
+		const removals: string[] = [];
 		const extension = new MockExtension();
 		registerSetupCommand(extension.asAPI(), async (spec) => {
 			installs.push(spec);
+			return await completedInstall();
+		}, async (spec) => {
+			removals.push(spec);
 			return await completedInstall();
 		});
 		let component: CustomComponent | undefined;
@@ -232,6 +275,7 @@ test("/topping-setup cancels without invoking its installer", async () => {
 		await commandPromise;
 
 		assert.deepEqual(installs, []);
+		assert.deepEqual(removals, []);
 		assert.deepEqual(notifications, [{ message: "Pi Topping setup cancelled.", type: "info" }]);
 	});
 });
@@ -317,7 +361,7 @@ test("/topping-setup does not install when every topping is deselected", async (
 		await commandPromise;
 
 		assert.deepEqual(installs, []);
-		assert.deepEqual(notifications, [{ message: "No Pi Topping extensions selected.", type: "info" }]);
+		assert.deepEqual(notifications, [{ message: "No Pi Topping changes selected.", type: "info" }]);
 	});
 });
 
@@ -334,6 +378,117 @@ test("/topping-setup reports installer failures as warnings", async () => {
 
 		assert.match(notifications.at(-1)!.message, /✗ Failed:/);
 		assert.match(notifications.at(-1)!.message, /not found/);
+		assert.equal(notifications.at(-1)!.type, "warning");
+	});
+});
+
+test("/topping-setup opens an installed-only menu with removals off by default", async () => {
+	await withTempAgentDir(async (dir) => {
+		writeFileSync(join(dir, "settings.json"), JSON.stringify({ packages: TOPPINGS.map(({ pkg }) => `npm:${pkg}`) }));
+		const installs: string[] = [];
+		const removals: string[] = [];
+		const extension = new MockExtension(runtimeCommands);
+		registerSetupCommand(extension.asAPI(), async (spec) => {
+			installs.push(spec);
+			return await completedInstall();
+		}, async (spec) => {
+			removals.push(spec);
+			return await completedInstall();
+		});
+		let component: CustomComponent | undefined;
+		const notifications: Notification[] = [];
+		const commandPromise = extension.commands["topping-setup"]!.handler("", createContext(notifications, { onCustomComponent: (captured) => { component = captured; } }));
+		const menu = await waitForComponent(() => component);
+		const rendered = menu.render(76).join("\n");
+		assert.match(rendered, /Installed Toppings/);
+		assert.doesNotMatch(rendered, /Missing Toppings/);
+		assert.equal(rendered.match(/OFF/g)?.length, TOPPINGS.length);
+		assert.match(rendered, /Unchecked: no change/);
+		menu.handleInput!("\r");
+		await commandPromise;
+
+		assert.deepEqual(installs, []);
+		assert.deepEqual(removals, []);
+		assert.deepEqual(notifications, [{ message: "No Pi Topping changes selected.", type: "info" }]);
+	});
+});
+
+test("/topping-setup uninstalls checked package rows and updates the preview", async () => {
+	await withTempAgentDir(async (dir) => {
+		const topping = TOPPINGS[0]!;
+		writeFileSync(join(dir, "settings.json"), JSON.stringify({ packages: [`npm:${topping.pkg}@1.2.3`] }));
+		const installs: string[] = [];
+		const removals: string[] = [];
+		const extension = new MockExtension(runtimeCommands);
+		registerSetupCommand(extension.asAPI(), async (spec) => {
+			installs.push(spec);
+			return await completedInstall();
+		}, async (spec) => {
+			removals.push(spec);
+			return await completedInstall();
+		});
+		let component: CustomComponent | undefined;
+		const notifications: Notification[] = [];
+		const commandPromise = extension.commands["topping-setup"]!.handler("", createContext(notifications, { onCustomComponent: (captured) => { component = captured; } }));
+		const menu = await waitForComponent(() => component);
+		assert.match(menu.render(76).join("\n"), /Unchecked: no change/);
+		menu.handleInput!(" ");
+		assert.match(menu.render(76).join("\n"), /Checked: will uninstall/);
+		menu.handleInput!("\r");
+		await commandPromise;
+
+		assert.deepEqual(installs, []);
+		assert.deepEqual(removals, [`npm:${topping.pkg}`]);
+		assert.match(notifications.at(-1)!.message, /✓ Removed:/);
+		assert.match(notifications.at(-1)!.message, /Restart Pi afterwards/);
+		assert.equal(notifications.at(-1)!.type, "info");
+	});
+});
+
+test("/topping-setup runs removals before installs in a mixed batch", async () => {
+	await withTempAgentDir(async (dir) => {
+		writeFileSync(join(dir, "settings.json"), JSON.stringify({ packages: [`npm:${TOPPINGS[0]!.pkg}`] }));
+		const calls: string[] = [];
+		const extension = new MockExtension();
+		registerSetupCommand(extension.asAPI(), async (spec) => {
+			calls.push(`install:${spec}`);
+			return await completedInstall();
+		}, async (spec) => {
+			calls.push(`remove:${spec}`);
+			return await completedInstall();
+		});
+		let component: CustomComponent | undefined;
+		const notifications: Notification[] = [];
+		const commandPromise = extension.commands["topping-setup"]!.handler("", createContext(notifications, { onCustomComponent: (captured) => { component = captured; } }));
+		const menu = await waitForComponent(() => component);
+		for (let index = 0; index < TOPPINGS.length - 1; index++) menu.handleInput!("\x1b[B");
+		menu.handleInput!(" ");
+		menu.handleInput!("\r");
+		await commandPromise;
+
+		assert.equal(calls[0], `remove:npm:${TOPPINGS[0]!.pkg}`);
+		assert.ok(calls.slice(1).every((call) => call.startsWith("install:")));
+		assert.match(notifications.at(-1)!.message, /✓ Installed:/);
+		assert.match(notifications.at(-1)!.message, /✓ Removed:/);
+	});
+});
+
+test("/topping-setup reports remover failures as warnings", async () => {
+	await withTempAgentDir(async (dir) => {
+		writeFileSync(join(dir, "settings.json"), JSON.stringify({ packages: [`npm:${TOPPINGS[0]!.pkg}`] }));
+		const extension = new MockExtension(runtimeCommands);
+		registerSetupCommand(extension.asAPI(), () => completedInstall(), async () => ({ code: 1, stdout: "", stderr: "No matching package found" }));
+		let component: CustomComponent | undefined;
+		const notifications: Notification[] = [];
+		const commandPromise = extension.commands["topping-setup"]!.handler("", createContext(notifications, { onCustomComponent: (captured) => { component = captured; } }));
+		const menu = await waitForComponent(() => component);
+		menu.handleInput!(" ");
+		menu.handleInput!("\r");
+		await commandPromise;
+
+		assert.match(notifications.at(-1)!.message, /✗ Failed:/);
+		assert.match(notifications.at(-1)!.message, /remove npm:/);
+		assert.match(notifications.at(-1)!.message, /No matching package found/);
 		assert.equal(notifications.at(-1)!.type, "warning");
 	});
 });
@@ -383,7 +538,7 @@ test("session_start warns about missing toppings once per process", async () => 
 			assert.equal(notifications.length, 1);
 			assert.equal(notifications[0]!.type, "warning");
 			assert.match(notifications[0]!.message, /\/topping-setup/);
-			assert.match(notifications[0]!.message, /Run `\/topping-setup disable-side-toppings-check` to suppress this message/);
+			assert.match(notifications[0]!.message, /Run \/topping-setup disable-side-toppings-check to suppress this message/);
 		} finally {
 			__resetSetupNotice();
 		}

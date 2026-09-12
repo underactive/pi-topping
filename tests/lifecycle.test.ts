@@ -69,6 +69,7 @@ const DEFAULT_RUNTIME_COMMANDS: RuntimeCommand[] = [
 	{ name: "topping-statusline-settings", source: "extension", sourceInfo: { path: "/extensions/pi-topping-statusline/index.ts" } },
 	{ name: "topping-splash-settings", source: "extension", sourceInfo: { path: "/extensions/pi-topping-splash/index.ts" } },
 	{ name: "persona-audit", source: "extension", sourceInfo: { path: "/extensions/pi-topping-persona-audit/index.ts" } },
+	{ name: "mf-plan", source: "extension", sourceInfo: { path: "/extensions/pi-topping-moa-fusion/index.ts" } },
 ];
 
 class MockExtension {
