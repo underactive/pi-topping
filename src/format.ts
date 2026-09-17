@@ -44,8 +44,13 @@ export type LoaderElement = "spinner" | "text" | "meter" | "elapsed" | "tokens" 
 /** Default first-use working-indicator element order. */
 export const DEFAULT_LOADER_ORDER: readonly LoaderElement[] = ["spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel"];
 
-/** Elements share a detail group; separators are dimmed and non-rate details use muted. */
-const DETAIL_ELEMENTS: ReadonlySet<LoaderElement> = new Set(["elapsed", "tokens", "tokenRate", "responseModel"]);
+/** Elements share a detail group; "raw" details arrive pre-colored and must not be dimmed. */
+const DETAIL_STYLES = new Map<LoaderElement, "muted" | "raw">([
+	["elapsed", "muted"],
+	["tokens", "muted"],
+	["tokenRate", "raw"],
+	["responseModel", "raw"],
+]);
 
 const TOKEN_UNITS = [
 	{ threshold: 10_000, divisor: 1_000, decimals: 1, suffix: "k" },
@@ -169,9 +174,9 @@ export function buildWorkingMessage(
 	for (const element of order) {
 		const value = parts[element];
 		if (!value) continue;
-		if (DETAIL_ELEMENTS.has(element)) {
-			// tokenRate and responseModel arrive pre-colored; dimming them here would replace their configured colors.
-			details.push(element === "tokenRate" || element === "responseModel" ? value : theme.fg("muted", value));
+		const style = DETAIL_STYLES.get(element);
+		if (style) {
+			details.push(style === "raw" ? value : theme.fg("muted", value));
 			continue;
 		}
 		flushDetails();
