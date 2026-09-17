@@ -4,23 +4,34 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext, SessionStartEvent } from "@earendil-works/pi-coding-agent";
+import type { CustomEntry, ExtensionAPI, ExtensionCommandContext, ExtensionContext, SessionStartEvent } from "@earendil-works/pi-coding-agent";
 import workingDecorator from "../index.ts";
 import { isSiblingSetupEnabled } from "../src/flags.ts";
 import type { PiInstallResult } from "../src/pi-installer.ts";
 import { registerSetupCommand } from "../src/setup-command.ts";
 import { isSetupCheckDisabled } from "../src/setup-check.ts";
-import { __resetSetupNotice, detectToppings, notifyMissingToppingsOnce, TOPPINGS } from "../src/toppings.ts";
+import {
+	__resetSetupNotice,
+	announceMissingToppingsOnce,
+	detectToppings,
+	type MissingToppingsEntryData,
+	renderMissingToppingsEntry,
+	SETUP_ENTRY_TYPE,
+	TOPPINGS,
+} from "../src/toppings.ts";
 
 type Notification = { message: string; type?: string };
 type CommandHandler = (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 type Command = { description?: string; handler: CommandHandler };
 type RuntimeCommand = { name: string; source: "extension"; sourceInfo: { path: string } };
+type AppendedEntry = { customType: string; data?: unknown };
 type CustomComponent = { render(width: number): string[]; handleInput?(data: string): void; dispose?(): void };
 type CustomFactory<T> = (tui: unknown, theme: unknown, keybindings: unknown, done: (result: T) => void) => CustomComponent;
 
 class MockExtension {
 	readonly commands: Record<string, Command> = {};
+	readonly appendedEntries: AppendedEntry[] = [];
+	readonly entryRenderers: Record<string, (entry: unknown, options: unknown, theme: unknown) => unknown> = {};
 	readonly #handlers: { session_start?: (event: SessionStartEvent, ctx: ExtensionContext) => Promise<void> | void } = {};
 	readonly #getCommands: () => RuntimeCommand[];
 
@@ -36,7 +47,13 @@ class MockExtension {
 		this.commands[name] = command;
 	}
 
-	registerEntryRenderer(): void {}
+	appendEntry(customType: string, data?: unknown): void {
+		this.appendedEntries.push({ customType, data });
+	}
+
+	registerEntryRenderer(customType: string, renderer: (entry: unknown, options: unknown, theme: unknown) => unknown): void {
+		this.entryRenderers[customType] = renderer;
+	}
 
 	registerMessageRenderer(): void {}
 
@@ -226,9 +243,8 @@ test("/topping-setup disable-side-toppings-check suppresses the missing-extensio
 			type: "info",
 		}]);
 
-		const suppressedNotifications: Notification[] = [];
-		notifyMissingToppingsOnce(extension.asAPI(), createContext(suppressedNotifications).ui);
-		assert.deepEqual(suppressedNotifications, []);
+		announceMissingToppingsOnce(extension.asAPI());
+		assert.equal(extension.appendedEntries.length, 0);
 
 		const enabledNotifications: Notification[] = [];
 		await command.handler("enable-side-toppings-check", createContext(enabledNotifications, { mode: "print" }));
@@ -236,19 +252,29 @@ test("/topping-setup disable-side-toppings-check suppresses the missing-extensio
 		assert.deepEqual(enabledNotifications, [{ message: "Missing topping check enabled.", type: "info" }]);
 
 		__resetSetupNotice();
-		const warningNotifications: Notification[] = [];
-		notifyMissingToppingsOnce(extension.asAPI(), createContext(warningNotifications, {
+		announceMissingToppingsOnce(extension.asAPI());
+		assert.equal(extension.appendedEntries.length, 1);
+		const entry = extension.appendedEntries.at(0);
+		assert.ok(entry);
+		assert.equal(entry.customType, SETUP_ENTRY_TYPE);
+		assert.deepEqual(
+			(entry.data as { toppings: Array<{ pkg: string }> }).toppings.map(({ pkg }) => pkg),
+			TOPPINGS.map(({ pkg }) => pkg),
+		);
+		const theme = createContext([], {
 			fg: (color, text) => `<${color}>${text}</${color}>`,
-		}).ui);
-		assert.equal(warningNotifications.length, 1);
-		assert.match(warningNotifications[0]!.message, /<text>pi-topping: 5 topping extensions missing<\/text>/);
-		assert.match(warningNotifications[0]!.message, /<warning>╭─<\/warning>/);
-		assert.match(warningNotifications[0]!.message, /<warning>│<\/warning>/);
-		assert.match(warningNotifications[0]!.message, /<warning>╰<\/warning><warning>─+<\/warning><warning>╯<\/warning>/);
-		assert.match(warningNotifications[0]!.message, /<accent>@underactive\/pi-topping-moa-fusion<\/accent>/);
-		assert.match(warningNotifications[0]!.message, /<accent>\/topping-setup<\/accent>/);
-		assert.match(warningNotifications[0]!.message, /<accent>\/topping-setup disable-side-toppings-check<\/accent>/);
-		assert.doesNotMatch(warningNotifications[0]!.message, /`/);
+		}).ui.theme;
+		const component = renderMissingToppingsEntry(entry as CustomEntry<MissingToppingsEntryData>, theme);
+		assert.ok(component);
+		const lines = component.render(76);
+		const rendered = lines.join("\n");
+		assert.equal(lines[0], `<warning>${"─".repeat(76)}</warning>`);
+		assert.equal(lines.at(-1), `<warning>${"─".repeat(76)}</warning>`);
+		assert.match(rendered, /<text>pi-topping: 5 topping extensions missing<\/text>/);
+		assert.match(rendered, /<accent>@underactive\/pi-topping-moa-fusion<\/accent>/);
+		assert.match(rendered, /<accent>\/topping-setup<\/accent>/);
+		assert.match(rendered, /<accent>\/topping-setup disable-side-toppings-check<\/accent>/);
+		assert.doesNotMatch(rendered, /Warning:|[│╭╮╰╯]|`/);
 		__resetSetupNotice();
 	});
 });
@@ -512,9 +538,11 @@ test("without the sibling-setup gate, /topping-setup is not registered and no ba
 
 			workingDecorator(extension.asAPI());
 			assert.equal(extension.commands["topping-setup"], undefined);
+			assert.equal(extension.entryRenderers[SETUP_ENTRY_TYPE], undefined);
 			assert.ok(extension.commands["topping-settings"], "expected /topping-settings to stay registered");
 
 			await extension.emitSessionStart(ctx);
+			assert.deepEqual(extension.appendedEntries, []);
 			assert.deepEqual(notifications, []);
 		} finally {
 			__resetSetupNotice();
@@ -522,7 +550,7 @@ test("without the sibling-setup gate, /topping-setup is not registered and no ba
 	}));
 });
 
-test("session_start warns about missing toppings once per process", async () => {
+test("session_start appends the missing-toppings notice once per process", async () => {
 	await withTempAgentDir(() => withEnv("PI_TOPPING_SIBLING_SETUP", "1", async () => {
 		__resetSetupNotice();
 		try {
@@ -531,14 +559,14 @@ test("session_start warns about missing toppings once per process", async () => 
 			const ctx = createContext(notifications) as unknown as ExtensionContext;
 			workingDecorator(extension.asAPI());
 			assert.ok(extension.commands["topping-setup"], "expected setup command to be wired into the extension");
+			assert.ok(extension.entryRenderers[SETUP_ENTRY_TYPE], "expected setup notice renderer to be registered");
 
 			await extension.emitSessionStart(ctx);
 			await extension.emitSessionStart(ctx);
 
-			assert.equal(notifications.length, 1);
-			assert.equal(notifications[0]!.type, "warning");
-			assert.match(notifications[0]!.message, /\/topping-setup/);
-			assert.match(notifications[0]!.message, /Run \/topping-setup disable-side-toppings-check to suppress this message/);
+			assert.equal(extension.appendedEntries.length, 1);
+			assert.equal(extension.appendedEntries[0]!.customType, SETUP_ENTRY_TYPE);
+			assert.deepEqual(notifications, []);
 		} finally {
 			__resetSetupNotice();
 		}

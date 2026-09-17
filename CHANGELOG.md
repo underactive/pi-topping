@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Response-model display in the completion marker. The model captured at settlement is appended after the summary, e.g. `π Gallivanted for 5s (↓ 39 tokens) · test-model`. The Completion Marker section of `/topping-settings` provides visibility, color, and dim controls, defaults the color to `muted`, suppresses models matching the selected model, and remains independent of the working loader's response-model toggle.
 
+### Changed
+- The missing-sibling notice now renders as a full-width, rule-bounded transcript entry without Pi's `Warning:` prefix.
+
 ## [0.7.1] - 2026-09-11
 
 ### Added

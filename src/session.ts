@@ -42,7 +42,7 @@ import { isSiblingSetupEnabled } from "./flags.ts";
 import { showMenu } from "./menu.ts";
 import { registerSetupCommand } from "./setup-command.ts";
 import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type ThinkingLevelColor } from "./settings.ts";
-import { notifyMissingToppingsOnce } from "./toppings.ts";
+import { announceMissingToppingsOnce, type MissingToppingsEntryData, renderMissingToppingsEntry, SETUP_ENTRY_TYPE } from "./toppings.ts";
 import { PreviewRenderer } from "./preview.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
 import { modelsResemble, stripControlChars } from "./util.ts";
@@ -176,7 +176,7 @@ export class SessionManager {
 		this.#state.activityMeter.setDirection(this.#settings.decorations.meterDirection);
 		if (this.usable(ctx)) {
 			this.applyIndicator(ctx);
-			if (isSiblingSetupEnabled()) notifyMissingToppingsOnce(this.#pi, ctx.ui);
+			if (isSiblingSetupEnabled()) announceMissingToppingsOnce(this.#pi);
 		}
 	};
 
@@ -390,6 +390,7 @@ export class SessionManager {
 		this.#pi.on("ui_prompt_end", this.#onUIPromptEnd);
 		this.#pi.on("session_shutdown", this.#onSessionShutdown);
 		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) => this.#renderDoneEntry(entry, theme));
+		if (isSiblingSetupEnabled()) this.#pi.registerEntryRenderer<MissingToppingsEntryData>(SETUP_ENTRY_TYPE, (entry, _o, theme) => renderMissingToppingsEntry(entry, theme));
 		this.#pi.registerMessageRenderer<PromptBoxDetails>(PROMPT_BOX_TYPE, promptBoxRenderer);
 		this.#pi.registerCommand("topping-settings", {
 			description: "Configure prompt decoration, working-loader features/order, and completion-marker settings.",

@@ -1,5 +1,5 @@
-import { getAgentDir, type ExtensionAPI, type ExtensionUIContext, type Theme } from "@earendil-works/pi-coding-agent";
-import { visibleWidth } from "@earendil-works/pi-tui";
+import { getAgentDir, type CustomEntry, type ExtensionAPI, type Theme } from "@earendil-works/pi-coding-agent";
+import { truncateToWidth, type Component } from "@earendil-works/pi-tui";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isSetupCheckDisabled } from "./setup-check.ts";
@@ -63,6 +63,12 @@ interface SettingsToppingState {
 	packageSource?: string;
 	extensionPresent: boolean;
 	extensionActive: boolean;
+}
+
+export const SETUP_ENTRY_TYPE = "pi-topping-setup";
+
+export interface MissingToppingsEntryData {
+	readonly toppings: ReadonlyArray<Pick<Topping, "pkg" | "provides">>;
 }
 
 let setupNoticeHandled = false;
@@ -153,52 +159,60 @@ export function findMissingToppings(pi: ExtensionAPI): ToppingStatus[] {
 	return detectToppings(pi).filter((status) => !status.active);
 }
 
-interface BannerLine {
-	readonly plain: string;
-	readonly styled: string;
-}
-
-function renderMissingBanner(missing: readonly ToppingStatus[], theme: Pick<Theme, "fg">): string {
+function renderMissingToppings(
+	toppings: MissingToppingsEntryData["toppings"],
+	theme: Pick<Theme, "fg">,
+	width: number,
+): string[] {
+	const safeWidth = Math.max(0, width);
 	const text = (value: string): string => theme.fg("text", value);
 	const accent = (value: string): string => theme.fg("accent", value);
-	const warning = (value: string): string => theme.fg("warning", value);
-	const title: BannerLine = {
-		plain: `pi-topping: ${missing.length} topping extensions missing`,
-		styled: text(`pi-topping: ${missing.length} topping extensions missing`),
-	};
-	const body: BannerLine[] = [
-		...missing.map(({ topping }) => ({
-			plain: `• ${topping.pkg} — ${topping.provides}`,
-			styled: `${text("• ")}${accent(topping.pkg)}${text(` — ${topping.provides}`)}`,
-		})),
-		{ plain: "", styled: "" },
-		{
-			plain: "Run /topping-setup to selectively install them",
-			styled: `${text("Run ")}${accent("/topping-setup")}${text(" to selectively install them")}`,
-		},
-		{
-			plain: "Run /topping-setup disable-side-toppings-check to suppress this message",
-			styled: `${text("Run ")}${accent("/topping-setup disable-side-toppings-check")}${text(" to suppress this message")}`,
-		},
-	];
-	const titleWidth = visibleWidth(title.plain);
-	const width = Math.max(titleWidth + 6, ...body.map((line) => visibleWidth(line.plain) + 4));
-	const blankRow = `${warning("│")}${" ".repeat(width - 2)}${warning("│")}`;
+	const fit = (line: string): string => truncateToWidth(line, safeWidth, "");
+	const rule = theme.fg("warning", "─".repeat(safeWidth));
 	return [
-		`${warning("╭─")} ${title.styled} ${warning("─".repeat(width - titleWidth - 5))}${warning("╮")}`,
-		blankRow,
-		...body.map((line) => `${warning("│")} ${line.styled}${" ".repeat(width - visibleWidth(line.plain) - 4)} ${warning("│")}`),
-		blankRow,
-		`${warning("╰")}${warning("─".repeat(width - 2))}${warning("╯")}`,
-	].join("\n");
+		rule,
+		fit(text(`pi-topping: ${toppings.length} topping extensions missing`)),
+		"",
+		...toppings.map(({ pkg, provides }) => fit(`${text("• ")}${accent(pkg)}${text(` — ${provides}`)}`)),
+		"",
+		fit(`${text("Run ")}${accent("/topping-setup")}${text(" to selectively install them")}`),
+		fit(`${text("Run ")}${accent("/topping-setup disable-side-toppings-check")}${text(" to suppress this message")}`),
+		rule,
+	];
 }
 
-export function notifyMissingToppingsOnce(pi: ExtensionAPI, ui: Pick<ExtensionUIContext, "notify" | "theme">): void {
+export function renderMissingToppingsEntry(
+	entry: CustomEntry<MissingToppingsEntryData>,
+	theme: Theme,
+): Component | undefined {
+	if (!entry.data || !Array.isArray(entry.data.toppings)) return undefined;
+	let cachedWidth: number | undefined;
+	let cachedLines: string[] | undefined;
+	return {
+		render(width: number): string[] {
+			if (cachedWidth !== width) {
+				cachedWidth = width;
+				cachedLines = renderMissingToppings(entry.data!.toppings, theme, width);
+			}
+			return cachedLines!;
+		},
+		invalidate(): void {
+			cachedWidth = undefined;
+			cachedLines = undefined;
+		},
+	};
+}
+
+export function announceMissingToppingsOnce(pi: ExtensionAPI): void {
 	if (setupNoticeHandled) return;
 	setupNoticeHandled = true;
 	if (isSetupCheckDisabled()) return;
 	const missing = findMissingToppings(pi);
-	if (missing.length > 0) ui.notify(`\n${renderMissingBanner(missing, ui.theme)}`, "warning");
+	if (missing.length > 0) {
+		pi.appendEntry<MissingToppingsEntryData>(SETUP_ENTRY_TYPE, {
+			toppings: missing.map(({ topping }) => ({ pkg: topping.pkg, provides: topping.provides })),
+		});
+	}
 }
 
 /** Test-only reset for the once-per-process session-start notice. */
