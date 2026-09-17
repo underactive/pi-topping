@@ -848,6 +848,16 @@ test("response model preview follows the active thinking level", () => {
 	assert.ok(preview.lines.some((line) => line.includes("<thinking-high>test-model</thinking-high>")));
 });
 
+test("completion marker model preview follows its toggle and thinking-level color", () => {
+	const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`, { thinkingLevel: "high" });
+	const renderer = new PreviewRenderer(ctx);
+	const shown = renderer.render({ doneMarker: true, doneMarkerModel: true, doneMarkerModelColor: "thinking-level" }, 0, "doneMarkerModel", 300);
+	assert.ok(shown.lines.some((line) => line.includes("<thinking-high>test-model</thinking-high>")));
+
+	const hidden = renderer.render({ doneMarker: true, doneMarkerModel: false }, 0, "doneMarkerModel", 300);
+	assert.ok(hidden.lines.every((line) => !line.includes("test-model")));
+});
+
 test("preview without word packs selects from the shared base-word pool", (t) => {
 	t.mock.method(Math, "random", () => 0);
 	const preview = new PreviewRenderer(createContext([], [])).render({ shimmer: false }, 0);
@@ -877,6 +887,7 @@ test("resembling response models are suppressed during streaming and settlement"
 		await extension.emit("message_end", { type: "message_end", message: partial }, ctx);
 		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
 		assert.ok(statuses.every(({ text }) => text === undefined), "suppressed models must not start a response-model fade");
+		assert.equal((extension.appendedEntries[0]!.data as { model?: string }).model, undefined);
 	});
 });
 
@@ -1625,6 +1636,9 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.features.randomizeDoneMarker, !DEFAULT_SETTINGS.features.randomizeDoneMarker);
 		assert.equal(persisted.features.doneMarkerTokens, !DEFAULT_SETTINGS.features.doneMarkerTokens);
 		assert.equal(persisted.features.doneMarkerInputs, !DEFAULT_SETTINGS.features.doneMarkerInputs);
+		assert.equal(persisted.features.doneMarkerModel, !DEFAULT_SETTINGS.features.doneMarkerModel);
+		assert.equal(persisted.decorations.doneMarkerModelColor, "thinking-level");
+		assert.equal(persisted.decorations.doneMarkerModelDimmed, !DEFAULT_SETTINGS.decorations.doneMarkerModelDimmed);
 		assert.equal(persisted.decorations.useNerdFont, !DEFAULT_SETTINGS.decorations.useNerdFont);
 	});
 });
@@ -2018,6 +2032,85 @@ test("the pi-topping-done entry renderer renders the word/time in dim text and t
 		const text = lines.join("\n");
 		assert.match(text, /<text><\/text>/);
 		assert.match(text, /<dim> Baked for 6m 41s<\/dim>/);
+	});
+});
+
+test("completion marker captures and renders the response model independently of the loader toggle", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, responseModel: false } });
+		const extension = new MockExtension();
+		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(39, "test-model") }, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		const data = extension.appendedEntries[0]!.data as { model?: string };
+		assert.equal(data.model, "test-model");
+		const component = extension.entryRenderers["pi-topping-done"]!(
+			{ type: "custom", customType: "pi-topping-done", data: extension.appendedEntries[0]!.data },
+			{ expanded: false },
+			ctx.ui.theme,
+		) as { render(width: number): string[] };
+		assert.match(component.render(100).join("\n"), /<dim> · <\/dim><muted>test-model<\/muted>/);
+	});
+});
+
+test("dimmed completion marker response model wraps the colored suffix", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, decorations: { ...DEFAULT_SETTINGS.decorations, doneMarkerModelDimmed: true } });
+		const extension = new MockExtension();
+		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		const renderer = extension.entryRenderers["pi-topping-done"]!;
+		const component = renderer(
+			{ type: "custom", customType: "pi-topping-done", data: { word: "Gallivanted", elapsedMs: 5_000, tokens: 39, model: "test-model" } },
+			{ expanded: false },
+			ctx.ui.theme,
+		) as { render(width: number): string[] };
+		assert.match(component.render(100).join("\n"), /\x1b\[2m<muted>test-model<\/muted>\x1b\[22m/);
+	});
+});
+
+test("completion marker model preview applies dimming independently of the loader toggle", () => {
+	const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`, { thinkingLevel: "high" });
+	const renderer = new PreviewRenderer(ctx);
+	const dimmed = renderer.render({ doneMarker: true, doneMarkerModel: true, doneMarkerModelDimmed: true }, 0, "doneMarkerModelDimmed", 300);
+	assert.ok(dimmed.lines.some((line) => line.includes("\x1b[2m") && line.includes("test-model")));
+	const plain = renderer.render({ doneMarker: true, doneMarkerModel: true, doneMarkerModelDimmed: false }, 0, "doneMarkerModelDimmed", 300);
+	assert.ok(plain.lines.some((line) => line.includes("test-model") && !line.includes("\x1b[2m")));
+});
+
+test("completion marker model uses its captured thinking level and can be hidden", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, decorations: { ...DEFAULT_SETTINGS.decorations, doneMarkerModelColor: "thinking-level" } });
+		const extension = new MockExtension();
+		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		const renderer = extension.entryRenderers["pi-topping-done"]!;
+		const rendered = renderer(
+			{ type: "custom", customType: "pi-topping-done", data: { word: "Gallivanted", elapsedMs: 5_000, tokens: 39, model: "test-model", thinkingLevel: "high" } },
+			{ expanded: false },
+			ctx.ui.theme,
+		) as { render(width: number): string[] };
+		assert.match(rendered.render(300).join("\n"), /Gallivanted for 5s \(↓ 39 tokens\)<\/dim><dim> · <\/dim><thinking-high>test-model<\/thinking-high>/);
+
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, doneMarkerModel: false } });
+		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
+		const hidden = renderer(
+			{ type: "custom", customType: "pi-topping-done", data: { word: "Baked", elapsedMs: 5_000, tokens: 10, model: "test-model" } },
+			{ expanded: false },
+			ctx.ui.theme,
+		) as { render(width: number): string[] };
+		const text = hidden.render(100).join("\n");
+		assert.match(text, /\(↓ 10 tokens\)/);
+		assert.ok(!text.includes("test-model"));
 	});
 });
 

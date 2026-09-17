@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { visibleWidth } from "@earendil-works/pi-tui";
-import { buildCompletionMarkerLine, buildPromptBoxLines } from "../src/prompt-decorator.ts";
+import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBoxLines } from "../src/prompt-decorator.ts";
 import { DONE_MARKER_BORDER_COLOR_VALUES, PROMPT_BORDER_COLOR_VALUES } from "../src/settings.ts";
 
 const theme = { fg: (_color: string, text: string) => text, getThinkingBorderColor: (_level: "off" | "minimal" | "low" | "medium" | "high" | "xhigh") => (text: string) => text };
@@ -100,6 +100,24 @@ test("prompt box defaults to the off thinking-level border when no color is spec
 test("prompt box uses its captured thinking level for the thinking-level border", () => {
 	const lines = buildPromptBoxLines("ping", undefined, 40, taggedTheme, { borderColor: "thinking-level", thinkingLevel: "high" });
 	assert.match(lines[0]!, /^<thinking-high>/);
+});
+
+test("completion marker content appends a pre-styled model after the detail group", () => {
+	assert.equal(
+		buildCompletionMarkerContent(taggedTheme, "", "Gallivanted", "5s", ["↓ 39 tokens"], "<muted>test-model</muted>"),
+		"<dim>Gallivanted for 5s (↓ 39 tokens)</dim><dim> · </dim><muted>test-model</muted>",
+	);
+	assert.equal(
+		buildCompletionMarkerContent(theme, "", "Worked", "5s", [], "test-model"),
+		"Worked for 5s · test-model",
+	);
+	assert.equal(
+		buildCompletionMarkerContent(theme, "", "Worked", "5s", []),
+		buildCompletionMarkerContent(theme, "", "Worked", "5s", [], ""),
+	);
+
+	const content = buildCompletionMarkerContent(theme, "", "Worked", "5s", ["↓ 39 tokens"], "test-model");
+	assert.ok(visibleWidth(buildCompletionMarkerLine(content, 18, theme, "heavy", "accent")) <= 18);
 });
 
 test("completion marker uses the selected border color", () => {

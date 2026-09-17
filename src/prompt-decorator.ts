@@ -41,16 +41,18 @@ type PromptTheme = {
 
 const COMPLETION_MARKER_TRAIL_RUNS = [6, 4, 2, 1] as const;
 
-/** Assemble the completion-marker content: an optional icon, then the dim `word for elapsed (details)` summary. */
+/** Assemble the completion-marker content: an optional icon, then the dim `word for elapsed (details)` summary, then an optional pre-styled model suffix. */
 export function buildCompletionMarkerContent(
 	theme: PromptTheme,
 	icon: string,
 	word: string,
 	elapsed: string,
 	details: string[],
+	model = "",
 ): string {
 	const tail = details.length ? ` (${details.join(" · ")})` : "";
-	return `${icon}${theme.fg("dim", `${icon ? " " : ""}${word} for ${elapsed}${tail}`)}`;
+	const summary = theme.fg("dim", `${icon ? " " : ""}${word} for ${elapsed}${tail}`);
+	return `${icon}${summary}${model ? `${theme.fg("dim", " · ")}${model}` : ""}`;
 }
 
 /** Build one decorated completion-marker line, clipped to the available width. */

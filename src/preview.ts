@@ -173,7 +173,13 @@ export class PreviewRenderer {
 		const details: string[] = [];
 		if (values.doneMarkerTokens === true) details.push("↓ 949 tokens");
 		if (values.doneMarkerInputs === true) details.push("2 mid-turn inputs");
-		const content = buildCompletionMarkerContent(theme, icon, word, "2m 52s", details);
+		let model = "";
+		if (values.doneMarkerModel === true) {
+			const color = isThinkingLevelColor(values.doneMarkerModelColor) ? values.doneMarkerModelColor : DEFAULT_SETTINGS.decorations.doneMarkerModelColor;
+			const modelColored = getThinkingLevelColorizer(theme, color, this.#ctx.thinkingLevel)("test-model");
+			model = values.doneMarkerModelDimmed === true ? dimAttribute(modelColored) : modelColored;
+		}
+		const content = buildCompletionMarkerContent(theme, icon, word, "2m 52s", details, model);
 		const borderStyle = isDoneMarkerBorderStyle(values.doneMarkerBorderStyle) ? values.doneMarkerBorderStyle : "none";
 		const borderColor = isDoneMarkerBorderColor(values.doneMarkerBorderColor) ? values.doneMarkerBorderColor : DEFAULT_SETTINGS.decorations.doneMarkerBorderColor;
 		const markerStyle = isDoneMarkerStyle(values.doneMarkerStyle) ? values.doneMarkerStyle : DEFAULT_SETTINGS.decorations.doneMarkerStyle;

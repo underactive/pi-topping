@@ -10,7 +10,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
-**Completion Marker** — end-of-turn marker with icon, randomized verb (or `Worked`; matching past tense when Randomize "Worked" text is on), token consumption display, and optional marker-style, border-style, and border-color decorations spanning the full terminal width. The default `elite` style trails the summary with tapering dashes; `bookend` fills the remaining width to a closing corner glyph. Hooks into Pi's `agent_settled` event.
+**Completion Marker** — end-of-turn marker with icon, randomized verb (or `Worked`; matching past tense when Randomize "Worked" text is on), token consumption display, and optional marker-style, border-style, and border-color decorations spanning the full terminal width. It can append the response model when it differs from the selected model, with its own color option. The default `elite` style trails the summary with tapering dashes; `bookend` fills the remaining width to a closing corner glyph. Hooks into Pi's `agent_settled` event.
 
 ![Example of pi-topping's completion marker](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_completion_marker.png)
 
@@ -81,6 +81,9 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Randomize “Worked” text                        ON      ║
 ║    [■] Tokens spent                                   ON      ║
 ║    [■] Mid-turn inputs                                ON      ║
+║    [■] Response model                                 ON      ║
+║    [■] Response model color                      ‹ muted ›    ║
+║    [■] Response model dimmed                         OFF      ║
 ║                                                               ║
 ╟─ Word Packs ──────────────────────────────────────────────────╢
 ║    [ ] Doctor Who                                    OFF      ║
@@ -98,7 +101,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╟───────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  PgUp/PgDn page  ←→ select                           ║
 ║  ␣ toggle  ⏎ apply  esc cancel                                ║
-╚═══════════════════════════════════════════════════════[ 9/50 ]╝
+╚═══════════════════════════════════════════════════════[ 9/54 ]╝
 ```
 
 ### Word packs

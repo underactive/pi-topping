@@ -77,6 +77,7 @@ interface DoneEntryData {
 	tokens?: number;
 	midTurnInputs?: number;
 	thinkingLevel?: ThinkingLevel;
+	model?: string;
 }
 
 interface SessionState {
@@ -324,6 +325,7 @@ export class SessionManager {
 				tokens: this.#state.confirmTokens,
 				midTurnInputs: this.#state.midTurnInputs,
 				thinkingLevel: ctx.thinkingLevel,
+				model: this.#state.responseModel || undefined,
 			});
 		}
 		this.#currentCtx = null;
@@ -346,11 +348,16 @@ export class SessionManager {
 			details.push(`${entry.data.midTurnInputs} mid-turn input${entry.data.midTurnInputs === 1 ? "" : "s"}`);
 		}
 		const icon = features.doneMarkerIcon ? theme.fg("text", this.#settings.decorations.useNerdFont ? "" : "π") : "";
-		const markerContent = buildCompletionMarkerContent(theme, icon, word, formatElapsed(elapsedMs), details);
+		const thinkingLevel = isThinkingLevel(entry.data.thinkingLevel) ? entry.data.thinkingLevel : undefined;
+		const rawModel = typeof entry.data.model === "string" ? stripControlChars(entry.data.model).trim() : "";
+		const modelColored = features.doneMarkerModel && rawModel
+			? getThinkingLevelColorizer(theme, this.#settings.decorations.doneMarkerModelColor, thinkingLevel)(rawModel)
+			: "";
+		const model = modelColored && this.#settings.decorations.doneMarkerModelDimmed ? dimAttribute(modelColored) : modelColored;
+		const markerContent = buildCompletionMarkerContent(theme, icon, word, formatElapsed(elapsedMs), details, model);
 		const borderStyle = this.#settings.decorations.doneMarkerBorderStyle;
 		const borderColor = this.#settings.decorations.doneMarkerBorderColor;
 		const markerStyle = this.#settings.decorations.doneMarkerStyle;
-		const thinkingLevel = isThinkingLevel(entry.data.thinkingLevel) ? entry.data.thinkingLevel : undefined;
 		if (borderStyle === "none") return new Text(markerContent);
 
 		let cachedWidth: number | undefined;

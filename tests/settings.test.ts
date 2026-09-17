@@ -51,7 +51,7 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Word Packs", "Options"]);
 	const itemIds = sections.flatMap(section => section.items).map(item => item.id);
 	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
-	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "showResponseModel", "responseModelColor", "responseModelDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel", "doneMarker", "doneMarkerStyle", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars", "useNerdFont"]);
+	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "showResponseModel", "responseModelColor", "responseModelDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel", "doneMarker", "doneMarkerStyle", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "doneMarkerModel", "doneMarkerModelColor", "doneMarkerModelDimmed", "pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars", "useNerdFont"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:simcity")!.value, false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:star-trek")!.value, false);
@@ -86,6 +86,10 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.equal(responseModelColor.value, "accent");
 	assert.deepEqual(responseModelColor.cycleValues, THINKING_LEVEL_COLOR_VALUES);
 	assert.equal(responseModelColor.cycleValueLabels?.["thinking-level"], "thinkingLevel");
+	const doneMarkerModelColor = sections[3]!.items.find(item => item.id === "doneMarkerModelColor")!;
+	assert.equal(doneMarkerModelColor.value, "muted");
+	assert.deepEqual(doneMarkerModelColor.cycleValues, THINKING_LEVEL_COLOR_VALUES);
+	assert.equal(doneMarkerModelColor.cycleValueLabels?.["thinking-level"], "thinkingLevel");
 	assert.deepEqual(sections.flatMap(section => section.items).find(item => item.id === "borderColor")!.cycleValues, PROMPT_BORDER_COLOR_VALUES);
 	assert.deepEqual(sections.flatMap(section => section.items).find(item => item.id === "spinnerColor")!.cycleValues, SPINNER_COLOR_VALUES);
 	assert.equal(sections[3]!.items[0]!.value, false);
@@ -163,7 +167,7 @@ test("applyMenuResult accepts every completion marker border style", () => {
 });
 
 test("applyMenuResult validates specialized spinner and prompt border colors", () => {
-	const standardColorKeys = ["meterColor", "tokenRateColor", "responseModelColor"] as const;
+	const standardColorKeys = ["meterColor", "tokenRateColor", "responseModelColor", "doneMarkerModelColor"] as const;
 	for (const color of SETTING_COLOR_VALUES) {
 		assert.equal(applyMenuResult(DEFAULT_SETTINGS, { borderColor: color }).decorations.borderColor, color);
 		assert.equal(applyMenuResult(DEFAULT_SETTINGS, { spinnerColor: color }).decorations.spinnerColor, color);
@@ -179,6 +183,9 @@ test("applyMenuResult validates specialized spinner and prompt border colors", (
 	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { meterColor: "thinking-level" }).decorations.meterColor, "thinking-level");
 	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { tokenRateColor: "thinking-level" }).decorations.tokenRateColor, "thinking-level");
 	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { responseModelColor: "thinking-level" }).decorations.responseModelColor, "thinking-level");
+	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { doneMarkerModelColor: "thinking-level" }).decorations.doneMarkerModelColor, "thinking-level");
+	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { doneMarkerModel: false }).features.doneMarkerModel, false);
+	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { doneMarkerModelDimmed: true }).decorations.doneMarkerModelDimmed, true);
 	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { spinnerColor: "default" }).decorations.spinnerColor, DEFAULT_SETTINGS.decorations.spinnerColor);
 	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { doneMarkerBorderColor: "default" }).decorations.doneMarkerBorderColor, DEFAULT_SETTINGS.decorations.doneMarkerBorderColor);
 	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { borderColor: "default" }).decorations.borderColor, DEFAULT_SETTINGS.decorations.borderColor);
@@ -211,19 +218,30 @@ test("loadSettings deep-merges a partial nested file over defaults", () => {
 	});
 });
 
+test("loadSettings backfills completion marker model settings", () => {
+	withTempAgentDir(() => {
+		mkdirSync(join(settingsPath(), ".."), { recursive: true });
+		writeFileSync(settingsPath(), JSON.stringify({ schemaVersion: SETTINGS_SCHEMA_VERSION, decorations: {}, features: {} }));
+		const loaded = loadSettings();
+		assert.equal(loaded.features.doneMarkerModel, true);
+		assert.equal(loaded.decorations.doneMarkerModelColor, "muted");
+		assert.equal(loaded.decorations.doneMarkerModelDimmed, false);
+	});
+});
+
 test("loadSettings accepts allowed setting colors and rejects other theme colors", () => {
 	withTempAgentDir(() => {
 		mkdirSync(join(settingsPath(), ".."), { recursive: true });
-		for (const key of ["borderColor", "doneMarkerBorderColor", "spinnerColor", "meterColor", "tokenRateColor", "responseModelColor"] as const) {
+		for (const key of ["borderColor", "doneMarkerBorderColor", "spinnerColor", "meterColor", "tokenRateColor", "responseModelColor", "doneMarkerModelColor"] as const) {
 			writeFileSync(settingsPath(), JSON.stringify({ schemaVersion: SETTINGS_SCHEMA_VERSION, decorations: { [key]: "success" } }));
 			assert.equal(loadSettings().decorations[key], "success");
 		}
-		for (const key of ["meterColor", "tokenRateColor", "responseModelColor"] as const) {
+		for (const key of ["meterColor", "tokenRateColor", "responseModelColor", "doneMarkerModelColor"] as const) {
 			writeFileSync(settingsPath(), JSON.stringify({ schemaVersion: SETTINGS_SCHEMA_VERSION, decorations: { [key]: "thinking-level" } }));
 			assert.equal(loadSettings().decorations[key], "thinking-level");
 		}
 		for (const color of ["text", "muted"] as const) {
-			for (const key of ["meterColor", "tokenRateColor", "responseModelColor"] as const) {
+			for (const key of ["meterColor", "tokenRateColor", "responseModelColor", "doneMarkerModelColor"] as const) {
 				writeFileSync(settingsPath(), JSON.stringify({ schemaVersion: SETTINGS_SCHEMA_VERSION, decorations: { [key]: color } }));
 				assert.equal(loadSettings().decorations[key], color);
 			}
