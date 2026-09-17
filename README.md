@@ -61,7 +61,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Token rate dimmed                             OFF      ║
 ║    [■] Response model                                 ON      ║
 ║    [■] Response model color                     ‹ accent ›    ║
-║    [■] Response model dimmed                        OFF       ║
+║    [■] Response model dimmed                         OFF      ║
 ║                                                               ║
 ╟─ Elements Order ──────────────────────────────────────────────╢
 ║    [ ] Animated spinner                                       ║
