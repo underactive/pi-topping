@@ -171,7 +171,7 @@ function renderMissingToppings(
 	const rule = theme.fg("warning", "─".repeat(safeWidth));
 	return [
 		rule,
-		fit(text(`pi-topping: ${toppings.length} topping extensions missing`)),
+		fit(text(`pi-topping: ${toppings.length} topping extension${toppings.length === 1 ? "" : "s"} missing`)),
 		"",
 		...toppings.map(({ pkg, provides }) => fit(`${text("• ")}${accent(pkg)}${text(` — ${provides}`)}`)),
 		"",
