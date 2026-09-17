@@ -45,7 +45,7 @@ import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type Th
 import { announceMissingToppingsOnce, type MissingToppingsEntryData, renderMissingToppingsEntry, SETUP_ENTRY_TYPE } from "./toppings.ts";
 import { PreviewRenderer } from "./preview.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
-import { modelsResemble, stripControlChars } from "./util.ts";
+import { isPlainObject, modelsResemble, stripControlChars } from "./util.ts";
 import { loadBundledWordPacks, loadUserWordPacks, pickWorkingTextSelection, type WorkingTextSelection, type WordPack } from "./word-packs.ts";
 
 type MessageStartEvent = Extract<ExtensionEvent, { type: "message_start" }>;
@@ -149,6 +149,10 @@ function waitingLabel(waiting: NonNullable<SessionState["waiting"]>): string {
 	return title ? `Waiting: ${title}` : WAITING_LABELS[waiting.kind];
 }
 
+function responseModelOf(message: unknown): unknown {
+	return isPlainObject(message) ? message.responseModel : undefined;
+}
+
 /** Owns mutable extension state and Pi lifecycle registrations. */
 export class SessionManager {
 	#counter = new StreamingWordCounter();
@@ -233,7 +237,7 @@ export class SessionManager {
 		if (this.usable(ctx) && event.message.role === "assistant") {
 			this.#state.liveTokens = 0;
 			this.#counter.reset();
-			this.updateResponseModel((event.message as { responseModel?: unknown }).responseModel);
+			this.updateResponseModel(responseModelOf(event.message));
 		}
 	};
 
@@ -248,7 +252,7 @@ export class SessionManager {
 			this.#state.liveTokens += this.#counter.count(assistantEvent.delta, assistantEvent.type);
 		}
 		const rawResponseModel = (assistantEvent as { partial?: { responseModel?: unknown } } | undefined)?.partial?.responseModel
-			?? (event.message as { responseModel?: unknown } | undefined)?.responseModel;
+			?? responseModelOf(event.message);
 		this.updateResponseModel(rawResponseModel);
 	};
 
@@ -269,7 +273,7 @@ export class SessionManager {
 		}
 		this.#state.liveTokens = 0;
 		this.#counter.reset();
-		this.updateResponseModel((event.message as { responseModel?: unknown }).responseModel);
+		this.updateResponseModel(responseModelOf(event.message));
 	};
 
 	#onToolExecutionStart = async (_e: ToolExecutionStartEvent, ctx: ExtensionContext): Promise<void> => {
