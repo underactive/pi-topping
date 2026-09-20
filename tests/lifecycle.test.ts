@@ -89,8 +89,10 @@ class MockExtension {
 		return this.#getCommands();
 	}
 
-	on<K extends TestedEventName>(name: K, handler: Handler<K>): void {
+	/** 0.86.0's pi.on() returns an unsubscriber; the extension discards it. */
+	on<K extends TestedEventName>(name: K, handler: Handler<K>): () => void {
 		this.handlers[name] = handler as never;
+		return () => {};
 	}
 
 	registerCommand(name: string, options: RegisteredCommandLike): void {

@@ -39,8 +39,9 @@ class MockExtension {
 		this.#getCommands = getCommands;
 	}
 
-	on(name: string, handler: (event: SessionStartEvent, ctx: ExtensionContext) => Promise<void> | void): void {
+	on(name: string, handler: (event: SessionStartEvent, ctx: ExtensionContext) => Promise<void> | void): () => void {
 		if (name === "session_start") this.#handlers.session_start = handler;
+		return () => {};
 	}
 
 	registerCommand(name: string, command: Command): void {
