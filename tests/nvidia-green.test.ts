@@ -10,8 +10,7 @@ import {
 
 test("uses pi-topping-statusline's NVIDIA green", () => {
 	assert.equal(NVIDIA_GREEN_HEX, "#84c51a");
-	const rgb = [1, 3, 5].map((offset) => Number.parseInt(NVIDIA_GREEN_HEX.slice(offset, offset + 2), 16));
-	assert.equal(colorizeNvidiaGreen("test-model"), `\x1b[38;2;${rgb.join(";")}mtest-model\x1b[39m`);
+	assert.equal(colorizeNvidiaGreen("test-model"), "\x1b[38;2;132;197;26mtest-model\x1b[39m");
 });
 
 test("recognizes only the Switchyard provider case-insensitively after trimming", () => {
