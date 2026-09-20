@@ -7,18 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- The working loader's response model now uses NVIDIA green (`#84c51a`, matching pi-topping-statusline) whenever Switchyard is the active provider, overriding the configured response-model color for the loader and its post-settlement hold/fade.
-- Development and CI now typecheck and test against Pi 0.86.0; the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 0.84.4. No runtime behavior changes, the published `peerDependencies` remain `*`, and the minimum supported host is still Pi ≥0.84.4.
-- Corrected the 0.6.4 note on decorated-prompt submission: `ExtensionAPI.sendMessage()` returns `void`, so the guard covers a synchronous submission failure rather than awaited delivery.
-
-## [0.7.2] - 2026-09-17
+## [0.7.2] - 2026-09-20
 
 ### Added
 - Response-model display in the completion marker. The model captured at settlement is appended after the summary, e.g. `π Gallivanted for 5s (↓ 39 tokens) · test-model`. The Completion Marker section of `/topping-settings` provides visibility, color, and dim controls, defaults the color to `muted`, suppresses models matching the selected model, and remains independent of the working loader's response-model toggle.
 
 ### Changed
 - The missing-sibling notice now renders as a full-width, rule-bounded transcript entry without Pi's `Warning:` prefix.
+- The working loader's response model now uses NVIDIA green (`#84c51a`, matching pi-topping-statusline) whenever Switchyard is the active provider, overriding the configured response-model color for the loader, its post-settlement hold/fade, and the `/topping-settings` preview.
+- Development and CI now typecheck and test against Pi 0.86.0; the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 0.84.4. No runtime behavior changes, the published `peerDependencies` remain `*`, and the minimum supported host is still Pi ≥0.84.4.
 
 ### Fixed
 - Missing topping notices now use the singular form when exactly one topping extension is missing.
