@@ -819,6 +819,32 @@ test("response model is sanitized, configurable, and holds then fades after sett
 	});
 });
 
+test("Switchyard response model overrides the configured loader color with NVIDIA green", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			decorations: { ...DEFAULT_SETTINGS.decorations, responseModelColor: "error" },
+		});
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const statuses: { key: string; text: string | undefined }[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`, { statuses });
+		ctx.model = { provider: "switchyard", id: "selected-model" } as NonNullable<ExtensionContext["model"]>;
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
+
+		assert.match(messages.at(-1)!, /\x1b\[38;2;132;197;26mtest-model\x1b\[39m/);
+		assert.ok(!messages.at(-1)!.includes("<error>test-model</error>"));
+
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		assert.match(statuses.at(-1)!.text!, /\x1b\[38;2;132;197;26mtest-model\x1b\[39m/);
+	});
+});
+
 test("thinking-level response model color follows the active thinking level", async (t) => {
 	await withTempAgentDir(async () => {
 		saveSettings({
@@ -848,6 +874,15 @@ test("response model preview follows the active thinking level", () => {
 	const preview = new PreviewRenderer(ctx).render({ responseModelColor: "thinking-level" }, 0);
 
 	assert.ok(preview.lines.some((line) => line.includes("<thinking-high>test-model</thinking-high>")));
+});
+
+test("Switchyard response model preview overrides the selected color with NVIDIA green", () => {
+	const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
+	ctx.model = { provider: "switchyard", id: "selected-model" } as NonNullable<ExtensionContext["model"]>;
+	const preview = new PreviewRenderer(ctx).render({ responseModelColor: "error" }, 0);
+
+	assert.ok(preview.lines.some((line) => line.includes("\x1b[38;2;132;197;26mtest-model\x1b[39m")));
+	assert.ok(preview.lines.every((line) => !line.includes("<error>test-model</error>")));
 });
 
 test("completion marker model preview follows its toggle and thinking-level color", () => {

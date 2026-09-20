@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- The working loader's response model now uses NVIDIA green (`#84c51a`, matching pi-topping-statusline) whenever Switchyard is the active provider, overriding the configured response-model color for the loader and its post-settlement hold/fade.
 - Development and CI now typecheck and test against Pi 0.86.0; the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 0.84.4. No runtime behavior changes, the published `peerDependencies` remain `*`, and the minimum supported host is still Pi ≥0.84.4.
 - Corrected the 0.6.4 note on decorated-prompt submission: `ExtensionAPI.sendMessage()` returns `void`, so the guard covers a synchronous submission failure rather than awaited delivery.
 

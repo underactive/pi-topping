@@ -2,6 +2,7 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_PREVIEW_WIDTH, type PreviewResult } from "./menu.ts";
 import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
 import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatElapsed, formatTokenRate, formatTokens, getThinkingLevelColorizer, isFullyDefaultAppearance, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
+import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
 import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderColor, isDoneMarkerBorderStyle, isDoneMarkerStyle, isPromptBorderColor, isSpinnerColor, isThinkingLevelColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
 import { isWordPackEnabled, selectWorkingTextSelection, wordPacksPath, type WordPack } from "./word-packs.ts";
@@ -62,7 +63,7 @@ export class PreviewRenderer {
 		const order = parseLoaderOrder(values[LOADER_ORDER_ID]);
 		let responseModelColor = DEFAULT_SETTINGS.decorations.responseModelColor;
 		if (isThinkingLevelColor(values.responseModelColor)) responseModelColor = values.responseModelColor;
-		const responseModelColorizer = getThinkingLevelColorizer(this.#ctx.ui.theme, responseModelColor, this.#ctx.thinkingLevel);
+		const responseModelColorizer = getResponseModelColorizer(this.#ctx.ui.theme, responseModelColor, this.#ctx.thinkingLevel, this.#ctx.model?.provider);
 		const responseModelColored = features.responseModel ? responseModelColorizer("test-model") : "";
 		const responseModel = responseModelColored && values.responseModelDimmed === true ? dimAttribute(responseModelColored) : responseModelColored;
 		if (isFullyDefaultAppearance(features, decorations)) {

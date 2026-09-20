@@ -40,6 +40,7 @@ import {
 } from "./format.ts";
 import { isSiblingSetupEnabled } from "./flags.ts";
 import { showMenu } from "./menu.ts";
+import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { registerSetupCommand } from "./setup-command.ts";
 import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type ThinkingLevelColor } from "./settings.ts";
 import { announceMissingToppingsOnce, type MissingToppingsEntryData, renderMissingToppingsEntry, SETUP_ENTRY_TYPE } from "./toppings.ts";
@@ -499,7 +500,7 @@ export class SessionManager {
 	private startResponseModelFade(ctx: ExtensionContext, model: string, color: ThinkingLevelColor, dimmed: boolean): void {
 		this.cancelResponseModelFade(ctx);
 		const generation = this.#state.responseModelFadeGeneration;
-		const colorizer = getThinkingLevelColorizer(ctx.ui.theme, color, ctx.thinkingLevel);
+		const colorizer = getResponseModelColorizer(ctx.ui.theme, color, ctx.thinkingLevel, ctx.model?.provider);
 		const render = (shade?: number): void => {
 			const colored = shade === undefined
 				? colorizer(model)
@@ -593,7 +594,7 @@ export class SessionManager {
 			? getThinkingLevelColorizer(ctx.ui.theme, decorations.spinnerColor, ctx.thinkingLevel)(SPINNER_FRAMES[Math.floor(now / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!)
 			: "";
 		const responseModelColored = features.responseModel && state.responseModel
-			? getThinkingLevelColorizer(ctx.ui.theme, decorations.responseModelColor, ctx.thinkingLevel)(state.responseModel)
+			? getResponseModelColorizer(ctx.ui.theme, decorations.responseModelColor, ctx.thinkingLevel, ctx.model?.provider)(state.responseModel)
 			: "";
 		const responseModel = responseModelColored && decorations.responseModelDimmed ? dimAttribute(responseModelColored) : responseModelColored;
 		if (isFullyDefaultAppearance(features, decorations)) {
