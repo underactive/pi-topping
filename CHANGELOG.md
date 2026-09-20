@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Development and CI now typecheck and test against Pi 0.86.0; the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 0.84.4. No runtime behavior changes, the published `peerDependencies` remain `*`, and the minimum supported host is still Pi ≥0.84.4.
+- Corrected the 0.6.4 note on decorated-prompt submission: `ExtensionAPI.sendMessage()` returns `void`, so the guard covers a synchronous submission failure rather than awaited delivery.
 
 ## [0.7.2] - 2026-09-17
 
@@ -72,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - The response model is now picked up from partial assistant messages during streaming, so the loader shows the current model before the turn ends.
 - Token counts reported by providers are validated before use: non-finite or negative `usage.output` values are ignored instead of being written into session state.
-- The decorated prompt submission now awaits delivery before the input is claimed as handled; when delivery fails, a `Failed to submit prompt` error is shown and the input is not swallowed.
+- The decorated prompt submission is now guarded before the input is claimed as handled; when submission throws, a `Failed to submit prompt` error is shown and the input is not swallowed.
 - The post-settlement display of the response model now renders on a persistent status surface instead of the transient working message, so the hold/fade no longer fights the loader, and it clears cleanly on the next turn, session start, and shutdown.
 
 ## [0.6.3] - 2026-08-28
