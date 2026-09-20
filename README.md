@@ -24,7 +24,7 @@ Restart Pi (or run `/reload`) to pick it up.
 
 ### Sibling toppings
 
-The sibling-topping setup flow currently ships behind the `PI_TOPPING_SIBLING_SETUP=1` environment flag. When enabled, run `/topping-setup` in TUI mode to selectively install missing Pi Topping sibling extensions or uninstall sibling packages recorded in Pi's user settings. Installation rows are selected by default; removal rows are unchecked by default. Restart Pi after applying package changes. Use `/topping-setup disable-side-toppings-check` to suppress missing-topping notices, or `enable-side-toppings-check` to restore them.
+Run `/topping-setup` in TUI mode to selectively install missing Pi Topping sibling extensions or uninstall sibling packages recorded in Pi's user settings. Installation rows are selected by default; removal rows are unchecked by default. Restart Pi after applying package changes. Use `/topping-setup disable-side-toppings-check` to suppress missing-topping notices, or `enable-side-toppings-check` to restore them.
 
 ## Settings
 

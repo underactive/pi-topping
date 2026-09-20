@@ -38,7 +38,6 @@ import {
 	StreamingWordCounter,
 	type ThinkingLevel,
 } from "./format.ts";
-import { isSiblingSetupEnabled } from "./flags.ts";
 import { showMenu } from "./menu.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { registerSetupCommand } from "./setup-command.ts";
@@ -181,7 +180,7 @@ export class SessionManager {
 		this.#state.activityMeter.setDirection(this.#settings.decorations.meterDirection);
 		if (this.usable(ctx)) {
 			this.applyIndicator(ctx);
-			if (isSiblingSetupEnabled()) announceMissingToppingsOnce(this.#pi);
+			announceMissingToppingsOnce(this.#pi);
 		}
 	};
 
@@ -395,13 +394,13 @@ export class SessionManager {
 		this.#pi.on("ui_prompt_end", this.#onUIPromptEnd);
 		this.#pi.on("session_shutdown", this.#onSessionShutdown);
 		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) => this.#renderDoneEntry(entry, theme));
-		if (isSiblingSetupEnabled()) this.#pi.registerEntryRenderer<MissingToppingsEntryData>(SETUP_ENTRY_TYPE, (entry, _o, theme) => renderMissingToppingsEntry(entry, theme));
+		this.#pi.registerEntryRenderer<MissingToppingsEntryData>(SETUP_ENTRY_TYPE, (entry, _o, theme) => renderMissingToppingsEntry(entry, theme));
 		this.#pi.registerMessageRenderer<PromptBoxDetails>(PROMPT_BOX_TYPE, promptBoxRenderer);
 		this.#pi.registerCommand("topping-settings", {
 			description: "Configure prompt decoration, working-loader features/order, and completion-marker settings.",
 			handler: async (_a, ctx) => this.showSettings(ctx),
 		});
-		if (isSiblingSetupEnabled()) registerSetupCommand(this.#pi);
+		registerSetupCommand(this.#pi);
 	}
 
 	private usable(ctx: ExtensionContext): boolean {

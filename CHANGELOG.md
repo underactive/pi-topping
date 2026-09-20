@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The sibling-topping setup flow is now always on: the `PI_TOPPING_SIBLING_SETUP` feature gate was removed, so the missing-topping notice and the `/topping-setup` command are active by default. `PI_TOPPING_SIBLING_SETUP` no longer has any effect.
+
 ## [0.7.2] - 2026-09-20
 
 ### Added

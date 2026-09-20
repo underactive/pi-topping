@@ -6,7 +6,6 @@ import test from "node:test";
 
 import type { CustomEntry, ExtensionAPI, ExtensionCommandContext, ExtensionContext, SessionStartEvent } from "@earendil-works/pi-coding-agent";
 import workingDecorator from "../index.ts";
-import { isSiblingSetupEnabled } from "../src/flags.ts";
 import type { PiInstallResult } from "../src/pi-installer.ts";
 import { registerSetupCommand } from "../src/setup-command.ts";
 import { isSetupCheckDisabled } from "../src/setup-check.ts";
@@ -132,19 +131,6 @@ async function withTempAgentDir<T>(fn: (dir: string) => Promise<T> | T): Promise
 		if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
 		else process.env.PI_CODING_AGENT_DIR = previous;
 		rmSync(dir, { recursive: true, force: true });
-	}
-}
-
-/** Runs `fn` with an env var set (or deleted when `value` is undefined), restoring it afterward. */
-async function withEnv<T>(name: string, value: string | undefined, fn: () => Promise<T> | T): Promise<T> {
-	const previous = process.env[name];
-	if (value === undefined) delete process.env[name];
-	else process.env[name] = value;
-	try {
-		return await fn();
-	} finally {
-		if (previous === undefined) delete process.env[name];
-		else process.env[name] = previous;
 	}
 }
 
@@ -520,39 +506,8 @@ test("/topping-setup reports remover failures as warnings", async () => {
 	});
 });
 
-test("the sibling-setup gate stays off unless PI_TOPPING_SIBLING_SETUP opts in", async () => {
-	await withEnv("PI_TOPPING_SIBLING_SETUP", undefined, () => assert.equal(isSiblingSetupEnabled(), false));
-	await withEnv("PI_TOPPING_SIBLING_SETUP", "1", () => assert.equal(isSiblingSetupEnabled(), true));
-	await withEnv("PI_TOPPING_SIBLING_SETUP", "true", () => assert.equal(isSiblingSetupEnabled(), true));
-	await withEnv("PI_TOPPING_SIBLING_SETUP", "0", () => assert.equal(isSiblingSetupEnabled(), false));
-	await withEnv("PI_TOPPING_SIBLING_SETUP", "off", () => assert.equal(isSiblingSetupEnabled(), false));
-	await withEnv("PI_TOPPING_SIBLING_SETUP", "", () => assert.equal(isSiblingSetupEnabled(), false));
-});
-
-test("without the sibling-setup gate, /topping-setup is not registered and no banner fires", async () => {
-	await withTempAgentDir(() => withEnv("PI_TOPPING_SIBLING_SETUP", undefined, async () => {
-		__resetSetupNotice();
-		try {
-			const extension = new MockExtension();
-			const notifications: Notification[] = [];
-			const ctx = createContext(notifications) as unknown as ExtensionContext;
-
-			workingDecorator(extension.asAPI());
-			assert.equal(extension.commands["topping-setup"], undefined);
-			assert.equal(extension.entryRenderers[SETUP_ENTRY_TYPE], undefined);
-			assert.ok(extension.commands["topping-settings"], "expected /topping-settings to stay registered");
-
-			await extension.emitSessionStart(ctx);
-			assert.deepEqual(extension.appendedEntries, []);
-			assert.deepEqual(notifications, []);
-		} finally {
-			__resetSetupNotice();
-		}
-	}));
-});
-
 test("session_start appends the missing-toppings notice once per process", async () => {
-	await withTempAgentDir(() => withEnv("PI_TOPPING_SIBLING_SETUP", "1", async () => {
+	await withTempAgentDir(async () => {
 		__resetSetupNotice();
 		try {
 			const extension = new MockExtension();
@@ -571,5 +526,5 @@ test("session_start appends the missing-toppings notice once per process", async
 		} finally {
 			__resetSetupNotice();
 		}
-	}));
+	});
 });
