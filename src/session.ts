@@ -308,7 +308,7 @@ export class SessionManager {
 
 		const hadPrompt = !!this.#state.startTime;
 		const elapsedMs = hadPrompt ? Date.now() - this.#state.startTime : 0;
-		const responseModel = this.#settings.features.responseModel ? this.#state.responseModel : "";
+		const responseModel = this.#settings.features.responseModelFooter ? this.#state.responseModel : "";
 		const responseModelColor = this.#settings.decorations.responseModelColor;
 		const responseModelDimmed = this.#settings.decorations.responseModelDimmed;
 		this.#state.busy = false;

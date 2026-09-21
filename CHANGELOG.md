@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The post-settlement response-model footer is now controlled by an independent Options toggle and is disabled by default; the working-loader response-model toggle remains unchanged.
+
 ## [0.8.0] - 2026-09-20
 
 ### Changed

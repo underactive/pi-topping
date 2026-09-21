@@ -777,12 +777,52 @@ test("disabled token rate omits the throughput segment", async (t) => {
 	});
 });
 
+test("response model footer is disabled by default", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const statuses: { key: string; text: string | undefined }[] = [];
+		const ctx = createContext([], [], undefined, { statuses });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		assert.ok(statuses.every(({ text }) => text === undefined));
+	});
+});
+
+test("response model footer works independently of the loader toggle", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			features: { ...DEFAULT_SETTINGS.features, responseModel: false, responseModelFooter: true },
+		});
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const statuses: { key: string; text: string | undefined }[] = [];
+		const ctx = createContext(messages, [], undefined, { statuses });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
+		assert.ok(!messages.at(-1)!.includes("test-model"));
+
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		assert.match(statuses.at(-1)!.text!, /test-model/);
+	});
+});
+
 test("response model is sanitized, configurable, and holds then fades after settlement", async (t) => {
 	await withTempAgentDir(async () => {
 		saveSettings({
 			...DEFAULT_SETTINGS,
 			decorations: { ...DEFAULT_SETTINGS.decorations, responseModelColor: "success", responseModelDimmed: true },
-			features: { ...DEFAULT_SETTINGS.features, tokenRate: false },
+			features: { ...DEFAULT_SETTINGS.features, tokenRate: false, responseModelFooter: true },
 		});
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];
@@ -824,6 +864,7 @@ test("Switchyard response model overrides the configured loader color with NVIDI
 		saveSettings({
 			...DEFAULT_SETTINGS,
 			decorations: { ...DEFAULT_SETTINGS.decorations, responseModelColor: "error" },
+			features: { ...DEFAULT_SETTINGS.features, responseModelFooter: true },
 		});
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];
@@ -850,6 +891,7 @@ test("thinking-level response model color follows the active thinking level", as
 		saveSettings({
 			...DEFAULT_SETTINGS,
 			decorations: { ...DEFAULT_SETTINGS.decorations, responseModelColor: "thinking-level" },
+			features: { ...DEFAULT_SETTINGS.features, responseModelFooter: true },
 		});
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];
@@ -930,6 +972,7 @@ test("resembling response models are suppressed during streaming and settlement"
 
 test("auto selections retain resolved response models and clear stale streamed values", async (t) => {
 	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, responseModelFooter: true } });
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];
 		const statuses: { key: string; text: string | undefined }[] = [];
@@ -963,6 +1006,7 @@ test("auto selections retain resolved response models and clear stale streamed v
 
 test("response model fade is cancelled by a new run and shutdown", async (t) => {
 	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, responseModelFooter: true } });
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];
 		const statuses: { key: string; text: string | undefined }[] = [];
@@ -1677,6 +1721,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.decorations.doneMarkerModelColor, "thinking-level");
 		assert.equal(persisted.decorations.doneMarkerModelDimmed, !DEFAULT_SETTINGS.decorations.doneMarkerModelDimmed);
 		assert.equal(persisted.decorations.useNerdFont, !DEFAULT_SETTINGS.decorations.useNerdFont);
+		assert.equal(persisted.features.responseModelFooter, !DEFAULT_SETTINGS.features.responseModelFooter);
 	});
 });
 

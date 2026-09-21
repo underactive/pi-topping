@@ -96,6 +96,7 @@ export interface DecoratorSettings {
 		outputTokens: boolean;
 		tokenRate: boolean;
 		responseModel: boolean;
+		responseModelFooter: boolean;
 		doneMarker: boolean;
 		doneMarkerIcon: boolean;
 		randomizeDoneMarker: boolean;
@@ -109,7 +110,7 @@ export interface DecoratorSettings {
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
 	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "thinking-level", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "thinking-level", doneMarkerStyle: "elite", doneMarkerModelColor: "muted", doneMarkerModelDimmed: false, spinnerColor: "thinking-level", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, responseModelColor: "accent", responseModelDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
-	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, responseModel: true, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true, doneMarkerModel: true },
+	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, responseModel: true, responseModelFooter: false, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true, doneMarkerModel: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 	wordPacks: {},
 };
@@ -228,6 +229,7 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "doneMarkerModelColor", label: "Response model color", section: "Completion Marker", group: "decorations", key: "doneMarkerModelColor", cycleValues: THINKING_LEVEL_COLOR_VALUES, cycleValueLabels: THINKING_LEVEL_CYCLE_LABELS },
 	{ id: "doneMarkerModelDimmed", label: "Response model dimmed", section: "Completion Marker", group: "decorations", key: "doneMarkerModelDimmed" },
 	{ id: "useNerdFont", label: "Use NerdFont icons", section: "Options", group: "decorations", key: "useNerdFont" },
+	{ id: "showResponseModelFooter", label: "Response model footer", section: "Options", group: "features", key: "responseModelFooter" },
 ];
 
 function menuItem(entry: MenuEntry, settings: DecoratorSettings): MenuSection["items"][number] {

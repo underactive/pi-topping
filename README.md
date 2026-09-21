@@ -102,6 +102,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║                                                               ║
 ╟─ Options ─────────────────────────────────────────────────────╢
 ║    [■] Use NerdFont icons                             ON      ║
+║    [ ] Response model footer                         OFF      ║
 ╟───────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  PgUp/PgDn page  ←→ select                           ║
 ║  ␣ toggle  ⏎ apply  esc cancel                                ║
@@ -141,7 +142,7 @@ full brightness for 1.5 seconds, then fades through five theme-aware shades to t
 the next 0.25 seconds before returning to the placeholder; a new count restores full brightness and
 restarts the cycle.
 
-The response model is captured from assistant responses, displayed as its sanitized value with no label only when it meaningfully differs from the selected model, and defaults to the final loader detail after output tokens. Equivalent local paths and decorated filenames are suppressed. It can be hidden, recolored, permanently dimmed, or reordered. When the active provider is `switchyard`, the loader and its post-settlement hold/fade use NVIDIA green (`#84c51a`, matching pi-topping-statusline) regardless of the configured Response model color; the dim setting still applies. After the agent settles, its final value remains visible for 3 seconds, fades through five theme-aware shades over 0.5 seconds, then clears; new work cancels the pending fade.
+The response model is captured from assistant responses, displayed as its sanitized value with no label only when it meaningfully differs from the selected model, and defaults to the final loader detail after output tokens. Equivalent local paths and decorated filenames are suppressed. Its loader display can be hidden, recolored, permanently dimmed, or reordered. The independent **Response model footer** option is disabled by default; when enabled, the final model appears under the editor after settlement, remains visible for 3 seconds, fades through five theme-aware shades over 0.5 seconds, then clears. New work cancels the pending fade. When the active provider is `switchyard`, the loader and footer hold/fade use NVIDIA green (`#84c51a`, matching pi-topping-statusline) regardless of the configured Response model color; the dim setting still applies.
 
 ## Requirements
 
