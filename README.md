@@ -160,7 +160,7 @@ npm test
 npm run typecheck
 ```
 
-Tests cover the word/shimmer rendering, prompt box and completion marker rendering, activity meter behavior, timer resets, settings persistence and schema migrations, word-pack parsing and loading, the `menu.ts` component, the settings menu wiring end to end, and the flag-gated `/topping-setup` command's install and uninstall flows.
+Tests cover the word/shimmer rendering, prompt box and completion marker rendering, activity meter behavior, timer resets, settings persistence and schema migrations, word-pack parsing and loading, the `menu.ts` component, the settings menu wiring end to end, and the `/topping-setup` command's install and uninstall flows.
 
 ## Limitations
 
