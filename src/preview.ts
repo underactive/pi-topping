@@ -1,7 +1,8 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_PREVIEW_WIDTH, type PreviewResult } from "./menu.ts";
 import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
-import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatElapsed, formatTokenRate, formatTokens, getThinkingLevelColorizer, isFullyDefaultAppearance, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES } from "./format.ts";
+import { DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatTokenRate, getThinkingLevelColorizer, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, SPINNER_FRAME_MS } from "./format.ts";
+import { buildLoaderMessage } from "./loader-message.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
 import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderColor, isDoneMarkerBorderStyle, isDoneMarkerStyle, isPromptBorderColor, isSpinnerColor, isThinkingLevelColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
@@ -57,24 +58,20 @@ export class PreviewRenderer {
 			this.#lastMeterUpdate = elapsedMs;
 		}
 		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false, responseModel: values.showResponseModel !== false };
-		const decorations = { shimmer: values.shimmer !== false, shimmerInverted: values.shimmerInverted === true, tokenActivityMonitor: values.tokenActivityMonitor !== false };
-		let spinnerColor = DEFAULT_SETTINGS.decorations.spinnerColor;
-		if (isSpinnerColor(values.spinnerColor)) {
-			spinnerColor = values.spinnerColor;
-		}
-		let spinner = "";
-		if (values.animatedSpinner !== false) {
-			spinner = getThinkingLevelColorizer(this.#ctx.ui.theme, spinnerColor, this.#ctx.thinkingLevel)(SPINNER_FRAMES[Math.floor(elapsedMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!);
-		}
-		const order = parseLoaderOrder(values[LOADER_ORDER_ID]);
-		let responseModelColor = DEFAULT_SETTINGS.decorations.responseModelColor;
-		if (isThinkingLevelColor(values.responseModelColor)) responseModelColor = values.responseModelColor;
-		const responseModelColorizer = getResponseModelColorizer(this.#ctx.ui.theme, responseModelColor, this.#ctx.thinkingLevel, this.#ctx.model?.provider);
-		const responseModelColored = features.responseModel ? responseModelColorizer("test-model") : "";
-		const responseModel = responseModelColored && values.responseModelDimmed === true ? dimAttribute(responseModelColored) : responseModelColored;
-		if (isFullyDefaultAppearance(features, decorations)) {
-			return buildWorkingMessage(this.#ctx.ui.theme, { spinner, text: this.#ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD), responseModel }, order);
-		}
+		const decorations = {
+			shimmer: values.shimmer !== false,
+			shimmerInverted: values.shimmerInverted === true,
+			shimmerDirection: fromCycleDirection(values.shimmerDirection),
+			shimmerSpeed: fromCycleSpeed(values.shimmerSpeed),
+			tokenActivityMonitor: values.tokenActivityMonitor !== false,
+			meterColor: isThinkingLevelColor(values.meterColor) ? values.meterColor : DEFAULT_SETTINGS.decorations.meterColor,
+			meterDimmed: values.meterDimmed === true,
+			tokenRateColor: isThinkingLevelColor(values.tokenRateColor) ? values.tokenRateColor : DEFAULT_SETTINGS.decorations.tokenRateColor,
+			tokenRateDimmed: values.tokenRateDimmed === true,
+			responseModelColor: isThinkingLevelColor(values.responseModelColor) ? values.responseModelColor : DEFAULT_SETTINGS.decorations.responseModelColor,
+			responseModelDimmed: values.responseModelDimmed === true,
+			spinnerColor: isSpinnerColor(values.spinnerColor) ? values.spinnerColor : DEFAULT_SETTINGS.decorations.spinnerColor,
+		};
 		let word = DEFAULT_WORKING_WORD;
 		if (features.substituteDefaultMessage) {
 			const packValues = this.packValues(values);
@@ -86,55 +83,17 @@ export class PreviewRenderer {
 			}
 			word = this.#cachedPackWord;
 		}
-		let styledWord: string;
-		if (decorations.shimmer) {
-			styledWord = shimmerString(word, elapsedMs, this.#ctx.ui.theme, fromCycleDirection(values.shimmerDirection), fromCycleSpeed(values.shimmerSpeed), decorations.shimmerInverted);
-		} else {
-			styledWord = this.#ctx.ui.theme.fg("text", word);
-		}
-		let meterColor = DEFAULT_SETTINGS.decorations.meterColor;
-		if (isThinkingLevelColor(values.meterColor)) {
-			meterColor = values.meterColor;
-		}
-		let meter = "";
-		if (decorations.tokenActivityMonitor) {
-			const meterColorizer = getThinkingLevelColorizer(this.#ctx.ui.theme, meterColor, this.#ctx.thinkingLevel);
-			meter = this.#meter.render((level, char) => ActivityMeter.colorizeCell(level, char, this.#ctx.ui.theme, meterColorizer, values.meterDimmed === true));
-		}
-		let tokenRateText = "";
-		if (features.tokenRate) {
-			tokenRateText = formatTokenRate(TOKEN_RATE_PER_SEC);
-		}
-		let tokenRateColor = DEFAULT_SETTINGS.decorations.tokenRateColor;
-		if (isThinkingLevelColor(values.tokenRateColor)) {
-			tokenRateColor = values.tokenRateColor;
-		}
-		let tokenRateColored = "";
-		if (tokenRateText) {
-			const tokenRateColorizer = getThinkingLevelColorizer(this.#ctx.ui.theme, tokenRateColor, this.#ctx.thinkingLevel);
-			tokenRateColored = tokenRateColorizer(tokenRateText);
-		}
-		let tokenRate = tokenRateColored;
-		if (tokenRateColored && values.tokenRateDimmed === true) {
-			tokenRate = dimAttribute(tokenRateColored);
-		}
-		let elapsed = "";
-		if (features.elapsedTime) {
-			elapsed = formatElapsed(elapsedMs);
-		}
-		let tokens = "";
-		if (features.outputTokens) {
-			tokens = `↓ ${formatTokens(Math.max(0, Math.floor(elapsedMs / 1000 * TOKEN_RATE_PER_SEC)))} tokens`;
-		}
-		return buildWorkingMessage(this.#ctx.ui.theme, {
-			spinner,
-			text: styledWord,
-			meter,
-			elapsed,
-			tokens,
-			tokenRate,
-			responseModel,
-		}, order);
+		const theme = this.#ctx.ui.theme;
+		return buildLoaderMessage(theme, this.#ctx.thinkingLevel, this.#ctx.model?.provider, features, decorations, parseLoaderOrder(values[LOADER_ORDER_ID]), {
+			spinnerAtMs: values.animatedSpinner !== false ? elapsedMs : undefined,
+			word,
+			shimmerAtMs: elapsedMs,
+			renderMeter: (colorizer, dimmed) => this.#meter.render((level, char) => ActivityMeter.colorizeCell(level, char, theme, colorizer, dimmed)),
+			elapsedMs,
+			outputTokens: Math.max(0, Math.floor(elapsedMs / 1000 * TOKEN_RATE_PER_SEC)),
+			tokenRateText: formatTokenRate(TOKEN_RATE_PER_SEC),
+			responseModel: features.responseModel ? "test-model" : undefined,
+		});
 	}
 	private packValues(values: Record<string, boolean | string>): Record<string, boolean> {
 		const enabled: Record<string, boolean> = {};

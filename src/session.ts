@@ -15,8 +15,6 @@ import type {
 import { Text, type Component } from "@earendil-works/pi-tui";
 import { ActivityMeter, rateToLevel, TokRateTracker } from "./activity-meter.ts";
 import {
-	buildWorkingMessage,
-	DEFAULT_WORKING_WORD,
 	dimAttribute,
 	getThinkingLevelColorizer,
 	isThinkingLevel,
@@ -32,15 +30,14 @@ import {
 	RESPONSE_MODEL_SLIDE_FRAME_MS,
 	RESPONSE_MODEL_SLIDE_MS,
 	SHIMMER_INTERVAL_MS,
-	shimmerString,
 	slideOutTail,
 	SPINNER_FRAME_MS,
 	SPINNER_FRAMES,
 	TOKEN_RATE_FADE_SHADE_COUNT,
-	TOKEN_RATE_PLACEHOLDER,
 	StreamingWordCounter,
 	type ThinkingLevel,
 } from "./format.ts";
+import { buildLoaderMessage } from "./loader-message.ts";
 import { showMenu } from "./menu.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { registerSetupCommand } from "./setup-command.ts";
@@ -638,39 +635,9 @@ export class SessionManager {
 			if (decorations.tokenActivityMonitor) state.activityMeter.push(rateToLevel(tokenRate));
 			state.lastTokenRateSampledAt = now;
 		}
-		const spinner = this.spinnerInMessage()
-			? getThinkingLevelColorizer(ctx.ui.theme, decorations.spinnerColor, ctx.thinkingLevel)(SPINNER_FRAMES[Math.floor(now / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!)
-			: "";
 		const responseModelShown = features.responseModel && state.responseModel
 			? slideOutTail(state.responseModel, now - state.responseModelShownAt)
 			: "";
-		const responseModelColored = responseModelShown
-			? getResponseModelColorizer(ctx.ui.theme, decorations.responseModelColor, ctx.thinkingLevel, ctx.model?.provider)(responseModelShown)
-			: "";
-		const responseModel = responseModelColored && decorations.responseModelDimmed ? dimAttribute(responseModelColored) : responseModelColored;
-		if (isFullyDefaultAppearance(features, decorations)) {
-			const msg = spinner || responseModel
-				? buildWorkingMessage(ctx.ui.theme, { spinner, text: ctx.ui.theme.fg("dim", DEFAULT_WORKING_WORD), responseModel }, this.#settings.loaderOrder)
-				: undefined;
-			if (msg !== state.lastMessage) {
-				state.lastMessage = msg;
-				ctx.ui.setWorkingMessage(msg);
-			}
-			return;
-		}
-
-		const word = features.substituteDefaultMessage ? state.workingText.text : DEFAULT_WORKING_WORD;
-		const styled = decorations.shimmer
-			? shimmerString(word, now - state.shimmerOrigin, ctx.ui.theme, decorations.shimmerDirection, decorations.shimmerSpeed, decorations.shimmerInverted)
-			: ctx.ui.theme.fg("text", word);
-		let meter = "";
-		if (decorations.tokenActivityMonitor) {
-			const meterColorizer = getThinkingLevelColorizer(ctx.ui.theme, decorations.meterColor, ctx.thinkingLevel);
-			meter = state.activityMeter.render((level, char) =>
-				ActivityMeter.colorizeCell(level, char, ctx.ui.theme, meterColorizer, decorations.meterDimmed),
-			);
-		}
-		let tokenRateText = "";
 		if (features.tokenRate) {
 			const latestTokenRate = formatTokenRate(state.rateTracker.tokenRate);
 			if (latestTokenRate && hasNewTokenCount) {
@@ -679,38 +646,33 @@ export class SessionManager {
 			} else if (now >= state.tokenRateFadeStartsAt + TOKEN_RATE_FADE_MS) {
 				state.tokenRateText = "";
 			}
-			tokenRateText = state.tokenRateText;
 		}
-		let tokenRateSegment = "";
-		if (features.tokenRate) {
-			if (!tokenRateText) {
-				tokenRateSegment = ctx.ui.theme.fg("dim", TOKEN_RATE_PLACEHOLDER);
-			} else {
-				const tokenRateColorizer = getThinkingLevelColorizer(ctx.ui.theme, decorations.tokenRateColor, ctx.thinkingLevel);
-				tokenRateSegment = now < state.tokenRateFadeStartsAt
-					? tokenRateColorizer(tokenRateText)
-					: fadeThemeColorString(
-						tokenRateText,
-						Math.floor((now - state.tokenRateFadeStartsAt) / (TOKEN_RATE_FADE_MS / TOKEN_RATE_FADE_SHADE_COUNT)),
-						ctx.ui.theme,
-						tokenRateColorizer,
-					);
-			}
-		}
-		const tokenRateStyled = tokenRateSegment && decorations.tokenRateDimmed ? dimAttribute(tokenRateSegment) : tokenRateSegment;
-		const msg = buildWorkingMessage(
-			ctx.ui.theme,
-			{
-				spinner,
-				text: styled,
-				meter,
-				elapsed: features.elapsedTime ? formatElapsed(now - state.startTime) : "",
-				tokens: features.outputTokens ? `↓ ${formatTokens(total)} tokens` : "",
-				tokenRate: tokenRateStyled,
-				responseModel,
-			},
-			this.#settings.loaderOrder,
-		);
+		const showSpinner = this.spinnerInMessage();
+		const msg = isFullyDefaultAppearance(features, decorations) && !showSpinner && !responseModelShown
+			? undefined
+			: buildLoaderMessage(
+				ctx.ui.theme,
+				ctx.thinkingLevel,
+				ctx.model?.provider,
+				features,
+				decorations,
+				this.#settings.loaderOrder,
+				{
+					spinnerAtMs: showSpinner ? now : undefined,
+					word: state.workingText.text,
+					shimmerAtMs: now - state.shimmerOrigin,
+					renderMeter: (colorizer, dimmed) => state.activityMeter.render((level, char) =>
+						ActivityMeter.colorizeCell(level, char, ctx.ui.theme, colorizer, dimmed),
+					),
+					elapsedMs: now - state.startTime,
+					outputTokens: total,
+					tokenRateText: state.tokenRateText,
+					tokenRateShade: now < state.tokenRateFadeStartsAt
+						? undefined
+						: Math.floor((now - state.tokenRateFadeStartsAt) / (TOKEN_RATE_FADE_MS / TOKEN_RATE_FADE_SHADE_COUNT)),
+					responseModel: responseModelShown,
+				},
+			);
 		if (msg !== state.lastMessage) {
 			state.lastMessage = msg;
 			ctx.ui.setWorkingMessage(msg);

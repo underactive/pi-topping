@@ -37,7 +37,14 @@ type MessageEndEvent = { type: "message_end"; message: AssistantMessage };
 type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown };
 type UIPromptStartEvent = Extract<ExtensionEvent, { type: "ui_prompt_start" }>;
 type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
-import { RESPONSE_MODEL_SLIDE_FRAME_MS, RESPONSE_MODEL_SLIDE_MS, SPINNER_FRAMES } from "../src/format.ts";
+import {
+	RESPONSE_MODEL_FADE_MS,
+	RESPONSE_MODEL_HOLD_MS,
+	RESPONSE_MODEL_SLIDE_FRAME_MS,
+	RESPONSE_MODEL_SLIDE_MS,
+	SPINNER_FRAMES,
+	TOKEN_RATE_FADE_SHADE_COUNT,
+} from "../src/format.ts";
 import { PreviewRenderer } from "../src/preview.ts";
 import { PROMPT_BOX_TYPE } from "../src/prompt-decorator.ts";
 import { buildMenuSections, DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/settings.ts";
@@ -301,6 +308,14 @@ function recordTimers(t: test.TestContext): { timers: RecordedTimer[]; cleared: 
 /** The most recently started response-model slide timer, if any. */
 function slideTimer(timers: RecordedTimer[]): RecordedTimer | undefined {
 	return timers.filter((timer) => timer.ms === RESPONSE_MODEL_SLIDE_FRAME_MS).at(-1);
+}
+
+function holdTimer(timers: RecordedTimer[]): RecordedTimer | undefined {
+	return timers.filter((timer) => timer.ms === RESPONSE_MODEL_HOLD_MS).at(-1);
+}
+
+function fadeTimer(timers: RecordedTimer[], hold: RecordedTimer): RecordedTimer | undefined {
+	return timers.filter((timer) => timer.ms === RESPONSE_MODEL_FADE_MS / TOKEN_RATE_FADE_SHADE_COUNT && timer.id > hold.id).at(-1);
 }
 
 test("an input-less run resets the token count after settling", async (t) => {
@@ -865,19 +880,8 @@ test("response model is sanitized, configurable, and holds then fades after sett
 		const messages: (string | undefined)[] = [];
 		const statuses: { key: string; text: string | undefined }[] = [];
 		const ctx = createContext(messages, [], truecolorThemeFg, { statuses });
-		const timeouts: (() => void)[] = [];
-		const intervals: (() => void)[] = [];
 		t.mock.method(Date, "now", () => 1_000);
-		t.mock.method(globalThis, "setTimeout", ((callback: () => void) => {
-			timeouts.push(callback);
-			return timeouts.length;
-		}) as unknown as typeof setTimeout);
-		t.mock.method(globalThis, "setInterval", ((callback: () => void) => {
-			intervals.push(callback);
-			return intervals.length;
-		}) as unknown as typeof setInterval);
-		t.mock.method(globalThis, "clearTimeout", (() => {}) as typeof clearTimeout);
-		t.mock.method(globalThis, "clearInterval", (() => {}) as typeof clearInterval);
+		const { timers, cleared } = recordTimers(t);
 
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
@@ -886,13 +890,16 @@ test("response model is sanitized, configurable, and holds then fades after sett
 
 		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
 		assert.match(statuses.at(-1)!.text!, /\x1b\[2m\x1b\[38;2;224;224;224mtest-model\x1b\[0m\x1b\[22m$/);
-		assert.equal(timeouts.length, 1);
-		timeouts[0]!();
+		assert.equal(timers.filter((timer) => timer.ms === RESPONSE_MODEL_HOLD_MS).length, 1);
+		const hold = holdTimer(timers);
+		assert.ok(hold);
+		hold.tick();
 		assert.match(statuses.at(-1)!.text!, /\x1b\[2m\x1b\[38;2;/);
-		assert.equal(intervals.length, 2, "one working timer and one fade timer");
-		const fade = intervals.at(-1)!;
-		for (let i = 0; i < 5; i++) fade();
+		const fade = fadeTimer(timers, hold);
+		assert.ok(fade, "the fade timer starts after the hold");
+		for (let i = 0; i < TOKEN_RATE_FADE_SHADE_COUNT; i++) fade.tick();
 		assert.equal(statuses.at(-1)!.text, undefined);
+		assert.ok(cleared.has(fade.id), "the fade timer stops after clearing the status");
 	});
 });
 
@@ -1048,47 +1055,36 @@ test("response model fade is cancelled by a new run and shutdown", async (t) => 
 		const messages: (string | undefined)[] = [];
 		const statuses: { key: string; text: string | undefined }[] = [];
 		const ctx = createContext(messages, [], undefined, { statuses });
-		const timeouts: (() => void)[] = [];
-		const intervals: (() => void)[] = [];
-		const clearedTimeouts: unknown[] = [];
-		const clearedIntervals: unknown[] = [];
 		t.mock.method(Date, "now", () => 1_000);
-		t.mock.method(globalThis, "setTimeout", ((callback: () => void) => {
-			timeouts.push(callback);
-			return timeouts.length;
-		}) as unknown as typeof setTimeout);
-		t.mock.method(globalThis, "clearTimeout", ((timer: unknown) => {
-			clearedTimeouts.push(timer);
-		}) as typeof clearTimeout);
-		t.mock.method(globalThis, "setInterval", ((callback: () => void) => {
-			intervals.push(callback);
-			return intervals.length;
-		}) as unknown as typeof setInterval);
-		t.mock.method(globalThis, "clearInterval", ((timer: unknown) => {
-			clearedIntervals.push(timer);
-		}) as typeof clearInterval);
+		const { timers, cleared } = recordTimers(t);
 
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
 		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		const firstHold = holdTimer(timers);
+		assert.ok(firstHold);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		assert.ok(cleared.has(firstHold.id), "a new run clears the pending hold timer");
 		const afterNewRun = statuses.length;
-		timeouts[0]!();
+		const fadeBefore = fadeTimer(timers, firstHold);
+		firstHold.tick();
 		assert.equal(statuses.length, afterNewRun);
-		assert.equal(clearedTimeouts.length, 1);
+		assert.equal(fadeTimer(timers, firstHold), fadeBefore, "a cancelled hold schedules no fade timer");
 
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
 		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
-		assert.equal(timeouts.length, 2);
-		timeouts[1]!();
-		const fade = intervals.at(-1)!;
-		const fadeTimerHandle = intervals.length;
+		assert.equal(timers.filter((timer) => timer.ms === RESPONSE_MODEL_HOLD_MS).length, 2);
+		const secondHold = holdTimer(timers);
+		assert.ok(secondHold && secondHold !== firstHold);
+		secondHold.tick();
+		const fade = fadeTimer(timers, secondHold);
+		assert.ok(fade, "the next hold starts a fade timer");
 		await extension.emit("session_shutdown", { type: "session_shutdown", reason: "quit" }, ctx);
 		assert.equal(statuses.at(-1)!.text, undefined);
-		assert.ok(clearedIntervals.includes(fadeTimerHandle));
+		assert.ok(cleared.has(fade.id), "shutdown clears the active fade timer");
 		const afterShutdown = statuses.length;
-		fade();
+		fade.tick();
 		assert.equal(statuses.length, afterShutdown);
 	});
 });
@@ -2291,7 +2287,8 @@ test("the pi-topping-done entry renderer renders the word/time in dim text and t
 
 test("completion marker captures and renders the response model independently of the loader toggle", async (t) => {
 	await withTempAgentDir(async () => {
-		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, responseModel: false } });
+		// Keep the marker word short and deterministic so the separator and model do not wrap at width 100.
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, responseModel: false, randomizeDoneMarker: false } });
 		const extension = new MockExtension();
 		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
 		t.mock.method(Date, "now", () => 1_000);
