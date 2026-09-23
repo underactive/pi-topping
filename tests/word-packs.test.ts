@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { applyMenuResult, buildMenuSections, DEFAULT_SETTINGS, loadSettings, saveSettings, settingsPath } from "../src/settings.ts";
-import { isWordPackEnabled, loadBundledWordPacks, loadUserWordPacks, parseWordPacks, pickWorkingTextSelection, wordPacksPath } from "../src/word-packs.ts";
+import { isWordPackEnabled, loadBundledWordPacks, loadUserWordPacks, parseWordPacks, pickWorkingTextSelection, selectWorkingTextSelection, wordPacksPath } from "../src/word-packs.ts";
 import { WORDS } from "../src/words.ts";
 
 function withTempAgentDir<T>(fn: () => T): T {
@@ -137,10 +137,27 @@ test("selection is uniform across base and enabled pack entries and retains its 
 	assert.deepEqual(pickWorkingTextSelection({ custom: false }, [pack]), { text: WORDS[0]!.present_tense, pastTense: WORDS[0]!.past_tense });
 });
 
+test("excluding default Working text selects enabled pack words and falls back to base words when needed", () => {
+	const pack = {
+		id: "custom",
+		name: "Custom",
+		words: [
+			{ present_tense: "Pack first", past_tense: "Packed first" },
+			{ present_tense: "Pack last", past_tense: "Packed last" },
+		],
+		bundled: false,
+	};
+
+	assert.deepEqual(selectWorkingTextSelection({ custom: true }, [pack], 0, false), { text: "Pack first", pastTense: "Packed first" });
+	assert.deepEqual(selectWorkingTextSelection({ custom: true }, [pack], 0.999999, false), { text: "Pack last", pastTense: "Packed last" });
+	assert.equal(selectWorkingTextSelection({}, [pack], 0, false).text, WORDS[0]!.present_tense, "empty enabled-pack pools fall back to base words");
+	assert.equal(selectWorkingTextSelection({ custom: true }, [pack], 0, true).text, WORDS[0]!.present_tense, "the default pool starts with base words");
+});
+
 test("menu includes custom packs and settings retain unavailable pack preferences", () => withTempAgentDir(() => {
 	const custom = { id: "cooking", name: "Cooking", words: [{ present_tense: "Making", past_tense: "Made" }], bundled: false };
 	const wordPackSection = buildMenuSections(DEFAULT_SETTINGS, [custom]).find((section) => section.title === "Word Packs");
-	assert.deepEqual(wordPackSection?.items.map((item) => [item.id, item.value]), [["pack:cooking", false]]);
+	assert.deepEqual(wordPackSection?.items.map((item) => [item.id, item.value]), [["pack:cooking", false], ["includeDefaultWorkingText", true]]);
 	const updated = applyMenuResult(DEFAULT_SETTINGS, { "pack:cooking": false, "pack:restored": true, "pack:__proto__": true });
 	assert.deepEqual(updated.wordPacks, { cooking: false, restored: true });
 	saveSettings(updated);

@@ -73,9 +73,10 @@ export class PreviewRenderer {
 		let word = DEFAULT_WORKING_WORD;
 		if (features.substituteDefaultMessage) {
 			const packValues = this.packValues(values);
-			const signature = JSON.stringify(Object.keys(packValues).sort().map(k => `${k}=${packValues[k]}`));
+			const includeDefaultWorkingText = values.includeDefaultWorkingText !== false;
+			const signature = JSON.stringify({ packValues: Object.keys(packValues).sort().map(k => `${k}=${packValues[k]}`), includeDefaultWorkingText });
 			if (signature !== this.#cachedPackSignature) {
-				this.#cachedPackWord = selectWorkingTextSelection(packValues, this.#packs, this.#poolFraction).text;
+				this.#cachedPackWord = selectWorkingTextSelection(packValues, this.#packs, this.#poolFraction, includeDefaultWorkingText).text;
 				this.#cachedPackSignature = signature;
 			}
 			word = this.#cachedPackWord;

@@ -103,6 +103,7 @@ export interface DecoratorSettings {
 		doneMarkerTokens: boolean;
 		doneMarkerInputs: boolean;
 		doneMarkerModel: boolean;
+		includeDefaultWorkingText: boolean;
 	};
 	loaderOrder: LoaderElement[];
 	wordPacks: Record<string, boolean>;
@@ -110,7 +111,7 @@ export interface DecoratorSettings {
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
 	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "thinking-level", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "thinking-level", doneMarkerStyle: "elite", doneMarkerModelColor: "muted", doneMarkerModelDimmed: false, spinnerColor: "thinking-level", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, responseModelColor: "accent", responseModelDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
-	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, responseModel: true, responseModelFooter: false, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true, doneMarkerModel: true },
+	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, responseModel: true, responseModelFooter: false, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true, doneMarkerModel: true, includeDefaultWorkingText: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 	wordPacks: {},
 };
@@ -177,7 +178,7 @@ export function fromCycleSpeed(value: unknown): "slow" | "normal" | "fast" {
 	return value === "slow" || value === "fast" ? value : "normal";
 }
 
-type MenuSectionName = "User Prompt" | "“Working” Loader" | "Completion Marker" | "Options";
+type MenuSectionName = "User Prompt" | "“Working” Loader" | "Completion Marker" | "Word Packs" | "Options";
 type DecorationSettings = DecoratorSettings["decorations"];
 type FeatureSettings = DecoratorSettings["features"];
 type DecorationBooleanKey = { [Key in keyof DecorationSettings]: DecorationSettings[Key] extends boolean ? Key : never }[keyof DecorationSettings];
@@ -230,6 +231,7 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "doneMarkerModelDimmed", label: "Response model dimmed", section: "Completion Marker", group: "decorations", key: "doneMarkerModelDimmed" },
 	{ id: "useNerdFont", label: "Use NerdFont icons", section: "Options", group: "decorations", key: "useNerdFont" },
 	{ id: "showResponseModelFooter", label: "Response model footer", section: "Options", group: "features", key: "responseModelFooter" },
+	{ id: "includeDefaultWorkingText", label: "Include default/random 'Working' text", section: "Word Packs", group: "features", key: "includeDefaultWorkingText" },
 ];
 
 function menuItem(entry: MenuEntry, settings: DecoratorSettings): MenuSection["items"][number] {
@@ -289,12 +291,20 @@ function buildSection(title: MenuSectionName, settings: DecoratorSettings): Menu
 
 export function buildMenuSections(settings: DecoratorSettings, bundledPacks: readonly WordPack[], userPacks: readonly WordPack[] = []): MenuSection[] {
 	const packs = [...bundledPacks, ...userPacks];
+	const packIds = packs.map(pack => `pack:${pack.id}`);
+	const includeDefaultWorkingText = menuItem(MENU_ENTRIES.find(entry => entry.id === "includeDefaultWorkingText")!, settings);
 	return [
 		buildSection("User Prompt", settings),
 		buildSection("“Working” Loader", settings),
 		{ title: "Elements Order", items: parseLoaderOrder(settings.loaderOrder).map(id => ({ id, label: LOADER_ELEMENT_LABELS[id], value: false, reorderGroup: LOADER_ORDER_ID })) },
 		buildSection("Completion Marker", settings),
-		{ title: "Word Packs", items: packs.map((pack) => ({ id: `pack:${pack.id}`, label: pack.name, value: isWordPackEnabled(pack.id, settings.wordPacks) })) },
+		{
+			title: "Word Packs",
+			items: [
+				...packs.map((pack) => ({ id: `pack:${pack.id}`, label: pack.name, value: isWordPackEnabled(pack.id, settings.wordPacks) })),
+				{ ...includeDefaultWorkingText, spacerBefore: true, disabledUnlessAnyOf: packIds },
+			],
+		},
 		buildSection("Options", settings),
 	];
 }

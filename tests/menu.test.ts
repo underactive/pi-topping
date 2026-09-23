@@ -299,6 +299,46 @@ test("cycle value labels affect rendering without changing published values", ()
 	assert.equal(result!.values.color, "default");
 });
 
+test("word-pack-dependent toggle is disabled without packs and re-enables reactively", () => {
+	let result: MenuResult<Record<string, MenuValue>> | undefined;
+	const menu = new MenuComponent({
+		title: "TEST",
+		sections: [{ title: "Word Packs", items: [
+			{ id: "pack:one", label: "Pack One", value: false },
+			{ id: "pack:two", label: "Pack Two", value: false },
+			{ id: "includeDefaultWorkingText", label: "Include default/random 'Working' text", value: false, spacerBefore: true, disabledUnlessAnyOf: ["pack:one", "pack:two"] },
+		] }],
+	}, fakeTheme(), (value) => { result = value; });
+
+	let lines = menu.render(80).map(stripTags);
+	const packTwoIndex = lines.findIndex(line => line.includes("Pack Two"));
+	const toggleIndex = lines.findIndex(line => line.includes("Include default/random"));
+	assert.equal(toggleIndex, packTwoIndex + 2, "the toggle has one blank row before it");
+	assert.ok(lines[toggleIndex - 1]!.match(/^║\s+║$/), "the spacer row is blank");
+	assert.ok(lines[toggleIndex]!.includes("[■]") && lines[toggleIndex]!.includes("ON"), "a disabled toggle is coerced on");
+
+	// With no enabled pack, space cannot change the toggle.
+	menu.handleInput(KEY.down);
+	menu.handleInput(KEY.down);
+	menu.handleInput(KEY.space);
+	assert.ok(menu.render(80).map(stripTags).find(line => line.includes("Include default/random"))!.includes("ON"));
+
+	// Enabling either pack immediately makes the toggle interactive.
+	menu.handleInput(KEY.up);
+	menu.handleInput(KEY.space);
+	menu.handleInput(KEY.down);
+	menu.handleInput(KEY.space);
+	assert.ok(menu.render(80).map(stripTags).find(line => line.includes("Include default/random"))!.includes("OFF"));
+
+	// Disabling the last pack coerces the toggle back on and blocks it again.
+	menu.handleInput(KEY.up);
+	menu.handleInput(KEY.space);
+	menu.handleInput(KEY.down);
+	menu.handleInput(KEY.space);
+	menu.handleInput(KEY.enter);
+	assert.equal(result!.values.includeDefaultWorkingText, true);
+});
+
 test("gated cycle item: checkbox resets to disabled value and blocks arrows until re-checked", () => {
 	let result: MenuResult<Record<string, MenuValue>> | undefined;
 	const menu = new MenuComponent({

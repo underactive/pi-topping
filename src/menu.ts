@@ -26,6 +26,10 @@ export interface MenuItem {
 	id: string;
 	label: string;
 	value: MenuValue;
+	/** Render a blank, non-selectable row immediately before this item. */
+	spacerBefore?: boolean;
+	/** IDs for which at least one value must be true before this item can be toggled. */
+	disabledUnlessAnyOf?: readonly string[];
 	/** Values cycled with left/right arrows. Omit for a boolean space-toggle. */
 	cycleValues?: readonly string[];
 	/** Optional display labels for cycle values; the keys remain the published values. */
@@ -157,6 +161,7 @@ export class MenuComponent implements Component {
 				this.flat.push({ item, sectionIndex });
 			}
 		}
+		this.normalizeDisabledValues();
 		this.initialValues = { ...this.values };
 
 		this.previewFn = config.preview;
@@ -215,10 +220,12 @@ export class MenuComponent implements Component {
 			[Key.right]: () => this.cycleCurrentValue(1),
 			[Key.space]: () => {
 				const item = this.flat[this.cursor]!.item;
+				if (this.isDisabled(item)) return;
 				if (item.cycleValues && item.cycleEnabledBy) {
 					this.values[item.cycleEnabledBy] = !this.values[item.cycleEnabledBy] as boolean;
 					if (!this.values[item.cycleEnabledBy] && item.cycleDisabledValue !== undefined) this.values[item.id] = item.cycleDisabledValue;
 				} else if (!item.cycleValues) this.values[item.id] = !this.values[item.id] as boolean;
+				this.normalizeDisabledValues();
 				this.invalidate();
 			},
 			[Key.enter]: () => this.done({ applied: true, values: { ...this.values } }),
@@ -286,9 +293,20 @@ export class MenuComponent implements Component {
 		return Math.max(1, rows - 6);
 	}
 
+	private isDisabled(item: MenuItem): boolean {
+		const requiredIds = item.disabledUnlessAnyOf;
+		return requiredIds !== undefined && !requiredIds.some(id => this.values[id] === true);
+	}
+
+	private normalizeDisabledValues(): void {
+		for (const { item } of this.flat) {
+			if (this.isDisabled(item) && !item.cycleValues) this.values[item.id] = true;
+		}
+	}
+
 	private cycleCurrentValue(delta: number): void {
 		const item = this.flat[this.cursor]!.item;
-		if (!item.cycleValues?.length || (item.cycleEnabledBy && !this.values[item.cycleEnabledBy])) return;
+		if (this.isDisabled(item) || !item.cycleValues?.length || (item.cycleEnabledBy && !this.values[item.cycleEnabledBy])) return;
 		const current = item.cycleValues.indexOf(this.values[item.id] as string);
 		const index = (current + delta + item.cycleValues.length) % item.cycleValues.length;
 		this.values[item.id] = item.cycleValues[index]!;
@@ -338,6 +356,7 @@ export class MenuComponent implements Component {
 				lines.push(this.renderSectionDivider(this.sections[flat.sectionIndex]!.title, innerWidth));
 				currentSection = flat.sectionIndex;
 			}
+			if (flat.item.spacerBefore) lines.push(this.renderBlankRow(innerWidth));
 			lines.push(this.renderItemRow(flat.item, index === this.cursor, innerWidth));
 		}
 		if (lines.length) lines.push(this.renderBlankRow(innerWidth));
@@ -363,6 +382,7 @@ export class MenuComponent implements Component {
 				if (maxRows - lines.length >= 2) lines.push(this.renderSectionDivider(this.sections[flat.sectionIndex]!.title, innerWidth));
 				currentSection = flat.sectionIndex;
 			}
+			if (flat.item.spacerBefore && maxRows - lines.length >= 2) lines.push(this.renderBlankRow(innerWidth));
 			if (lines.length >= maxRows) break;
 			lines.push(this.renderItemRow(flat.item, index === this.cursor, innerWidth));
 			end = index;
@@ -388,18 +408,20 @@ export class MenuComponent implements Component {
 
 		// Walk backward from cursor to find the lowest scrollStart that fits in contentRows.
 		{
-			let rowsUsed = 2; // 1 for cursor item + 1 for first-section divider
+			let rowsUsed = 2 + (this.flat[this.cursor]!.item.spacerBefore ? 1 : 0); // cursor item + first-section divider + optional spacer
 			let section = this.flat[this.cursor]!.sectionIndex;
 			this.scrollStart = this.cursor;
 			for (let i = this.cursor - 1; i >= 0; i--) {
-				const sec = this.flat[i]!.sectionIndex;
+				const previous = this.flat[i]!;
+				const sec = previous.sectionIndex;
+				const itemRows = 1 + (previous.item.spacerBefore ? 1 : 0);
 				if (sec !== section) {
-					if (rowsUsed + 3 > contentRows) break;
-					rowsUsed += 3;
+					if (rowsUsed + itemRows + 2 > contentRows) break;
+					rowsUsed += itemRows + 2;
 					section = sec;
 				} else {
-					if (rowsUsed + 1 > contentRows) break;
-					rowsUsed += 1;
+					if (rowsUsed + itemRows > contentRows) break;
+					rowsUsed += itemRows;
 				}
 				this.scrollStart = i;
 			}
@@ -438,7 +460,8 @@ export class MenuComponent implements Component {
 		const header = [this.renderTopBorder(innerWidth), ...this.buildPreviewBlock(previewLines, innerWidth)];
 		const footer = this.buildFooter(innerWidth);
 		const sectionsWithItems = new Set(this.flat.map(f => f.sectionIndex)).size;
-		const naturalBodyLength = this.flat.length + 2 * sectionsWithItems;
+		const spacerRows = this.flat.filter(flat => flat.item.spacerBefore).length;
+		const naturalBodyLength = this.flat.length + spacerRows + 2 * sectionsWithItems;
 		if (maxRows === undefined || header.length + naturalBodyLength + footer.length <= maxRows) {
 			const naturalBody = this.buildToggleSections(innerWidth);
 			this.pageItemCount = Math.max(1, this.flat.length);
@@ -542,7 +565,7 @@ export class MenuComponent implements Component {
 		}
 
 		if (item.cycleValues) {
-			const enabled = item.cycleEnabledBy ? this.values[item.cycleEnabledBy] as boolean : true;
+			const enabled = !this.isDisabled(item) && (item.cycleEnabledBy ? this.values[item.cycleEnabledBy] as boolean : true);
 			const rawValue = typeof value === "string" ? value : String(value);
 			const displayValue = item.cycleValueLabels?.[rawValue] ?? rawValue;
 			const stateWord = `‹ ${displayValue} ›`;
@@ -554,7 +577,8 @@ export class MenuComponent implements Component {
 			return this.wrap("\u2551", selected ? th.bg("selectedBg", content) : content, "\u2551");
 		}
 
-		const enabled = value as boolean;
+		const disabled = this.isDisabled(item);
+		const enabled = disabled || value as boolean;
 		const box = enabled ? "\u25a0" : " ";
 		const stateWord = enabled ? "ON" : "OFF";
 		const rightPlain = `${stateWord}  `;
@@ -562,7 +586,9 @@ export class MenuComponent implements Component {
 		const label = visibleWidth(item.label) > maxLabelLen ? truncateToWidth(item.label, maxLabelLen) : item.label;
 		const leftPlain = `  ${marker} [${box}] ${label}`;
 		const gap = Math.max(1, innerWidth - visibleWidth(leftPlain) - visibleWidth(rightPlain));
-		const content = `  ${markerColored} [${enabled ? th.fg("success", box) : th.fg("muted", box)}] ${th.fg("text", label)}${" ".repeat(gap)}${enabled ? th.fg("success", stateWord) : th.fg("muted", stateWord)}  `;
+		const labelColor = disabled ? "muted" : "text";
+		const stateColor = disabled ? "muted" : enabled ? "success" : "muted";
+		const content = `  ${markerColored} [${th.fg(stateColor, box)}] ${th.fg(labelColor, label)}${" ".repeat(gap)}${th.fg(stateColor, stateWord)}  `;
 		return this.wrap("\u2551", selected ? th.bg("selectedBg", content) : content, "\u2551");
 	}
 }

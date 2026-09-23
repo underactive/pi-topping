@@ -51,7 +51,7 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Word Packs", "Options"]);
 	const itemIds = sections.flatMap(section => section.items).map(item => item.id);
 	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
-	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "showResponseModel", "responseModelColor", "responseModelDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel", "doneMarker", "doneMarkerStyle", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "doneMarkerModel", "doneMarkerModelColor", "doneMarkerModelDimmed", "pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars", "useNerdFont", "showResponseModelFooter"]);
+	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "showResponseModel", "responseModelColor", "responseModelDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel", "doneMarker", "doneMarkerStyle", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "doneMarkerModel", "doneMarkerModelColor", "doneMarkerModelDimmed", "pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars", "includeDefaultWorkingText", "useNerdFont", "showResponseModelFooter"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:simcity")!.value, false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:star-trek")!.value, false);
@@ -93,6 +93,11 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.deepEqual(sections.flatMap(section => section.items).find(item => item.id === "borderColor")!.cycleValues, PROMPT_BORDER_COLOR_VALUES);
 	assert.deepEqual(sections.flatMap(section => section.items).find(item => item.id === "spinnerColor")!.cycleValues, SPINNER_COLOR_VALUES);
 	assert.equal(sections[3]!.items[0]!.value, false);
+	assert.equal(sections[4]!.items.find(item => item.id === "includeDefaultWorkingText")!.value, true);
+	assert.equal(sections[4]!.items.find(item => item.id === "includeDefaultWorkingText")!.spacerBefore, true);
+	assert.deepEqual(sections[4]!.items.find(item => item.id === "includeDefaultWorkingText")!.disabledUnlessAnyOf, [
+		"pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars",
+	]);
 	assert.equal(sections[5]!.items.find(item => item.id === "showResponseModelFooter")!.value, false);
 });
 
@@ -142,6 +147,7 @@ test("applyMenuResult clones settings and applies known partial values", () => {
 		shimmerInverted: true,
 		showResponseModel: false,
 		showResponseModelFooter: true,
+		includeDefaultWorkingText: false,
 		responseModelDimmed: true,
 		responseModelColor: "success",
 		unknown: false,
@@ -155,6 +161,7 @@ test("applyMenuResult clones settings and applies known partial values", () => {
 	assert.equal(updated.decorations.shimmerInverted, true);
 	assert.equal(updated.features.responseModel, false);
 	assert.equal(updated.features.responseModelFooter, true);
+	assert.equal(updated.features.includeDefaultWorkingText, false);
 	assert.equal(updated.decorations.responseModelDimmed, true);
 	assert.equal(updated.decorations.responseModelColor, "success");
 	assert.equal(updated.features.doneMarker, true);
@@ -228,6 +235,7 @@ test("loadSettings backfills completion marker model settings", () => {
 		const loaded = loadSettings();
 		assert.equal(loaded.features.responseModelFooter, false);
 		assert.equal(loaded.features.doneMarkerModel, true);
+		assert.equal(loaded.features.includeDefaultWorkingText, true);
 		assert.equal(loaded.decorations.doneMarkerModelColor, "muted");
 		assert.equal(loaded.decorations.doneMarkerModelDimmed, false);
 	});

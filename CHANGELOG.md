@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added a Word Packs toggle to include default/random “Working” text alongside enabled word packs; it is on by default, and is disabled when no word packs are enabled.
+
 ### Changed
 - The post-settlement response-model footer is now controlled by an independent Options toggle and is disabled by default; the working-loader response-model toggle remains unchanged.
 - While pi-topping-statusline embeds the working loader in its status bar, the loader's response model now slides out tail first from behind its separator over 0.3 seconds when it first appears in a run, matching that bar's embedded-status slide. Elsewhere it still appears all at once, and a different model replacing one already shown still swaps in place.

@@ -107,14 +107,15 @@ export function isWordPackEnabled(id: string, enabled: Record<string, boolean>):
 	return enabled[id] === true;
 }
 
-export function selectWorkingTextSelection(enabled: Record<string, boolean>, packs: readonly WordPack[], fraction: number): WorkingTextSelection {
+export function selectWorkingTextSelection(enabled: Record<string, boolean>, packs: readonly WordPack[], fraction: number, includeDefaultWorkingText = true): WorkingTextSelection {
 	const enabledWords = packs.filter((pack) => isWordPackEnabled(pack.id, enabled)).flatMap((pack) => pack.words);
-	const total = WORDS.length + enabledWords.length;
+	const usePackWords = !includeDefaultWorkingText && enabledWords.length > 0;
+	const total = usePackWords ? enabledWords.length : WORDS.length + enabledWords.length;
 	const idx = Math.min(total - 1, Math.floor(fraction * total));
-	const entry = idx < WORDS.length ? WORDS[idx] : enabledWords[idx - WORDS.length];
+	const entry = usePackWords ? enabledWords[idx]! : idx < WORDS.length ? WORDS[idx]! : enabledWords[idx - WORDS.length]!;
 	return { text: entry.present_tense, pastTense: entry.past_tense };
 }
 
-export function pickWorkingTextSelection(enabled: Record<string, boolean>, packs: readonly WordPack[]): WorkingTextSelection {
-	return selectWorkingTextSelection(enabled, packs, Math.random());
+export function pickWorkingTextSelection(enabled: Record<string, boolean>, packs: readonly WordPack[], includeDefaultWorkingText = true): WorkingTextSelection {
+	return selectWorkingTextSelection(enabled, packs, Math.random(), includeDefaultWorkingText);
 }

@@ -591,7 +591,7 @@ export class SessionManager {
 	}
 
 	private pickWorkingWord(): WorkingTextSelection {
-		return pickWorkingTextSelection(this.#settings.wordPacks, this.#allPacks);
+		return pickWorkingTextSelection(this.#settings.wordPacks, this.#allPacks, this.#settings.features.includeDefaultWorkingText);
 	}
 
 	private resetTurn(now: number): void {
