@@ -31,7 +31,12 @@ export class PreviewRenderer {
 		if (PROMPT_IDS.has(activeItemId ?? "")) return this.promptPreview(values, width);
 		if (MARKER_IDS.has(activeItemId ?? "")) return this.markerPreview(values, width);
 		if (activeItemId === "useNerdFont") return { lines: ["", `Icon preview: ${values.useNerdFont ? "" : "π"}`, ""] };
-		if (activeItemId === "showResponseModelFooter") return { lines: ["", values.showResponseModelFooter === true ? "Footer preview: test-model" : "Response model footer is disabled.", ""] };
+		if (activeItemId === "showResponseModelFooter") {
+			if (values.showResponseModelFooter !== true) return { lines: ["", "Response model footer is disabled.", ""] };
+			const color = isThinkingLevelColor(values.responseModelColor) ? values.responseModelColor : DEFAULT_SETTINGS.decorations.responseModelColor;
+			const colored = getResponseModelColorizer(this.#ctx.ui.theme, color, this.#ctx.thinkingLevel, this.#ctx.model?.provider)("test-model");
+			return { lines: ["", values.responseModelDimmed === true ? dimAttribute(colored) : colored, ""] };
+		}
 		if (activeItemId?.startsWith("pack:")) return this.packPreview(activeItemId.slice("pack:".length), values);
 		let nextRefreshInMs: number | undefined;
 		if (values.shimmer !== false) {
