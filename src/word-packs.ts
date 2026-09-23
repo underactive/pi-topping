@@ -108,12 +108,20 @@ export function isWordPackEnabled(id: string, enabled: Record<string, boolean>):
 }
 
 export function selectWorkingTextSelection(enabled: Record<string, boolean>, packs: readonly WordPack[], fraction: number, includeDefaultWorkingText = true): WorkingTextSelection {
-	const enabledWords = packs.filter((pack) => isWordPackEnabled(pack.id, enabled)).flatMap((pack) => pack.words);
-	const usePackWords = !includeDefaultWorkingText && enabledWords.length > 0;
-	const total = usePackWords ? enabledWords.length : WORDS.length + enabledWords.length;
-	const idx = Math.min(total - 1, Math.floor(fraction * total));
-	const entry = usePackWords ? enabledWords[idx]! : idx < WORDS.length ? WORDS[idx]! : enabledWords[idx - WORDS.length]!;
-	return { text: entry.present_tense, pastTense: entry.past_tense };
+	const enabledPacks = packs.filter((pack) => isWordPackEnabled(pack.id, enabled));
+	const packWordCount = enabledPacks.reduce((sum, pack) => sum + pack.words.length, 0);
+	const usePackWords = !includeDefaultWorkingText && packWordCount > 0;
+	const baseWords: readonly WordEntry[] = usePackWords ? [] : WORDS;
+	const total = baseWords.length + packWordCount;
+	let idx = Math.min(total - 1, Math.floor(fraction * total));
+	let entry: WordEntry | undefined = baseWords[idx];
+	idx -= baseWords.length;
+	for (const pack of enabledPacks) {
+		if (entry) break;
+		entry = pack.words[idx];
+		idx -= pack.words.length;
+	}
+	return { text: entry!.present_tense, pastTense: entry!.past_tense };
 }
 
 export function pickWorkingTextSelection(enabled: Record<string, boolean>, packs: readonly WordPack[], includeDefaultWorkingText = true): WorkingTextSelection {
