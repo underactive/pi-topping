@@ -29,8 +29,11 @@ import {
 	METER_INTERVAL_MS,
 	RESPONSE_MODEL_FADE_MS,
 	RESPONSE_MODEL_HOLD_MS,
+	RESPONSE_MODEL_SLIDE_FRAME_MS,
+	RESPONSE_MODEL_SLIDE_MS,
 	SHIMMER_INTERVAL_MS,
 	shimmerString,
+	slideOutTail,
 	SPINNER_FRAME_MS,
 	SPINNER_FRAMES,
 	TOKEN_RATE_FADE_SHADE_COUNT,
@@ -42,6 +45,7 @@ import { showMenu } from "./menu.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { registerSetupCommand } from "./setup-command.ts";
 import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type ThinkingLevelColor } from "./settings.ts";
+import { announcesEmbedded, STATUSLINE_EMBED_CHANNEL } from "./statusline-embed.ts";
 import { announceMissingToppingsOnce, type MissingToppingsEntryData, renderMissingToppingsEntry, SETUP_ENTRY_TYPE } from "./toppings.ts";
 import { PreviewRenderer } from "./preview.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
@@ -96,6 +100,9 @@ interface SessionState {
 	responseModelHoldTimer: ReturnType<typeof setTimeout> | null;
 	responseModelFadeTimer: ReturnType<typeof setInterval> | null;
 	responseModelFadeGeneration: number;
+	/** When the response model appeared in the loader and began sliding out; 0 if it never slid. */
+	responseModelShownAt: number;
+	responseModelSlideTimer: ReturnType<typeof setInterval> | null;
 	tokenRateText: string;
 	tokenRateFadeStartsAt: number;
 	timer: ReturnType<typeof setInterval> | null;
@@ -134,6 +141,8 @@ function makeFreshState(): SessionState {
 		responseModelHoldTimer: null,
 		responseModelFadeTimer: null,
 		responseModelFadeGeneration: 0,
+		responseModelShownAt: 0,
+		responseModelSlideTimer: null,
 		tokenRateText: "",
 		tokenRateFadeStartsAt: 0,
 		timer: null,
@@ -162,6 +171,8 @@ export class SessionManager {
 	#bundledPacks = loadBundledWordPacks();
 	#allPacks: WordPack[] = [...this.#bundledPacks];
 	#currentCtx: ExtensionContext | null = null;
+	/** Whether pi-topping-statusline last announced that its status bar hosts the loader; kept across sessions. */
+	#loaderInStatusline = false;
 	readonly #pi: ExtensionAPI;
 
 	constructor(pi: ExtensionAPI) {
@@ -171,6 +182,7 @@ export class SessionManager {
 	#onSessionStart = async (_e: SessionStartEvent, ctx: ExtensionContext): Promise<void> => {
 		this.#currentCtx = ctx;
 		this.stopTimer();
+		this.stopResponseModelSlide();
 		this.cancelResponseModelFade(ctx);
 		this.#counter.reset();
 		this.#state = makeFreshState();
@@ -316,6 +328,7 @@ export class SessionManager {
 		this.#state.startTime = 0;
 		this.#counter.reset();
 		this.stopTimer();
+		this.stopResponseModelSlide();
 		this.applyIndicator(ctx);
 		ctx.ui.setWorkingMessage();
 		if (responseModel) this.startResponseModelFade(ctx, responseModel, responseModelColor, responseModelDimmed);
@@ -339,6 +352,7 @@ export class SessionManager {
 		this.#state.waiting = null;
 		this.cancelResponseModelFade(ctx);
 		this.stopTimer();
+		this.stopResponseModelSlide();
 	};
 
 	#renderDoneEntry(entry: CustomEntry<DoneEntryData>, theme: Theme): Component | undefined {
@@ -393,6 +407,9 @@ export class SessionManager {
 		this.#pi.on("ui_prompt_start", this.#onUIPromptStart);
 		this.#pi.on("ui_prompt_end", this.#onUIPromptEnd);
 		this.#pi.on("session_shutdown", this.#onSessionShutdown);
+		this.#pi.events.on(STATUSLINE_EMBED_CHANNEL, (data) => {
+			this.#loaderInStatusline = announcesEmbedded(data);
+		});
 		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) => this.#renderDoneEntry(entry, theme));
 		this.#pi.registerEntryRenderer<MissingToppingsEntryData>(SETUP_ENTRY_TYPE, (entry, _o, theme) => renderMissingToppingsEntry(entry, theme));
 		this.#pi.registerMessageRenderer<PromptBoxDetails>(PROMPT_BOX_TYPE, promptBoxRenderer);
@@ -469,13 +486,44 @@ export class SessionManager {
 		if (responseModel && modelsResemble(selectedModel, responseModel)) {
 			if (this.#state.responseModel) {
 				this.#state.responseModel = "";
+				this.stopResponseModelSlide();
 				this.tick();
 			}
 			return;
 		}
 		if (responseModel && responseModel !== this.#state.responseModel) {
+			// A model replacing one already shown swaps in place; only an appearing one slides out.
+			if (!this.#state.responseModel) this.startResponseModelSlide();
 			this.#state.responseModel = responseModel;
 			this.tick();
+		}
+	}
+
+	/**
+	 * Slide a newly shown response model out of the loader while pi-topping-statusline
+	 * embeds it, matching that status bar's own slides; anywhere else it shows at once.
+	 * The loader's own timer runs at 50ms or slower, so the slide repaints on its own
+	 * faster timer until it is done.
+	 */
+	private startResponseModelSlide(): void {
+		this.stopResponseModelSlide();
+		const state = this.#state;
+		if (!this.#settings.features.responseModel || !this.#loaderInStatusline) {
+			state.responseModelShownAt = 0;
+			return;
+		}
+		state.responseModelShownAt = Date.now();
+		state.responseModelSlideTimer = setInterval(() => {
+			this.tick();
+			if (Date.now() - state.responseModelShownAt >= RESPONSE_MODEL_SLIDE_MS) this.stopResponseModelSlide();
+		}, RESPONSE_MODEL_SLIDE_FRAME_MS);
+	}
+
+	private stopResponseModelSlide(): void {
+		const state = this.#state;
+		if (state.responseModelSlideTimer) {
+			clearInterval(state.responseModelSlideTimer);
+			state.responseModelSlideTimer = null;
 		}
 	}
 
@@ -548,6 +596,7 @@ export class SessionManager {
 
 	private resetTurn(now: number): void {
 		this.cancelResponseModelFade();
+		this.stopResponseModelSlide();
 		const state = this.#state;
 		state.startTime = now;
 		state.shimmerOrigin = now;
@@ -556,6 +605,7 @@ export class SessionManager {
 		state.liveTokens = 0;
 		state.responseModel = "";
 		state.lastResponseModelRaw = NOT_SENT;
+		state.responseModelShownAt = 0;
 		state.activityMeter.reset();
 		resetTokenRateState(state);
 		state.midTurnInputs = 0;
@@ -592,8 +642,11 @@ export class SessionManager {
 		const spinner = this.spinnerInMessage()
 			? getThinkingLevelColorizer(ctx.ui.theme, decorations.spinnerColor, ctx.thinkingLevel)(SPINNER_FRAMES[Math.floor(now / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!)
 			: "";
-		const responseModelColored = features.responseModel && state.responseModel
-			? getResponseModelColorizer(ctx.ui.theme, decorations.responseModelColor, ctx.thinkingLevel, ctx.model?.provider)(state.responseModel)
+		const responseModelShown = features.responseModel && state.responseModel
+			? slideOutTail(state.responseModel, now - state.responseModelShownAt)
+			: "";
+		const responseModelColored = responseModelShown
+			? getResponseModelColorizer(ctx.ui.theme, decorations.responseModelColor, ctx.thinkingLevel, ctx.model?.provider)(responseModelShown)
 			: "";
 		const responseModel = responseModelColored && decorations.responseModelDimmed ? dimAttribute(responseModelColored) : responseModelColored;
 		if (isFullyDefaultAppearance(features, decorations)) {

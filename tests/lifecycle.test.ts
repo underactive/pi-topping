@@ -37,10 +37,11 @@ type MessageEndEvent = { type: "message_end"; message: AssistantMessage };
 type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown };
 type UIPromptStartEvent = Extract<ExtensionEvent, { type: "ui_prompt_start" }>;
 type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
-import { SPINNER_FRAMES } from "../src/format.ts";
+import { RESPONSE_MODEL_SLIDE_FRAME_MS, RESPONSE_MODEL_SLIDE_MS, SPINNER_FRAMES } from "../src/format.ts";
 import { PreviewRenderer } from "../src/preview.ts";
 import { PROMPT_BOX_TYPE } from "../src/prompt-decorator.ts";
 import { buildMenuSections, DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/settings.ts";
+import { STATUSLINE_EMBED_CHANNEL } from "../src/statusline-embed.ts";
 import { loadBundledWordPacks } from "../src/word-packs.ts";
 import { WORDS } from "../src/words.ts";
 import workingDecorator from "../index.ts";
@@ -80,6 +81,17 @@ class MockExtension {
 	readonly entryRenderers: Record<string, (entry: unknown, options: unknown, theme: unknown) => unknown> = {};
 	readonly messageRenderers: Record<string, (message: unknown, options: unknown, theme: unknown) => unknown> = {};
 	readonly sentMessages: { message: unknown; options: unknown }[] = [];
+	readonly #busHandlers = new Map<string, ((data: unknown) => void)[]>();
+	/** Minimal stand-in for pi's shared extension event bus. */
+	readonly events = {
+		emit: (channel: string, data: unknown): void => {
+			for (const handler of this.#busHandlers.get(channel) ?? []) handler(data);
+		},
+		on: (channel: string, handler: (data: unknown) => void): (() => void) => {
+			this.#busHandlers.set(channel, [...(this.#busHandlers.get(channel) ?? []), handler]);
+			return () => {};
+		},
+	};
 
 	constructor(options: MockExtensionOptions = {}) {
 		this.#getCommands = options.getCommands ?? (() => DEFAULT_RUNTIME_COMMANDS);
@@ -264,6 +276,31 @@ function mockTimers(t: test.TestContext, onTick: (tick: () => void) => void): vo
 		return 1;
 	}) as unknown as typeof setTimeout);
 	t.mock.method(globalThis, "clearTimeout", (() => {}) as typeof clearTimeout);
+}
+
+type RecordedTimer = { id: number; tick: () => void; ms: number | undefined };
+
+/** Mock timers, recording each one's callback and delay and which of them have been cleared. */
+function recordTimers(t: test.TestContext): { timers: RecordedTimer[]; cleared: Set<number> } {
+	const timers: RecordedTimer[] = [];
+	const cleared = new Set<number>();
+	const schedule = (tick: () => void, ms?: number): number => {
+		timers.push({ id: timers.length + 1, tick, ms });
+		return timers.length;
+	};
+	const clear = (id: number): void => {
+		cleared.add(id);
+	};
+	t.mock.method(globalThis, "setInterval", schedule as unknown as typeof setInterval);
+	t.mock.method(globalThis, "setTimeout", schedule as unknown as typeof setTimeout);
+	t.mock.method(globalThis, "clearInterval", clear as unknown as typeof clearInterval);
+	t.mock.method(globalThis, "clearTimeout", clear as unknown as typeof clearTimeout);
+	return { timers, cleared };
+}
+
+/** The most recently started response-model slide timer, if any. */
+function slideTimer(timers: RecordedTimer[]): RecordedTimer | undefined {
+	return timers.filter((timer) => timer.ms === RESPONSE_MODEL_SLIDE_FRAME_MS).at(-1);
 }
 
 test("an input-less run resets the token count after settling", async (t) => {
@@ -1053,6 +1090,141 @@ test("response model fade is cancelled by a new run and shutdown", async (t) => 
 		const afterShutdown = statuses.length;
 		fade();
 		assert.equal(statuses.length, afterShutdown);
+	});
+});
+
+test("a newly reported response model slides out of the loader tail first", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, []);
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		const { timers, cleared } = recordTimers(t);
+
+		workingDecorator(extension.asAPI());
+		// Statusline can announce before this extension's session_start handler runs.
+		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
+		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
+		const slide = slideTimer(timers);
+		assert.ok(slide, "an appearing response model repaints on its own slide timer");
+		assert.match(stripAnsi(messages.at(-1)!), /↓ 0 tokens$/, "neither the model nor its separator shows before its first cell");
+
+		now += RESPONSE_MODEL_SLIDE_MS / 2;
+		slide.tick();
+		assert.match(stripAnsi(messages.at(-1)!), /↓ 0 tokens · model$/, "halfway through, the model's tail half has emerged");
+		assert.ok(!cleared.has(slide.id));
+
+		now += RESPONSE_MODEL_SLIDE_MS / 2;
+		slide.tick();
+		assert.match(stripAnsi(messages.at(-1)!), /↓ 0 tokens · test-model$/);
+		assert.ok(cleared.has(slide.id), "the slide timer stops once the model is fully out");
+	});
+});
+
+test("a replacement response model swaps in place, but one shown again after being hidden slides out", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, { selectedModel: "auto" });
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		const { timers } = recordTimers(t);
+		const report = async (responseModel: string): Promise<void> => {
+			const partial = assistantMessage(0, responseModel);
+			await extension.emit("message_update", {
+				type: "message_update",
+				message: partial,
+				assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "", partial },
+			}, ctx);
+		};
+
+		workingDecorator(extension.asAPI());
+		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await report("first-model");
+		const firstSlide = slideTimer(timers);
+		now += RESPONSE_MODEL_SLIDE_MS;
+		firstSlide!.tick();
+
+		await report("second-model");
+		assert.match(stripAnsi(messages.at(-1)!), / · second-model$/, "a replacement shows whole at once");
+		assert.equal(slideTimer(timers), firstSlide, "without starting another slide");
+
+		await report("AUTO");
+		assert.ok(!stripAnsi(messages.at(-1)!).includes("second-model"), "a model resembling the selection is hidden");
+		await report("third-model");
+		assert.notEqual(slideTimer(timers), firstSlide, "a model shown again after being hidden slides out again");
+		assert.ok(!stripAnsi(messages.at(-1)!).includes("third-model"), "starting from nothing");
+	});
+});
+
+test("settling or shutting down mid-slide stops the response model's slide timer", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		t.mock.method(Date, "now", () => 1_000);
+		const { timers, cleared } = recordTimers(t);
+
+		workingDecorator(extension.asAPI());
+		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
+		const settled = slideTimer(timers);
+		assert.ok(settled);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		assert.ok(cleared.has(settled.id), "settling stops the slide");
+
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
+		const shutDown = slideTimer(timers);
+		assert.ok(shutDown && shutDown !== settled, "the next run's model slides out again");
+		await extension.emit("session_shutdown", { type: "session_shutdown", reason: "quit" }, ctx);
+		assert.ok(cleared.has(shutDown.id), "shutting down stops the slide");
+	});
+});
+
+test("a response model hidden from the loader starts no slide", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, responseModel: false } });
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		t.mock.method(Date, "now", () => 1_000);
+		const { timers } = recordTimers(t);
+
+		workingDecorator(extension.asAPI());
+		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
+		assert.equal(slideTimer(timers), undefined);
+	});
+});
+
+test("a response model shows whole at once unless pi-topping-statusline embeds the loader", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, []);
+		t.mock.method(Date, "now", () => 1_000);
+		const { timers } = recordTimers(t);
+		const run = async (): Promise<void> => {
+			await extension.emit("agent_start", { type: "agent_start" }, ctx);
+			await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
+		};
+
+		workingDecorator(extension.asAPI());
+		await run();
+		assert.match(stripAnsi(messages.at(-1)!), /↓ 0 tokens · test-model$/, "without statusline announcing, the model shows at once");
+		assert.equal(slideTimer(timers), undefined);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
+		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: false });
+		await run();
+		assert.match(stripAnsi(messages.at(-1)!), /↓ 0 tokens · test-model$/, "nor once statusline stops embedding the loader");
+		assert.equal(slideTimer(timers), undefined);
 	});
 });
 

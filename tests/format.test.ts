@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildWorkingMessage, fadeThemeColorString, formatElapsed, formatTokenRate, formatTokens, shimmerString, StreamingWordCounter, TOKEN_RATE_FADE_SHADE_COUNT, TOKEN_RATE_PLACEHOLDER } from "../src/format.ts";
+import { buildWorkingMessage, fadeThemeColorString, formatElapsed, formatTokenRate, formatTokens, RESPONSE_MODEL_SLIDE_MS, shimmerString, slideOutTail, StreamingWordCounter, TOKEN_RATE_FADE_SHADE_COUNT, TOKEN_RATE_PLACEHOLDER } from "../src/format.ts";
 
 test("formatTokens uses readable thresholds", () => {
 	assert.equal(formatTokens(999), "999");
@@ -193,6 +193,19 @@ test("shimmer speed scales the sweep without stretching the pause between sweeps
 	// text but is still faint enough to round to the base color, so it reads as pause.
 	assert.ok(Math.abs(slow.pauseMs - fast.pauseMs) < 100, `pause drifted: ${slow.pauseMs} vs ${normal.pauseMs} vs ${fast.pauseMs}`);
 	assert.ok(Math.abs(normal.pauseMs - fast.pauseMs) < 100, `pause drifted: ${slow.pauseMs} vs ${normal.pauseMs} vs ${fast.pauseMs}`);
+});
+
+test("slideOutTail reveals the tail first and shows the whole model once the slide is over", () => {
+	assert.equal(slideOutTail("test-model", 0), "");
+	assert.equal(slideOutTail("test-model", RESPONSE_MODEL_SLIDE_MS / 2), "model");
+	assert.equal(slideOutTail("test-model", RESPONSE_MODEL_SLIDE_MS), "test-model");
+	let previous = "";
+	for (let elapsed = 0; elapsed <= RESPONSE_MODEL_SLIDE_MS; elapsed += 10) {
+		const shown = slideOutTail("test-model", elapsed);
+		assert.ok("test-model".endsWith(shown) && shown.length >= previous.length, `${elapsed}ms shows ${JSON.stringify(shown)}`);
+		previous = shown;
+		assert.ok(["", "b", "db", "🤖db"].includes(slideOutTail("🤖db", elapsed)), `${elapsed}ms never splits a surrogate pair`);
+	}
 });
 
 test("StreamingWordCounter counts words split across deltas once", () => {

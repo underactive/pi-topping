@@ -34,6 +34,8 @@ class MockExtension {
 	readonly #handlers: { session_start?: (event: SessionStartEvent, ctx: ExtensionContext) => Promise<void> | void } = {};
 	readonly #getCommands: () => RuntimeCommand[];
 
+	readonly events = { emit: (): void => {}, on: (): (() => void) => () => {} };
+
 	constructor(getCommands: () => RuntimeCommand[] = () => []) {
 		this.#getCommands = getCommands;
 	}
