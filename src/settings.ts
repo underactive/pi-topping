@@ -288,7 +288,7 @@ function buildSection(title: MenuSectionName, settings: DecoratorSettings): Menu
 export function buildMenuSections(settings: DecoratorSettings, bundledPacks: readonly WordPack[], userPacks: readonly WordPack[] = []): MenuSection[] {
 	const packs = [...bundledPacks, ...userPacks];
 	const packItems = packs.map((pack) => ({ id: `${WORD_PACK_MENU_PREFIX}${pack.id}`, label: pack.name, value: isWordPackEnabled(pack.id, settings.wordPacks) }));
-	const includeDefaultWorkingText = menuItem(MENU_ENTRIES.find(entry => entry.id === "includeDefaultWorkingText")!, settings);
+	const packIds = packItems.map(item => item.id);
 	return [
 		buildSection("User Prompt", settings),
 		buildSection("“Working” Loader", settings),
@@ -298,7 +298,7 @@ export function buildMenuSections(settings: DecoratorSettings, bundledPacks: rea
 			title: "Word Packs",
 			items: [
 				...packItems,
-				{ ...includeDefaultWorkingText, spacerBefore: true, disabledUnlessAnyOf: packItems.map(item => item.id) },
+				...buildSection("Word Packs", settings).items.map((item, index) => ({ ...item, spacerBefore: index === 0, disabledUnlessAnyOf: packIds })),
 			],
 		},
 		buildSection("Options", settings),
