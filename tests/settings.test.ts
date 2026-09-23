@@ -228,7 +228,7 @@ test("loadSettings deep-merges a partial nested file over defaults", () => {
 	});
 });
 
-test("loadSettings backfills completion marker model settings", () => {
+test("loadSettings backfills settings missing from a current-schema file", () => {
 	withTempAgentDir(() => {
 		mkdirSync(join(settingsPath(), ".."), { recursive: true });
 		writeFileSync(settingsPath(), JSON.stringify({ schemaVersion: SETTINGS_SCHEMA_VERSION, decorations: {}, features: {} }));
