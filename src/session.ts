@@ -605,7 +605,6 @@ export class SessionManager {
 		state.liveTokens = 0;
 		state.responseModel = "";
 		state.lastResponseModelRaw = NOT_SENT;
-		state.responseModelShownAt = 0;
 		state.activityMeter.reset();
 		resetTokenRateState(state);
 		state.midTurnInputs = 0;
