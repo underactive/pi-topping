@@ -5,7 +5,7 @@ import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERV
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
 import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderColor, isDoneMarkerBorderStyle, isDoneMarkerStyle, isPromptBorderColor, isSpinnerColor, isThinkingLevelColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
-import { isWordPackEnabled, selectWorkingTextSelection, wordPacksPath, type WordPack } from "./word-packs.ts";
+import { isWordPackEnabled, selectWorkingTextSelection, WORD_PACK_MENU_PREFIX, wordPacksPath, type WordPack } from "./word-packs.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tps for the meter,
 // flat 28 tps for the token readouts.
 const METER_PERIOD_MS = 2400, METER_PEAK_RATE = 46, TOKEN_RATE_PER_SEC = 28;
@@ -37,7 +37,7 @@ export class PreviewRenderer {
 			const colored = getResponseModelColorizer(this.#ctx.ui.theme, color, this.#ctx.thinkingLevel, this.#ctx.model?.provider)("test-model");
 			return { lines: ["", values.responseModelDimmed === true ? dimAttribute(colored) : colored, ""] };
 		}
-		if (activeItemId?.startsWith("pack:")) return this.packPreview(activeItemId.slice("pack:".length), values);
+		if (activeItemId?.startsWith(WORD_PACK_MENU_PREFIX)) return this.packPreview(activeItemId.slice(WORD_PACK_MENU_PREFIX.length), values);
 		let nextRefreshInMs: number | undefined;
 		if (values.shimmer !== false) {
 			nextRefreshInMs = SHIMMER_INTERVAL_MS;
@@ -139,7 +139,7 @@ export class PreviewRenderer {
 	private packValues(values: Record<string, boolean | string>): Record<string, boolean> {
 		const enabled: Record<string, boolean> = {};
 		for (const pack of this.#packs) {
-			const value = values[`pack:${pack.id}`];
+			const value = values[`${WORD_PACK_MENU_PREFIX}${pack.id}`];
 			if (typeof value === "boolean") enabled[pack.id] = value;
 		}
 		return enabled;

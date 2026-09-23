@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "
 import { dirname, join } from "node:path";
 import { DEFAULT_LOADER_ORDER, type LoaderElement } from "./format.ts";
 import type { MenuSection } from "./menu.ts";
-import { isWordPackEnabled, isWordPackId, type WordPack } from "./word-packs.ts";
+import { isWordPackEnabled, isWordPackId, WORD_PACK_MENU_PREFIX, type WordPack } from "./word-packs.ts";
 import { isPlainObject } from "./util.ts";
 
 export const SETTING_COLOR_VALUES = ["accent", "border", "borderAccent", "success", "error", "warning"] as const;
@@ -287,7 +287,7 @@ function buildSection(title: MenuSectionName, settings: DecoratorSettings): Menu
 
 export function buildMenuSections(settings: DecoratorSettings, bundledPacks: readonly WordPack[], userPacks: readonly WordPack[] = []): MenuSection[] {
 	const packs = [...bundledPacks, ...userPacks];
-	const packIds = packs.map(pack => `pack:${pack.id}`);
+	const packItems = packs.map((pack) => ({ id: `${WORD_PACK_MENU_PREFIX}${pack.id}`, label: pack.name, value: isWordPackEnabled(pack.id, settings.wordPacks) }));
 	const includeDefaultWorkingText = menuItem(MENU_ENTRIES.find(entry => entry.id === "includeDefaultWorkingText")!, settings);
 	return [
 		buildSection("User Prompt", settings),
@@ -297,8 +297,8 @@ export function buildMenuSections(settings: DecoratorSettings, bundledPacks: rea
 		{
 			title: "Word Packs",
 			items: [
-				...packs.map((pack) => ({ id: `pack:${pack.id}`, label: pack.name, value: isWordPackEnabled(pack.id, settings.wordPacks) })),
-				{ ...includeDefaultWorkingText, spacerBefore: true, disabledUnlessAnyOf: packIds },
+				...packItems,
+				{ ...includeDefaultWorkingText, spacerBefore: true, disabledUnlessAnyOf: packItems.map(item => item.id) },
 			],
 		},
 		buildSection("Options", settings),
@@ -320,8 +320,8 @@ export function applyMenuResult(settings: DecoratorSettings, values: Record<stri
 		}
 	}
 	for (const [id, value] of Object.entries(values)) {
-		if (!id.startsWith("pack:") || typeof value !== "boolean") continue;
-		const packId = id.slice("pack:".length);
+		if (!id.startsWith(WORD_PACK_MENU_PREFIX) || typeof value !== "boolean") continue;
+		const packId = id.slice(WORD_PACK_MENU_PREFIX.length);
 		if (isWordPackId(packId)) next.wordPacks[packId] = value;
 	}
 	if (typeof values[LOADER_ORDER_ID] === "string") next.loaderOrder = parseLoaderOrder(values[LOADER_ORDER_ID]);

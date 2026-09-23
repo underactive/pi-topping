@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { isPlainObject, stripControlChars } from "./util.ts";
 import { WORDS, type WordEntry } from "./words.ts";
 
+export const WORD_PACK_MENU_PREFIX = "pack:";
 const PACK_ID_PATTERN = /^[a-z][a-z0-9-]{0,63}$/;
 const RESERVED_BUNDLED_PACK_IDS = new Set(["doctor-who", "firefly", "hitchhikers-guide", "lord-of-the-rings", "matrix", "portal", "simcity", "star-trek", "star-wars"]);
 
