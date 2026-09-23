@@ -1,6 +1,6 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { getThinkingLevelColorizer, type ThinkingLevel } from "./format.ts";
-import type { ThinkingLevelColor, ThinkingLevelSettingColor } from "./settings.ts";
+import type { ThinkingLevelColor } from "./settings.ts";
 
 /** Provider id whose working-loader response model uses NVIDIA green. */
 export const SWITCHYARD_PROVIDER = "switchyard";
@@ -27,7 +27,7 @@ export function colorizeNvidiaGreen(text: string): string {
  */
 export function getResponseModelColorizer(
 	theme: Pick<Theme, "fg" | "getThinkingBorderColor">,
-	color: ThinkingLevelColor | ThinkingLevelSettingColor,
+	color: ThinkingLevelColor,
 	thinkingLevel: ThinkingLevel | undefined,
 	provider: string | undefined,
 ): (text: string) => string {

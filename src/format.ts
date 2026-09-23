@@ -1,5 +1,5 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
-import type { ThinkingLevelColor, ThinkingLevelSettingColor } from "./settings.ts";
+import type { ThinkingLevelColor } from "./settings.ts";
 
 /** Pi's default working-indicator frames (same braille spinner as pi-tui's Loader). */
 export const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -21,7 +21,7 @@ export function isThinkingLevel(value: unknown): value is ThinkingLevel {
 /** Build a colorizer for a configured color, including Pi's active thinking-level color. */
 export function getThinkingLevelColorizer(
 	theme: Pick<Theme, "fg" | "getThinkingBorderColor">,
-	color: ThinkingLevelColor | ThinkingLevelSettingColor,
+	color: ThinkingLevelColor,
 	thinkingLevel: ThinkingLevel | undefined,
 ): (text: string) => string {
 	return color === "thinking-level"
