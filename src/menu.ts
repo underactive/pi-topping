@@ -161,7 +161,6 @@ export class MenuComponent implements Component {
 				this.flat.push({ item, sectionIndex });
 			}
 		}
-		this.normalizeDisabledValues();
 		this.initialValues = { ...this.values };
 
 		this.previewFn = config.preview;
@@ -225,7 +224,6 @@ export class MenuComponent implements Component {
 					this.values[item.cycleEnabledBy] = !this.values[item.cycleEnabledBy] as boolean;
 					if (!this.values[item.cycleEnabledBy] && item.cycleDisabledValue !== undefined) this.values[item.id] = item.cycleDisabledValue;
 				} else if (!item.cycleValues) this.values[item.id] = !this.values[item.id] as boolean;
-				this.normalizeDisabledValues();
 				this.invalidate();
 			},
 			[Key.enter]: () => this.done({ applied: true, values: { ...this.values } }),
@@ -296,12 +294,6 @@ export class MenuComponent implements Component {
 	private isDisabled(item: MenuItem): boolean {
 		const requiredIds = item.disabledUnlessAnyOf;
 		return requiredIds !== undefined && !requiredIds.some(id => this.values[id] === true);
-	}
-
-	private normalizeDisabledValues(): void {
-		for (const { item } of this.flat) {
-			if (this.isDisabled(item) && !item.cycleValues) this.values[item.id] = true;
-		}
 	}
 
 	private cycleCurrentValue(delta: number): void {

@@ -323,14 +323,15 @@ test("word-pack-dependent toggle is disabled without packs and re-enables reacti
 	menu.handleInput(KEY.space);
 	assert.ok(menu.render(80).map(stripTags).find(line => line.includes("Include default/random"))!.includes("ON"));
 
-	// Enabling either pack immediately makes the toggle interactive.
+	// Enabling either pack immediately makes the toggle interactive; the underlying
+	// value was never coerced by the disabled display, so it starts from its real false.
 	menu.handleInput(KEY.up);
 	menu.handleInput(KEY.space);
 	menu.handleInput(KEY.down);
 	menu.handleInput(KEY.space);
-	assert.ok(menu.render(80).map(stripTags).find(line => line.includes("Include default/random"))!.includes("OFF"));
+	assert.ok(menu.render(80).map(stripTags).find(line => line.includes("Include default/random"))!.includes("ON"));
 
-	// Disabling the last pack coerces the toggle back on and blocks it again.
+	// Disabling the last pack blocks the toggle again without touching its saved value.
 	menu.handleInput(KEY.up);
 	menu.handleInput(KEY.space);
 	menu.handleInput(KEY.down);
