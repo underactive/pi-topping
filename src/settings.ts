@@ -249,19 +249,15 @@ function isDecorationBooleanKey(key: keyof DecorationSettings): key is Decoratio
 function setDecorationCycleValue(decorations: DecorationSettings, key: keyof DecorationSettings, value: string): void {
 	switch (key) {
 		case "borderColor":
-			if (isPromptBorderColor(value)) decorations[key] = value;
-			return;
 		case "spinnerColor":
-			if (isSpinnerColor(value)) decorations[key] = value;
+		case "doneMarkerBorderColor":
+			if (isThinkingLevelSettingColor(value)) decorations[key] = value;
 			return;
 		case "meterColor":
 		case "tokenRateColor":
 		case "responseModelColor":
 		case "doneMarkerModelColor":
 			if (isThinkingLevelColor(value)) decorations[key] = value;
-			return;
-		case "doneMarkerBorderColor":
-			if (isDoneMarkerBorderColor(value)) decorations[key] = value;
 			return;
 		case "borderStyle":
 			if (isBorderStyle(value)) decorations[key] = value;
