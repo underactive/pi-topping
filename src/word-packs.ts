@@ -111,8 +111,7 @@ export function isWordPackEnabled(id: string, enabled: Record<string, boolean>):
 export function selectWorkingTextSelection(enabled: Record<string, boolean>, packs: readonly WordPack[], fraction: number, includeDefaultWorkingText: boolean): WorkingTextSelection {
 	const enabledPacks = packs.filter((pack) => isWordPackEnabled(pack.id, enabled));
 	const packWordCount = enabledPacks.reduce((sum, pack) => sum + pack.words.length, 0);
-	const usePackWords = !includeDefaultWorkingText && packWordCount > 0;
-	const baseWords: readonly WordEntry[] = usePackWords ? [] : WORDS;
+	const baseWords: readonly WordEntry[] = includeDefaultWorkingText || packWordCount === 0 ? WORDS : [];
 	const total = baseWords.length + packWordCount;
 	let idx = Math.min(total - 1, Math.floor(fraction * total));
 	let entry: WordEntry | undefined = baseWords[idx];
