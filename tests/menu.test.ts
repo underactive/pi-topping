@@ -306,7 +306,7 @@ test("word-pack-dependent toggle is disabled without packs and re-enables reacti
 		sections: [{ title: "Word Packs", items: [
 			{ id: "pack:one", label: "Pack One", value: false },
 			{ id: "pack:two", label: "Pack Two", value: false },
-			{ id: "includeDefaultWorkingText", label: "Include default/random 'Working' text", value: false, spacerBefore: true, disabledUnlessAnyOf: ["pack:one", "pack:two"] },
+			{ id: "includeDefaultWorkingText", label: "Include default/random “Working” text", value: false, spacerBefore: true, disabledUnlessAnyOf: ["pack:one", "pack:two"] },
 		] }],
 	}, fakeTheme(), (value) => { result = value; });
 

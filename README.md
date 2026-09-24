@@ -100,7 +100,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [ ] Star Trek                                     OFF      ║
 ║    [ ] Star Wars                                     OFF      ║
 ║                                                               ║
-║    [■] Include default/random 'Working' text          ON      ║
+║    [■] Include default/random “Working” text          ON      ║
 ║                                                               ║
 ╟─ Options ─────────────────────────────────────────────────────╢
 ║    [■] Use NerdFont icons                             ON      ║
@@ -113,7 +113,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 
 ### Word packs
 
-Base activity words are included by default. All word packs, including the shipped **Doctor Who**, **Firefly**, **Hitchhiker's Guide**, **The Lord of the Rings**, **The Matrix**, **Portal**, **SimCity**, **Star Trek**, and **Star Wars** packs and custom packs, are disabled by default. Enable packs in `/topping-settings` to add their entries to the same uniformly selected pool. With at least one pack enabled, turn off **Include default/random 'Working' text** to draw only from enabled packs; with none enabled the option is locked on. When Randomize “Worked” text is on, the completion marker uses the selected entry’s matching past tense; otherwise it uses `Worked`.
+Base activity words are included by default. All word packs, including the shipped **Doctor Who**, **Firefly**, **Hitchhiker's Guide**, **The Lord of the Rings**, **The Matrix**, **Portal**, **SimCity**, **Star Trek**, and **Star Wars** packs and custom packs, are disabled by default. Enable packs in `/topping-settings` to add their entries to the same uniformly selected pool. With at least one pack enabled, turn off **Include default/random “Working” text** to draw only from enabled packs; with none enabled the option is locked on. When Randomize “Worked” text is on, the completion marker uses the selected entry’s matching past tense; otherwise it uses `Worked`.
 
 Bundled packs live in [`wordpacks/`](wordpacks/). Copy `wordpacks/doctor-who.json`, `wordpacks/firefly.json`, `wordpacks/hitchhikers-guide.json`, `wordpacks/lord-of-the-rings.json`, `wordpacks/matrix.json`, `wordpacks/portal.json`, `wordpacks/simcity.json`, `wordpacks/star-trek.json`, or `wordpacks/star-wars.json` to `~/.pi/agent/pi-topping/word-packs.json`, then change the pack `id` (the bundled `doctor-who`, `firefly`, `hitchhikers-guide`, `lord-of-the-rings`, `matrix`, `portal`, `simcity`, `star-trek`, and `star-wars` IDs are reserved), name, and words:
 
