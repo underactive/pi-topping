@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - The post-settlement response-model footer is now controlled by an independent Options toggle and is disabled by default; the working-loader response-model toggle remains unchanged.
 - While pi-topping-statusline embeds the working loader in its status bar, the loader's response model now slides out tail first from behind its separator over 0.3 seconds when it first appears in a run, matching that bar's embedded-status slide. Elsewhere it still appears all at once, and a different model replacing one already shown still swaps in place.
+- The `Include default/random “Working” text` label in `/topping-settings` now uses curly quotation marks to match the other “Working” labels.
+
+### Fixed
+- A one-time `schemaVersion: 4` migration now carries the saved working-loader response-model preference into the independent response-model footer, preserving the previous footer behavior for existing installations.
 
 ## [0.8.0] - 2026-09-20
 
