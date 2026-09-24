@@ -215,12 +215,12 @@ test("loadSettings deep-merges a partial nested file over defaults", () => {
 		mkdirSync(join(settingsPath(), ".."), { recursive: true });
 		writeFileSync(
 			settingsPath(),
-			JSON.stringify({ decorations: { animatedSpinner: false }, features: { outputTokens: false }, wordPacks: { simcity: true } }),
+			JSON.stringify({ schemaVersion: SETTINGS_SCHEMA_VERSION, decorations: { animatedSpinner: false, spinnerColor: "success" }, features: { outputTokens: false }, wordPacks: { simcity: true } }),
 		);
 
 		const loaded = loadSettings();
 		assert.deepEqual(loaded, {
-			decorations: { ...DEFAULT_SETTINGS.decorations, animatedSpinner: false },
+			decorations: { ...DEFAULT_SETTINGS.decorations, animatedSpinner: false, spinnerColor: "success" },
 			features: { ...DEFAULT_SETTINGS.features, outputTokens: false },
 			wordPacks: { simcity: true },
 			loaderOrder: [...DEFAULT_SETTINGS.loaderOrder],
@@ -238,6 +238,29 @@ test("loadSettings backfills settings missing from a current-schema file", () =>
 		assert.equal(loaded.features.includeDefaultWorkingText, true);
 		assert.equal(loaded.decorations.doneMarkerModelColor, "muted");
 		assert.equal(loaded.decorations.doneMarkerModelDimmed, false);
+	});
+});
+
+test("loadSettings migrates responseModelFooter before schema v4 and preserves v4 preferences", () => {
+	withTempAgentDir(() => {
+		mkdirSync(join(settingsPath(), ".."), { recursive: true });
+		for (const schemaVersion of [undefined, 1, 2, 3, 4] as const) {
+			for (const { responseModel, responseModelFooter, legacy, current } of [
+				{ responseModel: true, responseModelFooter: undefined, legacy: true, current: false },
+				{ responseModel: false, responseModelFooter: undefined, legacy: false, current: false },
+				{ responseModel: true, responseModelFooter: false, legacy: true, current: false },
+				{ responseModel: false, responseModelFooter: true, legacy: false, current: true },
+				{ responseModel: true, responseModelFooter: true, legacy: true, current: true },
+				{ responseModel: false, responseModelFooter: false, legacy: false, current: false },
+			] as const) {
+				writeFileSync(settingsPath(), JSON.stringify({ schemaVersion, features: { responseModel, responseModelFooter } }));
+				assert.equal(
+					loadSettings().features.responseModelFooter,
+					schemaVersion === 4 ? current : legacy,
+					`schemaVersion=${schemaVersion ?? "missing"}, responseModel=${responseModel}, responseModelFooter=${responseModelFooter ?? "missing"}`,
+				);
+			}
+		}
 	});
 });
 
@@ -309,7 +332,8 @@ test("loadSettings migrates legacy spinner and default border colors once", () =
 		assert.equal(loadSettings().decorations.borderColor, "error");
 		assert.equal(loadSettings().decorations.doneMarkerBorderColor, "thinking-level");
 
-		writeFileSync(settingsPath(), JSON.stringify({ schemaVersion: SETTINGS_SCHEMA_VERSION - 1, decorations: { spinnerColor: "success", doneMarkerBorderColor: "error" } }));
+		// v2 preserves spinner color, while the v3 done-marker border migration still applies.
+		writeFileSync(settingsPath(), JSON.stringify({ schemaVersion: 2, decorations: { spinnerColor: "success", doneMarkerBorderColor: "error" } }));
 		assert.equal(loadSettings().decorations.spinnerColor, "success");
 		assert.equal(loadSettings().decorations.doneMarkerBorderColor, "thinking-level");
 
@@ -351,7 +375,7 @@ test("loadSettings falls back to defaults for a wrong-shaped decorations/feature
 		mkdirSync(join(settingsPath(), ".."), { recursive: true });
 		writeFileSync(
 			settingsPath(),
-			JSON.stringify({ decorations: "oops", features: [1, 2, 3] }),
+			JSON.stringify({ schemaVersion: SETTINGS_SCHEMA_VERSION, decorations: "oops", features: [1, 2, 3] }),
 		);
 
 		// Neither field is a plain object, so both fall back to their defaults

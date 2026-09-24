@@ -20,7 +20,8 @@ export const DONE_MARKER_BORDER_COLOR_VALUES = THINKING_LEVEL_SETTING_COLOR_VALU
 export type DoneMarkerBorderColor = ThinkingLevelSettingColor;
 const THINKING_LEVEL_COLOR_MIGRATION_VERSION = 2;
 const DONE_MARKER_BORDER_COLOR_MIGRATION_VERSION = 3;
-export const SETTINGS_SCHEMA_VERSION = 3;
+const RESPONSE_MODEL_FOOTER_MIGRATION_VERSION = 4;
+export const SETTINGS_SCHEMA_VERSION = 4;
 
 export const BORDER_STYLE_VALUES = ["double", "single", "rounded", "heavy"] as const;
 export type BorderStyle = (typeof BORDER_STYLE_VALUES)[number];
@@ -150,20 +151,7 @@ function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, par
 	if (!isPlainObject(parsed)) return merged;
 	for (const [key, value] of Object.entries(parsed)) {
 		if (!Object.hasOwn(merged, key)) continue;
-		let valid: boolean | string | undefined;
-		if (typeof merged[key] === "boolean" && typeof value === "boolean") valid = value;
-		else if ((key === "meterDirection" || key === "shimmerDirection") && (value === "ltr" || value === "rtl")) valid = value;
-		else if (key === "shimmerSpeed" && (value === "slow" || value === "normal" || value === "fast")) valid = value;
-		else if (key === "spinnerColor" && value === "default") valid = "thinking-level";
-		else if (key === "spinnerColor" && isSpinnerColor(value)) valid = value;
-		else if (key === "borderColor" && isPromptBorderColor(value)) valid = value;
-		else if (key === "doneMarkerBorderColor" && value === "default") valid = "thinking-level";
-		else if (key === "doneMarkerBorderColor" && isDoneMarkerBorderColor(value)) valid = value;
-		else if ((key === "meterColor" || key === "tokenRateColor" || key === "responseModelColor" || key === "doneMarkerModelColor") && isThinkingLevelColor(value)) valid = value;
-		else if (key === "borderStyle" && isBorderStyle(value)) valid = value;
-		else if (key === "doneMarkerBorderStyle" && isDoneMarkerBorderStyle(value)) valid = value;
-		else if (key === "doneMarkerStyle" && isDoneMarkerStyle(value)) valid = value;
-		if (valid !== undefined) (merged as Record<string, boolean | string>)[key] = valid;
+		if (typeof merged[key] === "boolean" && typeof value === "boolean") (merged as Record<string, boolean | string>)[key] = value;
 	}
 	return merged;
 }
@@ -231,7 +219,7 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "doneMarkerModelDimmed", label: "Response model dimmed", section: "Completion Marker", group: "decorations", key: "doneMarkerModelDimmed" },
 	{ id: "useNerdFont", label: "Use NerdFont icons", section: "Options", group: "decorations", key: "useNerdFont" },
 	{ id: "showResponseModelFooter", label: "Response model footer", section: "Options", group: "features", key: "responseModelFooter" },
-	{ id: "includeDefaultWorkingText", label: "Include default/random 'Working' text", section: "Word Packs", group: "features", key: "includeDefaultWorkingText" },
+	{ id: "includeDefaultWorkingText", label: "Include default/random “Working” text", section: "Word Packs", group: "features", key: "includeDefaultWorkingText" },
 ];
 
 function menuItem(entry: MenuEntry, settings: DecoratorSettings): MenuSection["items"][number] {
@@ -335,7 +323,8 @@ export function applyMenuResult(settings: DecoratorSettings, values: Record<stri
  * don't resurface on re-enable.
  * Files with `schemaVersion` below 2 get spinner color reset to `thinking-level` and
  * `borderAccent` prompt borders moved to `thinking-level`; below 3, the completion-marker
- * border color is reset. A legacy `features.simCityWorkingText: true` enables the
+ * border color is reset. Below 4, the response-model footer inherits the response-model
+ * setting. A legacy `features.simCityWorkingText: true` enables the
  * `simcity` pack when no explicit preference is stored.
  */
 export function loadSettings(): DecoratorSettings {
@@ -352,6 +341,15 @@ export function loadSettings(): DecoratorSettings {
 			wordPacks.simcity = true;
 		}
 		const settings = { decorations: mergeGroup(DEFAULT_SETTINGS.decorations, parsed.decorations), features: mergeGroup(DEFAULT_SETTINGS.features, parsed.features), loaderOrder: parseLoaderOrder(parsed.loaderOrder), wordPacks };
+		if (isPlainObject(parsed.decorations)) {
+			for (const [key, value] of Object.entries(parsed.decorations)) {
+				if (!Object.hasOwn(DEFAULT_SETTINGS.decorations, key) || typeof value !== "string") continue;
+				const k = key as keyof DecorationSettings;
+				if (isDecorationBooleanKey(k)) continue;
+				setDecorationCycleValue(settings.decorations, k,
+					value === "default" && (k === "spinnerColor" || k === "doneMarkerBorderColor") ? "thinking-level" : value);
+			}
+		}
 		const schemaVersion = typeof parsed.schemaVersion === "number" ? parsed.schemaVersion : 1;
 		if (schemaVersion < THINKING_LEVEL_COLOR_MIGRATION_VERSION) {
 			settings.decorations.spinnerColor = "thinking-level";
@@ -359,6 +357,9 @@ export function loadSettings(): DecoratorSettings {
 		}
 		if (schemaVersion < DONE_MARKER_BORDER_COLOR_MIGRATION_VERSION) {
 			settings.decorations.doneMarkerBorderColor = "thinking-level";
+		}
+		if (schemaVersion < RESPONSE_MODEL_FOOTER_MIGRATION_VERSION) {
+			settings.features.responseModelFooter = settings.features.responseModel;
 		}
 		for (const entry of MENU_ENTRIES) {
 			if (entry.group === "decorations" && entry.cycleEnabledBy && entry.cycleDisabledValue !== undefined && !settings.decorations[entry.cycleEnabledBy]) {
