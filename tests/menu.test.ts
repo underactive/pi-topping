@@ -315,7 +315,7 @@ test("word-pack-dependent toggle is disabled without packs and re-enables reacti
 	const toggleIndex = lines.findIndex(line => line.includes("Include default/random"));
 	assert.equal(toggleIndex, packTwoIndex + 2, "the toggle has one blank row before it");
 	assert.ok(lines[toggleIndex - 1]!.match(/^║\s+║$/), "the spacer row is blank");
-	assert.ok(lines[toggleIndex]!.includes("[■]") && lines[toggleIndex]!.includes("ON"), "a disabled toggle is coerced on");
+	assert.ok(lines[toggleIndex]!.includes("[■]") && lines[toggleIndex]!.includes("ON"), "a disabled toggle displays ON without changing its stored value");
 
 	// With no enabled pack, space cannot change the toggle.
 	menu.handleInput(KEY.down);
@@ -338,6 +338,27 @@ test("word-pack-dependent toggle is disabled without packs and re-enables reacti
 	menu.handleInput(KEY.space);
 	menu.handleInput(KEY.enter);
 	assert.equal(result!.values.includeDefaultWorkingText, true);
+});
+
+test("a disabled toggle displays ON without coercing its published value", () => {
+	let result: MenuResult<Record<string, MenuValue>> | undefined;
+	const menu = new MenuComponent({
+		title: "TEST",
+		sections: [{ title: "Word Packs", items: [
+			{ id: "pack:x", label: "Pack X", value: false },
+			{ id: "gated", label: "Include default/random “Working” text", value: false, disabledUnlessAnyOf: ["pack:x"] },
+		] }],
+	}, fakeTheme(), (value) => { result = value; });
+
+	menu.handleInput(KEY.down);
+	menu.handleInput(KEY.space);
+	const row = menu.render(80).map(stripTags).find(line => line.includes("Include default/random"))!;
+	assert.ok(row.includes("[■]") && row.includes("ON"), "the disabled display is forced ON");
+
+	menu.handleInput(KEY.enter);
+	assert.equal(result!.applied, true);
+	assert.equal(result!.values["pack:x"], false);
+	assert.equal(result!.values.gated, false, "displaying ON must not change the saved value");
 });
 
 test("gated cycle item: checkbox resets to disabled value and blocks arrows until re-checked", () => {
