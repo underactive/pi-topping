@@ -1,6 +1,6 @@
 {
   "name": "@underactive/pi-topping",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "A Pi extension that adds quality of life improvements to Pi's UX: a high-vis user prompt, a shimmering working loader with token activity meter and elapsed timer, and an end-of-turn completion marker",
   "keywords": ["pi-package", "pi-extension"],
   "license": "MIT",
@@ -12,7 +12,7 @@
   "bugs": {
     "url": "https://github.com/underactive/pi-topping/issues"
   },
-  "homepage": "https://github.com/underactive/pi-topping#readme",
+  "homepage": "https://esison.dev/pi-topping",
   "type": "module",
   "engines": {
     "node": ">=22.19.0"
