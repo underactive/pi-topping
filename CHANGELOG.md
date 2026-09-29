@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-09-29
+
+### Changed
+- Development and CI now typecheck and test against Pi 0.99; the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 0.86.0 to 0.99.1. No runtime behavior changes, the published `peerDependencies` remain `*`, and the minimum supported host is still Pi ≥0.84.4.
+
 ## [0.8.1] - 2026-09-25
 
 ### Added
