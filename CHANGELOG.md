@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-30
+
 ### Added
 - Added a “Token activity monitor upper bound” setting to the “Working” Loader section of `/topping-settings`. It defaults to 80 tps; `←`/`→` cycle through presets spanning 10–1000 tps, and `␣` (Space) accepts a typed whole number from 10–1000. Invalid typed entries show an inline error and keep the editor open without changing the current value, while invalid hand-edited `meterUpperBoundTps` values revert to 80 when settings load.
 

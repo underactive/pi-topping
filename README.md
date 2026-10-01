@@ -6,7 +6,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
-**“Working” Loader** — animated spinner (with color choice), randomized activity word, optional word packs, shimmer, token activity monitor, elapsed timer, output token display, live output-token rate, and the response model when it meaningfully differs from the selected model — all arrangeable left to right. During a blocking extension prompt, the loader switches to a stable dim waiting line with a pulsing indicator, then resumes afterward.
+**“Working” Loader** — animated spinner (with color choice), randomized activity word, optional word packs, shimmer, token activity monitor with an adjustable full-scale rate, elapsed timer, output token display, live output-token rate, and the response model when it meaningfully differs from the selected model — all arrangeable left to right. During a blocking extension prompt, the loader switches to a stable dim waiting line with a pulsing indicator, then resumes afterward.
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
@@ -163,7 +163,7 @@ npm test
 npm run typecheck
 ```
 
-Tests cover the word/shimmer rendering, prompt box and completion marker rendering, activity meter behavior, timer resets, settings persistence and schema migrations, word-pack parsing, loading, and default-text selection, response-model loader and footer behavior, the `menu.ts` component, the settings menu wiring end to end, and the `/topping-setup` command's install and uninstall flows.
+Tests cover the word/shimmer rendering, prompt box and completion marker rendering, activity meter behavior and its configurable upper bound, timer resets, settings persistence and schema migrations, word-pack parsing, loading, and default-text selection, response-model loader and footer behavior, the `menu.ts` component and its typed number entry, the settings menu wiring end to end, and the `/topping-setup` command's install and uninstall flows.
 
 ## Limitations
 
