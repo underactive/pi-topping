@@ -1,23 +1,72 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ActivityMeter, rateToLevel, TokRateTracker } from "../src/activity-meter.ts";
+import { ActivityMeter, DEFAULT_METER_UPPER_BOUND_TPS, rateToLevel, TokRateTracker } from "../src/activity-meter.ts";
 
-test("rateToLevel maps token-rate boundaries", () => {
-	assert.equal(rateToLevel(0), 0);
-	assert.equal(rateToLevel(1), 1);
-	assert.equal(rateToLevel(5), 1);
-	assert.equal(rateToLevel(5.1), 2);
-	assert.equal(rateToLevel(10), 2);
-	assert.equal(rateToLevel(10.1), 3);
-	assert.equal(rateToLevel(15), 3);
-	assert.equal(rateToLevel(15.1), 4);
-	assert.equal(rateToLevel(22), 4);
-	assert.equal(rateToLevel(22.1), 5);
-	assert.equal(rateToLevel(30), 5);
-	assert.equal(rateToLevel(30.1), 6);
-	assert.equal(rateToLevel(40), 6);
-	assert.equal(rateToLevel(40.1), 7);
+test("rateToLevel keeps the legacy token-rate boundaries at a 40 tps bound", () => {
+	assert.equal(rateToLevel(0, 40), 0);
+	assert.equal(rateToLevel(1, 40), 1);
+	assert.equal(rateToLevel(5, 40), 1);
+	assert.equal(rateToLevel(5.1, 40), 2);
+	assert.equal(rateToLevel(10, 40), 2);
+	assert.equal(rateToLevel(10.1, 40), 3);
+	assert.equal(rateToLevel(15, 40), 3);
+	assert.equal(rateToLevel(15.1, 40), 4);
+	assert.equal(rateToLevel(22, 40), 4);
+	assert.equal(rateToLevel(22.1, 40), 5);
+	assert.equal(rateToLevel(30, 40), 5);
+	assert.equal(rateToLevel(30.1, 40), 6);
+	// Full scale is inclusive, so exactly 40 tps is now full rather than PEAK_3.
+	assert.equal(rateToLevel(39.9, 40), 6);
+	assert.equal(rateToLevel(40, 40), 7);
+	assert.equal(rateToLevel(40.1, 40), 7);
+});
+
+test("rateToLevel scales its boundaries to the default 80 tps bound", () => {
+	assert.equal(DEFAULT_METER_UPPER_BOUND_TPS, 80);
+	for (const [rate, level] of [
+		[0, 0], [10, 1], [10.1, 2], [20, 2], [20.1, 3], [30, 3], [30.1, 4],
+		[44, 4], [44.1, 5], [60, 5], [60.1, 6], [79.9, 6], [80, 7],
+	] as const) {
+		assert.equal(rateToLevel(rate), level, `${rate} tps`);
+	}
+});
+
+test("rateToLevel honors the minimum and maximum bounds", () => {
+	assert.equal(rateToLevel(10, 10), 7);
+	assert.equal(rateToLevel(9.9, 10), 6);
+	assert.equal(rateToLevel(1_000, 1_000), 7);
+	assert.equal(rateToLevel(999, 1_000), 6);
+	assert.equal(rateToLevel(750, 1_000), 5);
+});
+
+test("rateToLevel clamps at or above the bound and treats invalid rates as idle", () => {
+	for (const bound of [10, 80, 1_000]) {
+		for (const rate of [bound, bound * 1.5, 1e9, Infinity]) {
+			assert.equal(rateToLevel(rate, bound), 7, `${rate} tps at bound ${bound}`);
+		}
+		assert.equal(rateToLevel(NaN, bound), 0);
+		assert.equal(rateToLevel(-1, bound), 0);
+	}
+});
+
+test("rateToLevel never decreases as the rate rises and stays below full under the bound", () => {
+	for (const bound of [10, 80, 1_000]) {
+		let previous = 0;
+		for (let rate = 0; rate <= bound * 2; rate += 0.5) {
+			const level = rateToLevel(rate, bound);
+			assert.ok(level >= previous, `${rate} tps at bound ${bound} dropped from ${previous} to ${level}`);
+			assert.ok(level >= 0 && level <= 7);
+			if (rate < bound) assert.ok(level < 7, `${rate} tps at bound ${bound} is full below the bound`);
+			previous = level;
+		}
+	}
+});
+
+test("ActivityMeter renders clamped rates as full columns", () => {
+	const meter = new ActivityMeter();
+	for (let i = 0; i < 8; i++) meter.push(rateToLevel(5_000, 10));
+	assert.equal(meter.render(), "⣿⣿⣿⣿⣿⣿⣿⣿");
 });
 
 test("ActivityMeter renders and scrolls activity levels", () => {

@@ -15,6 +15,9 @@ export const ActivityMeterLevel = {
 export type ActivityMeterLevel = (typeof ActivityMeterLevel)[keyof typeof ActivityMeterLevel];
 
 const EMA_ALPHA = 0.4;
+export const DEFAULT_METER_UPPER_BOUND_TPS = 80;
+export const METER_UPPER_BOUND_TPS_MIN = 10;
+export const METER_UPPER_BOUND_TPS_MAX = 1000;
 const BRAILLE: Record<ActivityMeterLevel, string> = {
 	[ActivityMeterLevel.IDLE]: "⢀",
 	[ActivityMeterLevel.LOW]: "⣀",
@@ -26,13 +29,19 @@ const BRAILLE: Record<ActivityMeterLevel, string> = {
 	[ActivityMeterLevel.FULL]: "⣿",
 };
 const WIDTH = 8;
-const RATE_THRESHOLDS = [0, 5, 10, 15, 22, 30, 40] as const;
+const LEGACY_FULL_SCALE_TPS = 40;
+// Levels below full retain the original 40 tps scale's proportions.
+const RATE_THRESHOLDS = [0, 5, 10, 15, 22, 30] as const;
 type CellColorizer = (level: ActivityMeterLevel, char: string) => string;
 
-/** Convert an estimated output-token rate to a display level. */
-export function rateToLevel(tokensPerSecond: number): ActivityMeterLevel {
+/**
+ * Convert an estimated output-token rate to a display level. Rates at or above `upperBoundTps`
+ * render as full; the lower levels scale in proportion to the bound.
+ */
+export function rateToLevel(tokensPerSecond: number, upperBoundTps: number = DEFAULT_METER_UPPER_BOUND_TPS): ActivityMeterLevel {
+	if (tokensPerSecond >= upperBoundTps) return ActivityMeterLevel.FULL;
 	for (let i = RATE_THRESHOLDS.length - 1; i >= 0; i--) {
-		if (tokensPerSecond > RATE_THRESHOLDS[i]) return (i + 1) as ActivityMeterLevel;
+		if (tokensPerSecond * LEGACY_FULL_SCALE_TPS > RATE_THRESHOLDS[i]! * upperBoundTps) return (i + 1) as ActivityMeterLevel;
 	}
 	return ActivityMeterLevel.IDLE;
 }

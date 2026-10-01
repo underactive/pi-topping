@@ -8,6 +8,7 @@ import {
 	applyMenuResult,
 	buildMenuSections,
 	fromCycleDirection,
+	fromCycleMeterUpperBound,
 	fromCycleSpeed,
 	DEFAULT_SETTINGS,
 	DONE_MARKER_BORDER_COLOR_VALUES,
@@ -19,6 +20,7 @@ import {
 	type DecoratorSettings,
 	LOADER_ORDER_ID,
 	loadSettings,
+	METER_UPPER_BOUND_TPS_PRESETS,
 	parseLoaderOrder,
 	saveSettings,
 	DONE_MARKER_BORDER_STYLE_VALUES,
@@ -51,7 +53,7 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Word Packs", "Options"]);
 	const itemIds = sections.flatMap(section => section.items).map(item => item.id);
 	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
-	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "showResponseModel", "responseModelColor", "responseModelDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel", "doneMarker", "doneMarkerStyle", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "doneMarkerModel", "doneMarkerModelColor", "doneMarkerModelDimmed", "pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars", "includeDefaultWorkingText", "useNerdFont", "showResponseModelFooter"]);
+	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "meterUpperBoundTps", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "showResponseModel", "responseModelColor", "responseModelDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel", "doneMarker", "doneMarkerStyle", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "doneMarkerModel", "doneMarkerModelColor", "doneMarkerModelDimmed", "pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars", "includeDefaultWorkingText", "useNerdFont", "showResponseModelFooter"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:simcity")!.value, false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:star-trek")!.value, false);
@@ -99,6 +101,18 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 		"pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars",
 	]);
 	assert.equal(sections[5]!.items.find(item => item.id === "showResponseModelFooter")!.value, false);
+	const meterUpperBound = sections[1]!.items.find(item => item.id === "meterUpperBoundTps")!;
+	assert.equal(meterUpperBound.label, "Token activity monitor upper bound");
+	assert.equal(meterUpperBound.value, "80");
+	assert.deepEqual(meterUpperBound.cycleValues, METER_UPPER_BOUND_TPS_PRESETS);
+	assert.deepEqual(meterUpperBound.numberEntry, { min: 10, max: 1000, unit: "tps" });
+	assert.equal(meterUpperBound.cycleEnabledBy, undefined);
+});
+
+test("meter upper bound defaults to 80 tps and publishes custom values as strings", () => {
+	assert.equal(DEFAULT_SETTINGS.decorations.meterUpperBoundTps, 80);
+	const sections = buildMenuSections({ ...DEFAULT_SETTINGS, decorations: { ...DEFAULT_SETTINGS.decorations, meterUpperBoundTps: 73 } }, []);
+	assert.equal(sections.flatMap(section => section.items).find(item => item.id === "meterUpperBoundTps")!.value, "73");
 });
 
 test("buildMenuSections appends tokenRate to legacy five-element orders", () => {
@@ -135,6 +149,20 @@ test("cycle values validate stored values and invalid preview inputs", () => {
 	assert.equal(fromCycleSpeed("normal"), "normal");
 	assert.equal(fromCycleSpeed(undefined), "normal");
 	assert.equal(fromCycleSpeed("unexpected"), "normal");
+	assert.equal(fromCycleMeterUpperBound("250"), 250);
+	assert.equal(fromCycleMeterUpperBound("9"), 80);
+	assert.equal(fromCycleMeterUpperBound(undefined), 80);
+	assert.equal(fromCycleMeterUpperBound("80.5"), 80);
+});
+
+test("applyMenuResult accepts whole-number meter upper bounds and keeps the previous value otherwise", () => {
+	for (const value of ["10", "80", "1000", "250"]) {
+		assert.equal(applyMenuResult(DEFAULT_SETTINGS, { meterUpperBoundTps: value }).decorations.meterUpperBoundTps, Number(value));
+	}
+	const current = applyMenuResult(DEFAULT_SETTINGS, { meterUpperBoundTps: "150" });
+	for (const value of ["9", "1001", "80.5", "abc", "", true]) {
+		assert.equal(applyMenuResult(current, { meterUpperBoundTps: value }).decorations.meterUpperBoundTps, 150, JSON.stringify(value));
+	}
 });
 
 test("applyMenuResult clones settings and applies known partial values", () => {
@@ -297,6 +325,26 @@ test("loadSettings accepts allowed setting colors and rejects other theme colors
 	});
 });
 
+test("loadSettings validates the meter upper bound without resetting other settings", () => {
+	withTempAgentDir(() => {
+		mkdirSync(join(settingsPath(), ".."), { recursive: true });
+		writeFileSync(settingsPath(), JSON.stringify({ schemaVersion: SETTINGS_SCHEMA_VERSION, decorations: {} }));
+		assert.equal(loadSettings().decorations.meterUpperBoundTps, 80);
+
+		for (const [stored, expected] of [[10, 10], [250, 250], [1000, 1000], ["80", 80]] as const) {
+			writeFileSync(settingsPath(), JSON.stringify({ schemaVersion: SETTINGS_SCHEMA_VERSION, decorations: { meterUpperBoundTps: stored } }));
+			assert.equal(loadSettings().decorations.meterUpperBoundTps, expected, JSON.stringify(stored));
+		}
+
+		for (const stored of [9, 1001, 0, 80.5, null, "abc", "1e2"]) {
+			writeFileSync(settingsPath(), JSON.stringify({ schemaVersion: SETTINGS_SCHEMA_VERSION, decorations: { animatedSpinner: false, meterUpperBoundTps: stored } }));
+			const loaded = loadSettings();
+			assert.equal(loaded.decorations.meterUpperBoundTps, 80, JSON.stringify(stored));
+			assert.equal(loaded.decorations.animatedSpinner, false, `${JSON.stringify(stored)} reset the other settings`);
+		}
+	});
+});
+
 test("loadSettings returns defaults on malformed JSON", () => {
 	withTempAgentDir(() => {
 		saveSettings(DEFAULT_SETTINGS);
@@ -310,7 +358,7 @@ test("loadSettings returns defaults on malformed JSON", () => {
 test("saveSettings then loadSettings round-trips the full schema", () => {
 	withTempAgentDir(() => {
 		const custom: DecoratorSettings = {
-			decorations: { ...DEFAULT_SETTINGS.decorations, animatedSpinner: false, shimmer: false, tokenActivityMonitor: true, meterDirection: "ltr", decorateUserPrompt: false },
+			decorations: { ...DEFAULT_SETTINGS.decorations, animatedSpinner: false, shimmer: false, tokenActivityMonitor: true, meterDirection: "ltr", meterUpperBoundTps: 250, decorateUserPrompt: false },
 			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, elapsedTime: true, outputTokens: false, tokenRate: false, responseModel: false, doneMarker: true },
 			wordPacks: { simcity: true, "star-trek": false, "star-wars": false },
 			loaderOrder: ["meter", "elapsed", "spinner", "tokens", "text", "tokenRate", "responseModel"],

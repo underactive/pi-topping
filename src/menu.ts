@@ -4,7 +4,7 @@
  * contract and `ctx.ui.custom()` overlay API.
  *
  * Renders a titled box containing one or more sections of boolean toggle,
- * multi-value cycle, or keyboard-reorderable items, plus an optional live-updating
+ * multi-value cycle (including optional typed whole-number entry), or keyboard-reorderable items, plus an optional live-updating
  * preview section driven by a caller-supplied render callback.
  *
  * Intended to be reused by any extension that needs a simple modal toggle
@@ -12,9 +12,15 @@
  */
 
 import type { ExtensionCommandContext, Theme } from "@earendil-works/pi-coding-agent";
-import { type Component, Key, matchesKey, truncateToWidth, type SizeValue, type TUI, visibleWidth } from "@earendil-works/pi-tui";
+import { type Component, decodeKittyPrintable, Key, matchesKey, truncateToWidth, type SizeValue, type TUI, visibleWidth } from "@earendil-works/pi-tui";
 
 export type MenuValue = boolean | string;
+
+export interface MenuNumberEntry {
+	min: number;
+	max: number;
+	unit?: string;
+}
 
 /** Lines to display and an optional delay before the preview should refresh. */
 export interface PreviewResult {
@@ -40,6 +46,8 @@ export interface MenuItem {
 	cycleEnabled?: boolean;
 	/** Value snapped to when the gating checkbox is unchecked. */
 	cycleDisabledValue?: string;
+	/** Also accept a typed whole number in [min, max]; space opens the editor. Values publish as decimal strings. */
+	numberEntry?: MenuNumberEntry;
 	/**
 	 * Marks the item as a reorderable row. Space grabs/releases it; while grabbed,
 	 * up/down move it among the other rows sharing this group instead of moving the
@@ -81,6 +89,8 @@ export interface MenuResult<T> {
 }
 
 const DEFAULT_HINTS = ["\u2191\u2193 move", "PgUp/PgDn page", "\u2423 toggle", "\u23ce apply", "esc cancel"];
+const EDIT_HINTS = ["type a whole number", "⌫ delete", "⏎ confirm", "esc cancel edit"];
+const MAX_EDIT_CHARS = 8;
 const OVERLAY_WIDTH = "86%";
 export const DEFAULT_PREVIEW_WIDTH = 76;
 const ROW_PREFIX_WIDTH = 8; // "  " + marker + " " + "[" + box + "]" + " "
@@ -95,6 +105,13 @@ function closeTruncatedHyperlink(text: string): string {
 interface FlatItem {
 	item: MenuItem;
 	sectionIndex: number;
+}
+
+function parseWholeNumber(raw: string, spec: MenuNumberEntry): number | undefined {
+	const trimmed = raw.trim();
+	if (!/^\d+$/.test(trimmed)) return undefined;
+	const value = Number(trimmed);
+	return value >= spec.min && value <= spec.max ? value : undefined;
 }
 
 function buildInitialValues(config: MenuConfig): Record<string, MenuValue> {
@@ -139,6 +156,7 @@ export class MenuComponent implements Component {
 	private cachedRows: number | undefined;
 	private cachedLines: string[] | undefined;
 	private pageItemCount: number | undefined;
+	private editing: { buffer: string; invalid: boolean } | undefined;
 
 	constructor(
 		config: MenuConfig,
@@ -191,6 +209,10 @@ export class MenuComponent implements Component {
 			}
 			return;
 		}
+		if (this.editing) {
+			this.handleEditInput(data);
+			return;
+		}
 
 		// Map input to a normalized key name.
 		let mappedKey: string | undefined;
@@ -220,6 +242,11 @@ export class MenuComponent implements Component {
 			[Key.space]: () => {
 				const item = this.flat[this.cursor]!.item;
 				if (this.isDisabled(item)) return;
+				if (item.numberEntry) {
+					this.editing = { buffer: "", invalid: false };
+					this.invalidate();
+					return;
+				}
 				if (item.cycleValues && item.cycleEnabledBy) {
 					this.values[item.cycleEnabledBy] = !this.values[item.cycleEnabledBy] as boolean;
 					if (!this.values[item.cycleEnabledBy] && item.cycleDisabledValue !== undefined) this.values[item.id] = item.cycleDisabledValue;
@@ -249,6 +276,32 @@ export class MenuComponent implements Component {
 		this.cachedLines = lines;
 		this.schedulePreview();
 		return lines;
+	}
+
+	private handleEditInput(data: string): void {
+		const editing = this.editing!;
+		const item = this.flat[this.cursor]!.item;
+		const spec = item.numberEntry!;
+		if (matchesKey(data, Key.enter)) {
+			const value = parseWholeNumber(editing.buffer, spec);
+			if (value === undefined) editing.invalid = true;
+			else {
+				this.values[item.id] = String(value);
+				this.editing = undefined;
+			}
+		} else if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c"))) {
+			this.editing = undefined;
+		} else if (matchesKey(data, Key.backspace)) {
+			editing.buffer = [...editing.buffer].slice(0, -1).join("");
+			editing.invalid = false;
+		} else {
+			const text = decodeKittyPrintable(data) ?? data;
+			if (/^[\x20-\x7e]+$/.test(text) && editing.buffer.length + text.length <= MAX_EDIT_CHARS) {
+				editing.buffer += text;
+				editing.invalid = false;
+			}
+		}
+		this.invalidate();
 	}
 
 	/**
@@ -299,7 +352,29 @@ export class MenuComponent implements Component {
 	private cycleCurrentValue(delta: number): void {
 		const item = this.flat[this.cursor]!.item;
 		if (this.isDisabled(item) || !item.cycleValues?.length || (item.cycleEnabledBy && !this.values[item.cycleEnabledBy])) return;
-		const current = item.cycleValues.indexOf(this.values[item.id] as string);
+		const currentValue = this.values[item.id] as string;
+		const current = item.cycleValues.indexOf(currentValue);
+		if (item.numberEntry && current === -1) {
+			const numericCurrent = Number(currentValue);
+			if (delta > 0) {
+				for (const preset of item.cycleValues) {
+					if (Number(preset) > numericCurrent) {
+						this.values[item.id] = preset;
+						this.invalidate();
+						return;
+					}
+				}
+			} else {
+				for (let i = item.cycleValues.length - 1; i >= 0; i--) {
+					const preset = item.cycleValues[i]!;
+					if (Number(preset) < numericCurrent) {
+						this.values[item.id] = preset;
+						this.invalidate();
+						return;
+					}
+				}
+			}
+		}
 		const index = (current + delta + item.cycleValues.length) % item.cycleValues.length;
 		this.values[item.id] = item.cycleValues[index]!;
 		this.invalidate();
@@ -529,6 +604,13 @@ export class MenuComponent implements Component {
 	}
 
 	private renderHintsRow(innerWidth: number): string {
+		if (this.editing) {
+			const item = this.flat[this.cursor]!.item;
+			const spec = item.numberEntry!;
+			const unit = spec.unit ? ` ${spec.unit}` : "";
+			const error = this.editing.invalid ? `${this.theme.fg("error", `✗ Enter a whole number from ${spec.min} to ${spec.max}${unit}`)}  ` : "";
+			return this.renderContentRow(`  ${error}${this.theme.fg("dim", EDIT_HINTS.join("  "))}`, innerWidth);
+		}
 		const plain = `  ${this.hints.join("  ")}`;
 		return this.renderContentRow(this.theme.fg("dim", plain), innerWidth);
 	}
@@ -559,13 +641,17 @@ export class MenuComponent implements Component {
 		if (item.cycleValues) {
 			const enabled = !this.isDisabled(item) && (item.cycleEnabledBy ? this.values[item.cycleEnabledBy] as boolean : true);
 			const rawValue = typeof value === "string" ? value : String(value);
-			const displayValue = item.cycleValueLabels?.[rawValue] ?? rawValue;
-			const stateWord = `‹ ${displayValue} ›`;
-			const maxLabelLen = Math.max(0, innerWidth - ROW_PREFIX_WIDTH - visibleWidth(stateWord) - 1);
+			const unit = item.numberEntry?.unit ? ` ${item.numberEntry.unit}` : "";
+			const displayValue = item.numberEntry ? `${rawValue}${unit}` : item.cycleValueLabels?.[rawValue] ?? rawValue;
+			const editing = selected ? this.editing : undefined;
+			const stateWord = editing ? `‹ ${editing.buffer}▌${unit} ›` : `‹ ${displayValue} ›`;
+			const rightPlain = `${stateWord}  `;
+			const maxLabelLen = Math.max(0, innerWidth - ROW_PREFIX_WIDTH - visibleWidth(rightPlain) - 1);
 			const label = visibleWidth(item.label) > maxLabelLen ? truncateToWidth(item.label, maxLabelLen) : item.label;
 			const leftPlain = `  ${marker} [${enabled ? "■" : " "}] ${label}`;
 			const gap = Math.max(1, innerWidth - visibleWidth(leftPlain) - visibleWidth(stateWord) - 2);
-			const content = `  ${markerColored} [${enabled ? th.fg("success", "■") : th.fg("muted", " ")}] ${th.fg("text", label)}${" ".repeat(gap)}${enabled ? th.fg("accent", stateWord) : th.fg("muted", stateWord)}  `;
+			const state = editing ? th.fg(editing.invalid ? "error" : "accent", stateWord) : enabled ? th.fg("accent", stateWord) : th.fg("muted", stateWord);
+			const content = `  ${markerColored} [${enabled ? th.fg("success", "■") : th.fg("muted", " ")}] ${th.fg("text", label)}${" ".repeat(gap)}${state}  `;
 			return this.wrap("\u2551", selected ? th.bg("selectedBg", content) : content, "\u2551");
 		}
 

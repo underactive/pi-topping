@@ -58,6 +58,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Token activity monitor color             ‹ accent ›    ║
 ║    [■] Token activity monitor direction  ‹ Right to Left ›    ║
 ║    [■] Token activity monitor dimmed                 OFF      ║
+║    [■] Token activity monitor upper bound       ‹ 80 tps ›    ║
 ║    [■] Elapsed time since prompt                      ON      ║
 ║    [■] Show output tokens                             ON      ║
 ║    [■] Token rate                                     ON      ║
@@ -108,7 +109,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╟───────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  PgUp/PgDn page  ←→ select                           ║
 ║  ␣ toggle  ⏎ apply  esc cancel                                ║
-╚═══════════════════════════════════════════════════════[ 9/56 ]╝
+╚═══════════════════════════════════════════════════════[ 9/57 ]╝
 ```
 
 ### Word packs
@@ -143,6 +144,8 @@ segments; larger rates may shift later segments. When inactive, it remains as th
 full brightness for 1.5 seconds, then fades through five theme-aware shades to the dim text color over
 the next 0.25 seconds before returning to the placeholder; a new count restores full brightness and
 restarts the cycle.
+
+The token activity monitor reaches full `⣿` at or above its configurable upper bound (80 tps by default), with lower levels scaled proportionally to that bound. In `/topping-settings`, `←`/`→` cycle through presets spanning 10–1000 tps, and `␣` (Space) lets you enter any whole number from 10–1000. Invalid typed entries show an inline error and keep the editor open without changing the current value; invalid hand-edited `meterUpperBoundTps` values in `settings.json` revert to 80 on load.
 
 The response model is captured from assistant responses, displayed as its sanitized value with no label only when it meaningfully differs from the selected model, and defaults to the final loader detail after output tokens. While pi-topping-statusline embeds the loader in its status bar, the model slides out tail first from behind its separator over 0.3 seconds when it first appears in a run, like that bar's embedded status; elsewhere it appears at once, and a different model replacing it always swaps in place. Equivalent local paths and decorated filenames are suppressed. Its loader display can be hidden, recolored, permanently dimmed, or reordered. The independent **Response model footer** option is disabled by default; when enabled, the final model appears under the editor after settlement, remains visible for 3 seconds, fades through five theme-aware shades over 0.5 seconds, then clears. New work cancels the pending fade. When the active provider is `switchyard`, the loader and footer hold/fade use NVIDIA green (`#84c51a`, matching pi-topping-statusline) regardless of the configured Response model color; the dim setting still applies.
 

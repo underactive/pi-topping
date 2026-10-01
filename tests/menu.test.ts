@@ -18,6 +18,7 @@ const KEY = {
 	space: " ",
 	enter: "\r",
 	escape: "\x1b",
+	backspace: "\x7f",
 };
 
 // Real ANSI SGR codes so visibleWidth()/truncateToWidth() (which strip ANSI,
@@ -29,6 +30,7 @@ const FG_CODES: Record<string, string> = {
 	muted: "\x1b[90m",
 	dim: "\x1b[2m",
 	text: "\x1b[39m",
+	error: "\x1b[31m",
 };
 const BG_CODES: Record<string, string> = {
 	selectedBg: "\x1b[48;5;238m",
@@ -708,6 +710,182 @@ test("dispose() is a safe no-op when there is no preview or no TUI", () => {
 
 	const withPreviewNoTui = makeMenu(() => {}, { preview: () => ({ lines: ["x"] }) });
 	assert.doesNotThrow(() => withPreviewNoTui.dispose());
+});
+
+const NUMBER_ROW = { id: "bound", label: "Upper bound", value: "80", cycleValues: ["10", "80", "100", "200", "300", "1000"], numberEntry: { min: 10, max: 1000, unit: "tps" } };
+
+function numberMenu(
+	done: (result: MenuResult<Record<string, MenuValue>>) => void = () => {},
+	overrides: Partial<MenuConfig> = {},
+): MenuComponent {
+	return new MenuComponent({
+		title: "TEST",
+		sections: [{ title: "S1", items: [{ ...NUMBER_ROW }, { id: "other", label: "Other", value: true }] }],
+		...overrides,
+	}, fakeTheme(), done);
+}
+
+function typeText(menu: MenuComponent, text: string): void {
+	for (const char of text) menu.handleInput(char);
+}
+
+function boundRow(menu: MenuComponent, width = 64): string {
+	return menu.render(width).find((line) => stripTags(line).includes("Upper bound"))!;
+}
+
+function hintsRow(menu: MenuComponent, width = 64): string {
+	return stripTags(menu.render(width).at(-2)!);
+}
+
+test("number-entry cycle rows show their unit and step through presets with wrap-around", () => {
+	const menu = numberMenu();
+	assert.ok(stripTags(boundRow(menu)).includes("‹ 80 tps ›"));
+	menu.handleInput(KEY.right);
+	assert.ok(stripTags(boundRow(menu)).includes("‹ 100 tps ›"));
+	menu.handleInput(KEY.left);
+	menu.handleInput(KEY.left);
+	assert.ok(stripTags(boundRow(menu)).includes("‹ 10 tps ›"));
+	menu.handleInput(KEY.left);
+	assert.ok(stripTags(boundRow(menu)).includes("‹ 1000 tps ›"), "left wraps from the first preset to the last");
+	menu.handleInput(KEY.right);
+	assert.ok(stripTags(boundRow(menu)).includes("‹ 10 tps ›"), "right wraps from the last preset to the first");
+});
+
+test("space opens a number editor whose confirmed value publishes and steps to the nearest presets", () => {
+	const results: MenuResult<Record<string, MenuValue>>[] = [];
+	const menu = numberMenu((result) => results.push(result));
+
+	assert.ok(hintsRow(menu).includes("esc cancel"));
+	menu.handleInput(KEY.space);
+	assert.ok(hintsRow(menu).includes("type a whole number"));
+	assert.ok(hintsRow(menu).includes("esc cancel edit"));
+	typeText(menu, "250");
+	assert.ok(stripTags(boundRow(menu)).includes("‹ 250▌ tps ›"));
+	menu.handleInput(KEY.enter);
+	assert.equal(results.length, 0, "confirming the editor does not apply the menu");
+	assert.ok(stripTags(boundRow(menu)).includes("‹ 250 tps ›"));
+	assert.ok(!hintsRow(menu).includes("type a whole number"));
+
+	menu.handleInput(KEY.right);
+	assert.ok(stripTags(boundRow(menu)).includes("‹ 300 tps ›"));
+	menu.handleInput(KEY.space);
+	typeText(menu, "250");
+	menu.handleInput(KEY.enter);
+	menu.handleInput(KEY.left);
+	assert.ok(stripTags(boundRow(menu)).includes("‹ 200 tps ›"));
+
+	menu.handleInput(KEY.space);
+	typeText(menu, "250");
+	menu.handleInput(KEY.enter);
+	menu.handleInput(KEY.enter);
+	assert.equal(results.length, 1);
+	assert.equal(results[0]!.applied, true);
+	assert.equal(results[0]!.values.bound, "250");
+});
+
+test("invalid typed numbers keep the editor open with an inline error and the previous value", () => {
+	const results: MenuResult<Record<string, MenuValue>>[] = [];
+	const menu = numberMenu((result) => results.push(result));
+
+	for (const input of ["5", "1001", "80.5", "abc", ""]) {
+		menu.handleInput(KEY.space);
+		typeText(menu, input);
+		menu.handleInput(KEY.enter);
+		assert.equal(results.length, 0, `${JSON.stringify(input)} closed the menu`);
+		assert.ok(hintsRow(menu).includes("✗ Enter a whole number from 10 to 1000 tps"), JSON.stringify(input));
+		assert.ok(boundRow(menu).includes(`${FG_CODES.error}‹ ${input}▌ tps ›`), `${JSON.stringify(input)} is not error-styled`);
+		menu.handleInput(KEY.escape);
+		assert.ok(stripTags(boundRow(menu)).includes("‹ 80 tps ›"), `${JSON.stringify(input)} changed the value`);
+	}
+
+	menu.handleInput(KEY.space);
+	typeText(menu, "5");
+	menu.handleInput(KEY.enter);
+	menu.handleInput(KEY.backspace);
+	assert.ok(!hintsRow(menu).includes("Enter a whole number"), "editing clears the error");
+	typeText(menu, "1000");
+	menu.handleInput(KEY.enter);
+	menu.handleInput(KEY.enter);
+	assert.equal(results.length, 1);
+	assert.equal(results[0]!.values.bound, "1000");
+});
+
+test("escape discards a number draft without closing the menu", () => {
+	const results: MenuResult<Record<string, MenuValue>>[] = [];
+	const menu = numberMenu((result) => results.push(result));
+
+	menu.handleInput(KEY.space);
+	typeText(menu, "300");
+	menu.handleInput(KEY.escape);
+	assert.equal(results.length, 0);
+	assert.ok(stripTags(boundRow(menu)).includes("‹ 80 tps ›"));
+
+	menu.handleInput(KEY.escape);
+	assert.equal(results.length, 1);
+	assert.equal(results[0]!.applied, false);
+	assert.equal(results[0]!.values.bound, "80");
+});
+
+test("navigation keys are ignored while editing a number", () => {
+	const menu = numberMenu();
+	menu.handleInput(KEY.space);
+	for (const key of [KEY.down, KEY.up, KEY.pageDown, KEY.pageUp, KEY.right, KEY.left]) {
+		menu.handleInput(key);
+		assert.ok(stripTags(menu.render(64).at(-1)!).includes("[ 1/2 ]"));
+		assert.ok(stripTags(boundRow(menu)).includes("‹ ▌ tps ›"));
+	}
+});
+
+test("the preview never receives a number draft", () => {
+	const seen: MenuValue[] = [];
+	const menu = numberMenu(() => {}, {
+		preview: (values) => {
+			seen.push(values.bound!);
+			return { lines: [`bound=${values.bound}`] };
+		},
+	});
+
+	menu.render(64);
+	menu.handleInput(KEY.space);
+	typeText(menu, "25");
+	menu.render(64);
+	typeText(menu, "0");
+	menu.render(64);
+	assert.deepEqual([...new Set(seen)], ["80"]);
+	menu.handleInput(KEY.enter);
+	menu.render(64);
+	assert.equal(seen.at(-1), "250");
+});
+
+test("cycle and number-edit rows stay inside the frame at narrow widths", () => {
+	const menu = numberMenu(() => {}, {
+		sections: [{ title: "S1", items: [
+			{ ...NUMBER_ROW, label: "Token activity monitor upper bound" },
+			{ id: "dir", label: "Token activity monitor direction", value: "rtl", cycleValues: ["rtl", "ltr"], cycleValueLabels: { rtl: "Right to Left" } },
+		] }],
+	});
+	const assertFramed = (state: string) => {
+		for (const width of [40, 64]) {
+			for (const line of menu.render(width)) {
+				assert.equal(visibleWidth(line), width, `${state} at ${width}: ${JSON.stringify(stripTags(line))}`);
+				assert.match(stripTags(line), /[║╗╢╝]$/, `${state} at ${width} lost its right border: ${JSON.stringify(stripTags(line))}`);
+			}
+		}
+	};
+
+	assertFramed("idle");
+	menu.handleInput(KEY.space);
+	typeText(menu, "5");
+	menu.handleInput(KEY.enter);
+	assertFramed("invalid edit");
+});
+
+test("kitty CSI-u digits are decoded into the number editor", () => {
+	const menu = numberMenu();
+	menu.handleInput(KEY.space);
+	menu.handleInput("\x1b[53u");
+	menu.handleInput("\x1b[48u");
+	assert.ok(stripTags(boundRow(menu)).includes("‹ 50▌ tps ›"));
 });
 
 test("selected item row includes selectedBg highlight", () => {

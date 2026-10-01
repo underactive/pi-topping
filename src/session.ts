@@ -632,7 +632,7 @@ export class SessionManager {
 			hasNewTokenCount = total > state.lastTokenRateTotal;
 			state.lastTokenRateTotal = total;
 			const tokenRate = state.rateTracker.sample(total, now);
-			if (decorations.tokenActivityMonitor) state.activityMeter.push(rateToLevel(tokenRate));
+			if (decorations.tokenActivityMonitor) state.activityMeter.push(rateToLevel(tokenRate, decorations.meterUpperBoundTps));
 			state.lastTokenRateSampledAt = now;
 		}
 		const responseModelShown = features.responseModel && state.responseModel

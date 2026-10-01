@@ -1,11 +1,11 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_PREVIEW_WIDTH, type PreviewResult } from "./menu.ts";
-import { ActivityMeter, rateToLevel } from "./activity-meter.ts";
+import { ActivityMeter, METER_UPPER_BOUND_TPS_MAX, METER_UPPER_BOUND_TPS_MIN, rateToLevel } from "./activity-meter.ts";
 import { DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatTokenRate, getThinkingLevelColorizer, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, SPINNER_FRAME_MS } from "./format.ts";
 import { buildLoaderMessage } from "./loader-message.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
-import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderColor, isDoneMarkerBorderStyle, isDoneMarkerStyle, isPromptBorderColor, isSpinnerColor, isThinkingLevelColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
+import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleMeterUpperBound, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderColor, isDoneMarkerBorderStyle, isDoneMarkerStyle, isPromptBorderColor, isSpinnerColor, isThinkingLevelColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
 import { isWordPackEnabled, selectWorkingTextSelection, WORD_PACK_MENU_PREFIX, wordPacksPath, type WordPack } from "./word-packs.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tps for the meter,
 // flat 28 tps for the token readouts.
@@ -49,12 +49,15 @@ export class PreviewRenderer {
 		} else if (values.elapsedTime !== false || values.outputTokens !== false) {
 			nextRefreshInMs = ELAPSED_INTERVAL_MS;
 		}
-		return { lines: ["", this.loaderPreview(values, elapsedMs), ""], nextRefreshInMs };
+		const help = activeItemId === "meterUpperBoundTps"
+			? this.#ctx.ui.theme.fg("dim", `⣿ at ${fromCycleMeterUpperBound(values.meterUpperBoundTps)} tps or more · ←→ presets · ␣ type ${METER_UPPER_BOUND_TPS_MIN}–${METER_UPPER_BOUND_TPS_MAX}`)
+			: "";
+		return { lines: ["", this.loaderPreview(values, elapsedMs), help], nextRefreshInMs };
 	}
 	private loaderPreview(values: Record<string, boolean | string>, elapsedMs: number): string {
 		this.#meter.setDirection(fromCycleDirection(values.meterDirection));
 		if (elapsedMs - this.#lastMeterUpdate >= METER_INTERVAL_MS) {
-			this.#meter.push(rateToLevel(meterRate(elapsedMs)));
+			this.#meter.push(rateToLevel(meterRate(elapsedMs), fromCycleMeterUpperBound(values.meterUpperBoundTps)));
 			this.#lastMeterUpdate = elapsedMs;
 		}
 		const features = { substituteDefaultMessage: values.substituteDefaultMessage !== false, elapsedTime: values.elapsedTime !== false, outputTokens: values.outputTokens !== false, tokenRate: values.showTokenRate !== false, responseModel: values.showResponseModel !== false };

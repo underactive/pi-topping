@@ -387,7 +387,44 @@ test("thinking-level meter color follows the active thinking level", async (t) =
 		now = 1_100;
 		tick!();
 
-		assert.match(messages.at(-1)!, /<thinking-high>⣠<\/thinking-high>/);
+		// This assertion checks thinking-level coloring, not a particular meter scale.
+		assert.match(messages.at(-1)!, /<thinking-high>[⣀⣠⣤⣴⣶⣾⣿]<\/thinking-high>/);
+	});
+});
+
+test("meter saturates at the configured upper bound", async (t) => {
+	await withTempAgentDir(async () => {
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		const timerCallbacks: Array<() => void> = [];
+		mockTimers(t, (callback) => timerCallbacks.push(callback));
+
+		const renderAtBound = async (meterUpperBoundTps: number): Promise<string> => {
+			saveSettings({
+				...DEFAULT_SETTINGS,
+				decorations: { ...DEFAULT_SETTINGS.decorations, meterUpperBoundTps },
+			});
+			const extension = new MockExtension();
+			const messages: (string | undefined)[] = [];
+			const ctx = createContext(messages, []);
+			workingDecorator(extension.asAPI());
+			await extension.emit("agent_start", { type: "agent_start" }, ctx);
+			const tick = timerCallbacks.at(-1)!;
+			const partial = assistantMessage();
+			await extension.emit("message_start", { type: "message_start", message: partial }, ctx);
+			await extension.emit("message_update", {
+				type: "message_update",
+				message: partial,
+				assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two three four five", partial },
+			}, ctx);
+			now += 100;
+			tick();
+			return stripAnsi(messages.at(-1)!);
+		};
+
+		assert.match(await renderAtBound(10), /⣿/);
+		assert.match(await renderAtBound(1_000), /⣀/);
+		assert.match(await renderAtBound(80), /⣠/);
 	});
 });
 
@@ -1620,6 +1657,82 @@ test("/topping-settings requires TUI mode and notifies otherwise", async (t) => 
 	});
 });
 
+test("upper bound row is discoverable and validates typed input", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		let capturedComponent: { render(width: number): string[]; handleInput?(data: string): void } | undefined;
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		const ctx = createContext([], [], (_color, text) => text, {
+			mode: "tui",
+			onCustomComponent: (component) => { capturedComponent = component; },
+		}) as unknown as ExtensionCommandContext;
+
+		workingDecorator(extension.asAPI());
+		const handlerPromise = extension.commands["topping-settings"]!.handler("", ctx);
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.ok(capturedComponent);
+		moveMenuCursor(capturedComponent!, "decorateUserPrompt", "meterUpperBoundTps");
+
+		const initial = capturedComponent!.render(72).map(stripAnsi).join("\n");
+		assert.match(initial, /Token activity monitor upper bound/);
+		assert.match(initial, /‹ 80 tps ›/);
+		assert.match(initial, /␣ type 10–1000/);
+
+		capturedComponent!.handleInput!(" ");
+		for (const digit of "250") capturedComponent!.handleInput!(digit);
+		capturedComponent!.handleInput!("\r");
+		assert.match(capturedComponent!.render(72).map(stripAnsi).join("\n"), /‹ 250 tps ›/);
+
+		capturedComponent!.handleInput!(" ");
+		capturedComponent!.handleInput!("5");
+		capturedComponent!.handleInput!("\r");
+		assert.match(capturedComponent!.render(72).map(stripAnsi).join("\n"), /Enter a whole number from 10 to 1000 tps/);
+		capturedComponent!.handleInput!("\x1b");
+		capturedComponent!.handleInput!("\r");
+		await handlerPromise;
+
+		assert.equal(loadSettings().decorations.meterUpperBoundTps, 250);
+	});
+});
+
+test("a changed upper bound applies to subsequent meter updates", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		let capturedComponent: { render(width: number): string[]; handleInput?(data: string): void } | undefined;
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		const { timers } = recordTimers(t);
+		const ctx = createContext(messages, [], (_color, text) => text, {
+			mode: "tui",
+			onCustomComponent: (component) => { capturedComponent = component; },
+		}) as unknown as ExtensionCommandContext;
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const handlerPromise = extension.commands["topping-settings"]!.handler("", ctx);
+		await new Promise((resolve) => setImmediate(resolve));
+		moveMenuCursor(capturedComponent!, "decorateUserPrompt", "meterUpperBoundTps");
+		capturedComponent!.handleInput!(" ");
+		for (const digit of "10") capturedComponent!.handleInput!(digit);
+		capturedComponent!.handleInput!("\r");
+		capturedComponent!.handleInput!("\r");
+		await handlerPromise;
+
+		const partial = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: partial }, ctx);
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: partial,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two three four five", partial },
+		}, ctx);
+		now += 100;
+		timers.at(-1)!.tick();
+		assert.match(stripAnsi(messages.at(-1)!), /⣿/);
+	});
+});
+
 test("/topping-settings wires a live preview into the menu that reflects toggles", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
@@ -1689,7 +1802,7 @@ test("/topping-settings wires a live preview into the menu that reflects toggles
 		moveMenuCursor(capturedComponent!, "shimmerInverted", "showTokenRate");
 		capturedComponent!.handleInput!(" ");
 		const withoutTokenRate = capturedComponent!.render(76).map(stripAnsi);
-		assert.ok(!withoutTokenRate.some((l) => l.includes("tps")));
+		assert.ok(!withoutTokenRate.some((l) => l.includes(" 28 tps")));
 
 		// Close the menu (Escape = cancel) so the command handler resolves and
 		// the preview animation timer is disposed via component.dispose().
@@ -1869,6 +1982,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.decorations.meterDirectionEnabled, false);
 		assert.equal(persisted.decorations.meterDirection, "rtl");
 		assert.equal(persisted.decorations.meterDimmed, !DEFAULT_SETTINGS.decorations.meterDimmed);
+		assert.equal(persisted.decorations.meterUpperBoundTps, 100);
 		assert.equal(persisted.features.elapsedTime, !DEFAULT_SETTINGS.features.elapsedTime);
 		assert.equal(persisted.features.outputTokens, !DEFAULT_SETTINGS.features.outputTokens);
 		assert.equal(persisted.features.tokenRate, !DEFAULT_SETTINGS.features.tokenRate);

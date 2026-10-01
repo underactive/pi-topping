@@ -1,8 +1,9 @@
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { DEFAULT_METER_UPPER_BOUND_TPS, METER_UPPER_BOUND_TPS_MAX, METER_UPPER_BOUND_TPS_MIN } from "./activity-meter.ts";
 import { DEFAULT_LOADER_ORDER, type LoaderElement } from "./format.ts";
-import type { MenuSection } from "./menu.ts";
+import type { MenuNumberEntry, MenuSection } from "./menu.ts";
 import { isWordPackEnabled, isWordPackId, WORD_PACK_MENU_PREFIX, type WordPack } from "./word-packs.ts";
 import { isPlainObject } from "./util.ts";
 
@@ -29,6 +30,7 @@ export const DONE_MARKER_BORDER_STYLE_VALUES = [...BORDER_STYLE_VALUES, "none"] 
 export type DoneMarkerBorderStyle = (typeof DONE_MARKER_BORDER_STYLE_VALUES)[number];
 export const DONE_MARKER_STYLE_VALUES = ["elite", "bookend"] as const;
 export type DoneMarkerStyle = (typeof DONE_MARKER_STYLE_VALUES)[number];
+export const METER_UPPER_BOUND_TPS_PRESETS = ["10", "20", "30", "40", "50", "60", "80", "100", "150", "200", "300", "500", "1000"] as const;
 
 export function isBorderStyle(value: unknown): value is BorderStyle {
 	return typeof value === "string" && BORDER_STYLE_VALUES.some(style => style === value);
@@ -53,6 +55,19 @@ export function isThinkingLevelSettingColor(value: unknown): value is ThinkingLe
 export const isSpinnerColor = isThinkingLevelSettingColor;
 export const isPromptBorderColor = isThinkingLevelSettingColor;
 export const isDoneMarkerBorderColor = isThinkingLevelSettingColor;
+
+export function parseMeterUpperBoundTps(value: unknown): number | undefined {
+	if (typeof value === "number") {
+		return Number.isInteger(value) && value >= METER_UPPER_BOUND_TPS_MIN && value <= METER_UPPER_BOUND_TPS_MAX ? value : undefined;
+	}
+	if (typeof value !== "string" || !/^\s*\d+\s*$/.test(value)) return undefined;
+	const parsed = Number(value);
+	return parsed >= METER_UPPER_BOUND_TPS_MIN && parsed <= METER_UPPER_BOUND_TPS_MAX ? parsed : undefined;
+}
+
+export function fromCycleMeterUpperBound(value: unknown): number {
+	return parseMeterUpperBoundTps(value) ?? DEFAULT_METER_UPPER_BOUND_TPS;
+}
 
 export interface DecoratorSettings {
 	decorations: {
@@ -81,6 +96,7 @@ export interface DecoratorSettings {
 		meterColor: ThinkingLevelColor;
 		meterColorEnabled: boolean;
 		meterDimmed: boolean;
+		meterUpperBoundTps: number;
 		tokenRateColor: ThinkingLevelColor;
 		tokenRateDimmed: boolean;
 		responseModelColor: ThinkingLevelColor;
@@ -111,7 +127,7 @@ export interface DecoratorSettings {
 }
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
-	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "thinking-level", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "thinking-level", doneMarkerStyle: "elite", doneMarkerModelColor: "muted", doneMarkerModelDimmed: false, spinnerColor: "thinking-level", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, tokenRateColor: "warning", tokenRateDimmed: false, responseModelColor: "accent", responseModelDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
+	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "thinking-level", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "thinking-level", doneMarkerStyle: "elite", doneMarkerModelColor: "muted", doneMarkerModelDimmed: false, spinnerColor: "thinking-level", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, meterUpperBoundTps: DEFAULT_METER_UPPER_BOUND_TPS, tokenRateColor: "warning", tokenRateDimmed: false, responseModelColor: "accent", responseModelDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
 	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, responseModel: true, responseModelFooter: false, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true, doneMarkerModel: true, includeDefaultWorkingText: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 	wordPacks: {},
@@ -146,12 +162,12 @@ export function parseLoaderOrder(value: unknown): LoaderElement[] {
 }
 
 export function settingsPath(): string { return join(getAgentDir(), "pi-topping", "settings.json"); }
-function mergeGroup<T extends Record<string, boolean | string>>(defaults: T, parsed: unknown): T {
+function mergeGroup<T extends Record<string, boolean | string | number>>(defaults: T, parsed: unknown): T {
 	const merged = { ...defaults };
 	if (!isPlainObject(parsed)) return merged;
 	for (const [key, value] of Object.entries(parsed)) {
 		if (!Object.hasOwn(merged, key)) continue;
-		if (typeof merged[key] === "boolean" && typeof value === "boolean") (merged as Record<string, boolean | string>)[key] = value;
+		if (typeof merged[key] === "boolean" && typeof value === "boolean") (merged as Record<string, boolean | string | number>)[key] = value;
 	}
 	return merged;
 }
@@ -171,8 +187,8 @@ type DecorationSettings = DecoratorSettings["decorations"];
 type FeatureSettings = DecoratorSettings["features"];
 type DecorationBooleanKey = { [Key in keyof DecorationSettings]: DecorationSettings[Key] extends boolean ? Key : never }[keyof DecorationSettings];
 type MenuEntryBase = { id: string; label: string; section: MenuSectionName };
-type DecorationMenuEntry = MenuEntryBase & { group: "decorations"; key: keyof DecorationSettings; cycleValues?: readonly string[]; cycleValueLabels?: Readonly<Record<string, string>>; cycleEnabledBy?: DecorationBooleanKey; cycleDisabledValue?: string };
-type FeatureMenuEntry = MenuEntryBase & { group: "features"; key: keyof FeatureSettings; cycleValues?: never; cycleValueLabels?: never; cycleEnabledBy?: never; cycleDisabledValue?: never };
+type DecorationMenuEntry = MenuEntryBase & { group: "decorations"; key: keyof DecorationSettings; cycleValues?: readonly string[]; cycleValueLabels?: Readonly<Record<string, string>>; cycleEnabledBy?: DecorationBooleanKey; cycleDisabledValue?: string; numberEntry?: MenuNumberEntry };
+type FeatureMenuEntry = MenuEntryBase & { group: "features"; key: keyof FeatureSettings; cycleValues?: never; cycleValueLabels?: never; cycleEnabledBy?: never; cycleDisabledValue?: never; numberEntry?: never };
 type MenuEntry = DecorationMenuEntry | FeatureMenuEntry;
 const THINKING_LEVEL_CYCLE_LABELS = { "thinking-level": "thinkingLevel" } as const;
 const DIRECTION_CYCLE_LABELS = { ltr: "Left to Right", rtl: "Right to Left" } as const;
@@ -196,6 +212,7 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "meterColor", label: "Token activity monitor color", section: "“Working” Loader", group: "decorations", key: "meterColor", cycleValues: THINKING_LEVEL_COLOR_VALUES, cycleValueLabels: THINKING_LEVEL_CYCLE_LABELS, cycleEnabledBy: "meterColorEnabled", cycleDisabledValue: "accent" },
 	{ id: "meterDirection", label: "Token activity monitor direction", section: "“Working” Loader", group: "decorations", key: "meterDirection", cycleValues: ["ltr", "rtl"], cycleValueLabels: DIRECTION_CYCLE_LABELS, cycleEnabledBy: "meterDirectionEnabled", cycleDisabledValue: "rtl" },
 	{ id: "meterDimmed", label: "Token activity monitor dimmed", section: "“Working” Loader", group: "decorations", key: "meterDimmed" },
+	{ id: "meterUpperBoundTps", label: "Token activity monitor upper bound", section: "“Working” Loader", group: "decorations", key: "meterUpperBoundTps", cycleValues: METER_UPPER_BOUND_TPS_PRESETS, numberEntry: { min: METER_UPPER_BOUND_TPS_MIN, max: METER_UPPER_BOUND_TPS_MAX, unit: "tps" } },
 	{ id: "elapsedTime", label: "Elapsed time since prompt", section: "“Working” Loader", group: "features", key: "elapsedTime" },
 	{ id: "outputTokens", label: "Show output tokens", section: "“Working” Loader", group: "features", key: "outputTokens" },
 	// id differs from key: the Elements Order row already owns "tokenRate" in the menu's shared value namespace.
@@ -227,7 +244,7 @@ function menuItem(entry: MenuEntry, settings: DecoratorSettings): MenuSection["i
 	const cycleEnabled = entry.group === "decorations" && entry.cycleEnabledBy
 		? settings.decorations[entry.cycleEnabledBy]
 		: undefined;
-	return { id: entry.id, label: entry.label, cycleValues: entry.cycleValues, cycleValueLabels: entry.cycleValueLabels, cycleEnabledBy: entry.cycleEnabledBy, cycleDisabledValue: entry.cycleDisabledValue, cycleEnabled, value };
+	return { id: entry.id, label: entry.label, cycleValues: entry.cycleValues, cycleValueLabels: entry.cycleValueLabels, cycleEnabledBy: entry.cycleEnabledBy, cycleDisabledValue: entry.cycleDisabledValue, cycleEnabled, numberEntry: entry.numberEntry, value: typeof value === "number" ? String(value) : value };
 }
 
 function isDecorationBooleanKey(key: keyof DecorationSettings): key is DecorationBooleanKey {
@@ -263,6 +280,11 @@ function setDecorationCycleValue(decorations: DecorationSettings, key: keyof Dec
 		case "shimmerSpeed":
 			if (value === "slow" || value === "normal" || value === "fast") decorations[key] = value;
 			return;
+		case "meterUpperBoundTps": {
+			const bound = parseMeterUpperBoundTps(value);
+			if (bound !== undefined) decorations[key] = bound;
+			return;
+		}
 		default:
 			// Fail loudly if a MENU_ENTRIES cycle entry is added without a handler here.
 			throw new Error(`Unhandled cycle setting: ${String(key)}`);
@@ -298,7 +320,7 @@ export function applyMenuResult(settings: DecoratorSettings, values: Record<stri
 	for (const entry of MENU_ENTRIES) {
 		const value = values[entry.id];
 		if (value === undefined) continue;
-		if (entry.group === "decorations" && entry.cycleValues && typeof value === "string" && entry.cycleValues.includes(value)) {
+		if (entry.group === "decorations" && entry.cycleValues && typeof value === "string" && (entry.cycleValues.includes(value) || entry.numberEntry !== undefined)) {
 			setDecorationCycleValue(next.decorations, entry.key, value);
 			if (entry.cycleEnabledBy) next.decorations[entry.cycleEnabledBy] = values[entry.cycleEnabledBy] !== false;
 		} else if (entry.group === "decorations" && typeof value === "boolean" && isDecorationBooleanKey(entry.key)) {
@@ -324,7 +346,8 @@ export function applyMenuResult(settings: DecoratorSettings, values: Record<stri
  * Files with `schemaVersion` below 2 get spinner color reset to `thinking-level` and
  * `borderAccent` prompt borders moved to `thinking-level`; below 3, the completion-marker
  * border color is reset. Below 4, the response-model footer inherits the response-model
- * setting. A legacy `features.simCityWorkingText: true` enables the
+ * setting. A missing, non-integer, or out-of-range meter upper bound resolves
+ * to the default of 80 tps. A legacy `features.simCityWorkingText: true` enables the
  * `simcity` pack when no explicit preference is stored.
  */
 export function loadSettings(): DecoratorSettings {
@@ -349,6 +372,8 @@ export function loadSettings(): DecoratorSettings {
 				setDecorationCycleValue(settings.decorations, k,
 					value === "default" && (k === "spinnerColor" || k === "doneMarkerBorderColor") ? "thinking-level" : value);
 			}
+			const bound = parseMeterUpperBoundTps(parsed.decorations.meterUpperBoundTps);
+			if (bound !== undefined) settings.decorations.meterUpperBoundTps = bound;
 		}
 		const schemaVersion = typeof parsed.schemaVersion === "number" ? parsed.schemaVersion : 1;
 		if (schemaVersion < THINKING_LEVEL_COLOR_MIGRATION_VERSION) {
