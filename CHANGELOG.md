@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-02
+
 ### Changed
 - Verified compatibility with Pi 1.0.0; development and CI now typecheck and test against it, and the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 0.99.1 to 1.0.0. Pi 1.0.0 removes no public API, and its `tuiMode` now defaults to `"fullscreen"`, which leaves the settings menu, prompt box, working loader, and completion marker unchanged. No runtime behavior changes, the published `peerDependencies` remain `*`, and the minimum supported host is still Pi ≥0.84.4.
 
