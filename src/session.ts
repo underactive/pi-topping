@@ -14,6 +14,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { Text, type Component } from "@earendil-works/pi-tui";
 import { ActivityMeter, rateToLevel, TokRateTracker } from "./activity-meter.ts";
+import { ROUTED_MODEL_CHANNEL, routedModelAnnouncement } from "./autorouter-feed.ts";
 import {
 	dimAttribute,
 	getThinkingLevelColorizer,
@@ -59,6 +60,8 @@ type UIPromptKind = UIPromptStartEvent["kind"];
 
 const DONE_ENTRY_TYPE = "pi-topping-done";
 const RESPONSE_MODEL_STATUS_KEY = "pi-topping-response-model";
+/** Pi's `VIRTUAL_MODEL_API` for extension-registered virtual models; Pi does not export it from its public index. */
+const VIRTUAL_MODEL_API = "pi-virtual";
 const WAITING_LABELS: Record<UIPromptKind, string> = {
 	select: "Waiting for selection",
 	confirm: "Waiting for confirmation",
@@ -79,6 +82,19 @@ interface DoneEntryData {
 	midTurnInputs?: number;
 	thinkingLevel?: ThinkingLevel;
 	model?: string;
+}
+
+/** A response model as one source reports it, for `updateResponseModel`. */
+interface ResponseModelReport {
+	raw: unknown;
+	/**
+	 * True for a bare routed model id (a router announcement or, under a virtual selection, the
+	 * message's `model`) rather than a provider-reported value. A weak value never displaces a
+	 * decorated form of itself the provider already reported, such as a dated name.
+	 */
+	weak: boolean;
+	/** The message's own provider when `raw` is its `model`, to recognize a failed route. */
+	provider?: string;
 }
 
 interface SessionState {
@@ -153,10 +169,6 @@ function makeFreshState(): SessionState {
 function waitingLabel(waiting: NonNullable<SessionState["waiting"]>): string {
 	const title = waiting.title ? stripControlChars(waiting.title).trim() : "";
 	return title ? `Waiting: ${title}` : WAITING_LABELS[waiting.kind];
-}
-
-function responseModelOf(message: unknown): unknown {
-	return isPlainObject(message) ? message.responseModel : undefined;
 }
 
 /** Owns mutable extension state and Pi lifecycle registrations. */
@@ -246,7 +258,7 @@ export class SessionManager {
 		if (this.usable(ctx) && event.message.role === "assistant") {
 			this.#state.liveTokens = 0;
 			this.#counter.reset();
-			this.updateResponseModel(responseModelOf(event.message));
+			this.updateResponseModel(this.responseModelOf(event.message));
 		}
 	};
 
@@ -260,8 +272,8 @@ export class SessionManager {
 		) {
 			this.#state.liveTokens += this.#counter.count(assistantEvent.delta, assistantEvent.type);
 		}
-		const rawResponseModel = (assistantEvent as { partial?: { responseModel?: unknown } } | undefined)?.partial?.responseModel
-			?? responseModelOf(event.message);
+		const rawResponseModel = this.responseModelOf((assistantEvent as { partial?: unknown } | undefined)?.partial)
+			?? this.responseModelOf(event.message);
 		this.updateResponseModel(rawResponseModel);
 	};
 
@@ -282,7 +294,7 @@ export class SessionManager {
 		}
 		this.#state.liveTokens = 0;
 		this.#counter.reset();
-		this.updateResponseModel(responseModelOf(event.message));
+		this.updateResponseModel(this.responseModelOf(event.message));
 	};
 
 	#onToolExecutionStart = async (_e: ToolExecutionStartEvent, ctx: ExtensionContext): Promise<void> => {
@@ -407,6 +419,13 @@ export class SessionManager {
 		this.#pi.events.on(STATUSLINE_EMBED_CHANNEL, (data) => {
 			this.#loaderInStatusline = announcesEmbedded(data);
 		});
+		this.#pi.events.on(ROUTED_MODEL_CHANNEL, (data) => {
+			// Direct routes serve compaction and other extensions' side requests; a route while idle
+			// is such a background request too, and must not leave a stale model for the next turn.
+			const announcement = routedModelAnnouncement(data);
+			if (!announcement || announcement.reason === "direct" || !this.#state.busy) return;
+			this.updateResponseModel({ raw: announcement.modelId, weak: true, provider: announcement.provider });
+		});
 		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) => this.#renderDoneEntry(entry, theme));
 		this.#pi.registerEntryRenderer<MissingToppingsEntryData>(SETUP_ENTRY_TYPE, (entry, _o, theme) => renderMissingToppingsEntry(entry, theme));
 		this.#pi.registerMessageRenderer<PromptBoxDetails>(PROMPT_BOX_TYPE, promptBoxRenderer);
@@ -475,12 +494,38 @@ export class SessionManager {
 		}
 	}
 
-	private updateResponseModel(raw: unknown): void {
-		if (raw === this.#state.lastResponseModelRaw) return;
-		this.#state.lastResponseModelRaw = raw;
-		const responseModel = typeof raw === "string" ? stripControlChars(raw).trim() : "";
-		const selectedModel = this.#currentCtx?.model?.id;
-		if (responseModel && modelsResemble(selectedModel, responseModel)) {
+	/**
+	 * The response model a message reports. Under a virtual selection Pi stamps the routed
+	 * physical model on the message's `model` instead, so fall back to that as a weak value;
+	 * a failed route leaves the virtual model itself there, which `restatesSelection` hides.
+	 */
+	private responseModelOf(message: unknown): ResponseModelReport | undefined {
+		if (!isPlainObject(message)) return undefined;
+		if (message.responseModel !== undefined) return { raw: message.responseModel, weak: false };
+		if (this.#currentCtx?.model?.api !== VIRTUAL_MODEL_API) return undefined;
+		return { raw: message.model, weak: true, provider: typeof message.provider === "string" ? message.provider : undefined };
+	}
+
+	/**
+	 * Whether a response model merely restates the selected model. Under a virtual selection
+	 * the routed model is always another model, so only a failed route, which leaves the
+	 * virtual model itself on the message, is hidden; a resemblance check would also hide a
+	 * routed model whose id contains the virtual id, such as openrouter's `auto`.
+	 */
+	private restatesSelection(report: ResponseModelReport, responseModel: string): boolean {
+		const selected = this.#currentCtx?.model;
+		if (!selected) return false;
+		if (selected.api === VIRTUAL_MODEL_API) return report.provider === selected.provider && responseModel === selected.id;
+		return modelsResemble(selected.id, responseModel);
+	}
+
+	private updateResponseModel(report: ResponseModelReport | undefined): void {
+		if (report?.raw === this.#state.lastResponseModelRaw) return;
+		this.#state.lastResponseModelRaw = report?.raw;
+		if (!report) return;
+		const responseModel = typeof report.raw === "string" ? stripControlChars(report.raw).trim() : "";
+		if (!responseModel) return;
+		if (this.restatesSelection(report, responseModel)) {
 			if (this.#state.responseModel) {
 				this.#state.responseModel = "";
 				this.stopResponseModelSlide();
@@ -488,12 +533,13 @@ export class SessionManager {
 			}
 			return;
 		}
-		if (responseModel && responseModel !== this.#state.responseModel) {
-			// A model replacing one already shown swaps in place; only an appearing one slides out.
-			if (!this.#state.responseModel) this.startResponseModelSlide();
-			this.#state.responseModel = responseModel;
-			this.tick();
-		}
+		if (responseModel === this.#state.responseModel) return;
+		// A bare routed id that the shown decorated form already contains would only flicker.
+		if (report.weak && modelsResemble(responseModel, this.#state.responseModel)) return;
+		// A model replacing one already shown swaps in place; only an appearing one slides out.
+		if (!this.#state.responseModel) this.startResponseModelSlide();
+		this.#state.responseModel = responseModel;
+		this.tick();
 	}
 
 	/**

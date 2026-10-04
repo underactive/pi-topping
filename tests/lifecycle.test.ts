@@ -27,7 +27,7 @@ type AssistantMessage = {
 	stopReason: string;
 	timestamp: number;
 };
-type MessageStartEvent = { type: "message_start"; message: { role: string } };
+type MessageStartEvent = { type: "message_start"; message: { role: string } | AssistantMessage };
 type MessageUpdateEvent = {
 	type: "message_update";
 	message: { role: string };
@@ -37,6 +37,7 @@ type MessageEndEvent = { type: "message_end"; message: AssistantMessage };
 type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown };
 type UIPromptStartEvent = Extract<ExtensionEvent, { type: "ui_prompt_start" }>;
 type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
+import { ROUTED_MODEL_CHANNEL } from "../src/autorouter-feed.ts";
 import {
 	RESPONSE_MODEL_FADE_MS,
 	RESPONSE_MODEL_HOLD_MS,
@@ -167,6 +168,8 @@ function createContext(
 		notifications?: { message: string; type?: string }[];
 		statuses?: { key: string; text: string | undefined }[];
 		selectedModel?: string;
+		/** Full selected model, for selections whose `api` matters; takes precedence over selectedModel. */
+		model?: { provider: string; id: string; api: string };
 		thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 		onCustomComponent?: (component: { render(width: number): string[]; handleInput?(data: string): void; dispose?(): void }) => void;
 	},
@@ -184,7 +187,7 @@ function createContext(
 	return {
 		hasUI: true,
 		mode: options?.mode ?? "tui",
-		model: options?.selectedModel ? { provider: "test", id: options.selectedModel } : undefined,
+		model: options?.model ?? (options?.selectedModel ? { provider: "test", id: options.selectedModel } : undefined),
 		thinkingLevel: options?.thinkingLevel,
 		ui: {
 			theme,
@@ -261,6 +264,24 @@ function assistantMessage(output = 0, responseModel?: string): Extract<MessageEn
 
 function stripAnsi(text: string): string {
 	return text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "");
+}
+
+const VIRTUAL_MODEL = { provider: "litellm-auto", id: "auto", api: "pi-virtual" };
+
+/** A ROUTED_MODEL_CHANNEL announcement as pi-topping-autorouter emits it. */
+function routedModel(modelId: string, reason = "user", provider = "openai-codex"): Record<string, unknown> {
+	return {
+		version: 1,
+		provider,
+		modelId,
+		model: `${provider}/${modelId}`,
+		name: modelId,
+		thinkingLevel: "high",
+		reason,
+		cause: "jev_classifier",
+		tier: "COMPLEX",
+		ts: 1_790_000_000_000,
+	};
 }
 
 function moveMenuCursor(component: { handleInput?(data: string): void }, fromId: string, toId: string): void {
@@ -2681,5 +2702,273 @@ test("doneMarkerInputs=false hides the mid-turn input count", async (t) => {
 		const text = component.render(80).join("\n");
 		assert.match(text, /\(↓ 10 tokens\)/);
 		assert.ok(!text.includes("mid-turn"));
+	});
+});
+
+test("an autorouter announcement during a busy turn shows the routed model before any assistant message", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, responseModelFooter: true } });
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const statuses: { key: string; text: string | undefined }[] = [];
+		const ctx = createContext(messages, [], undefined, { model: VIRTUAL_MODEL, statuses });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		assert.ok(!stripAnsi(messages.at(-1)!).includes("gpt-5.6-sol"));
+		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/, "the announced model shows before message_start");
+
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		const data = extension.appendedEntries[0]!.data as { model?: string };
+		assert.equal(data.model, "gpt-5.6-sol", "the completion marker records the announced model");
+		assert.match(stripAnsi(statuses.at(-1)!.text!), /gpt-5\.6-sol/, "the response-model footer records the announced model");
+	});
+});
+
+test("a bare routed id never displaces the provider-reported decorated form it resembles", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, { model: VIRTUAL_MODEL });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		const routed = (responseModel?: string): AssistantMessage => ({ ...assistantMessage(0, responseModel), provider: "openai-codex", model: "gpt-5.6-sol" });
+		const update = async (partial: AssistantMessage): Promise<void> => {
+			await extension.emit("message_update", {
+				type: "message_update",
+				message: partial,
+				assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "", partial },
+			}, ctx);
+		};
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/);
+		await extension.emit("message_start", { type: "message_start", message: routed() }, ctx);
+		await update(routed("gpt-5.6-sol-2026-09-01"));
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol-2026-09-01$/, "the provider's dated form replaces the bare id");
+		await extension.emit("message_end", { type: "message_end", message: routed("gpt-5.6-sol-2026-09-01") }, ctx);
+
+		await extension.emit("tool_execution_start", { type: "tool_execution_start", toolCallId: "1", toolName: "read", args: {} }, ctx);
+		const painted = messages.length;
+		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol", "continuation"));
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol-2026-09-01$/, "the continuation announcement keeps the dated form");
+		await extension.emit("message_start", { type: "message_start", message: routed() }, ctx);
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol-2026-09-01$/, "the message's bare model keeps the dated form");
+		assert.equal(messages.length, painted, "neither bare id repaints the loader");
+		await update(routed("gpt-5.6-sol-2026-09-01"));
+		assert.equal(messages.length, painted, "the dated form reported again does not repaint either");
+	});
+});
+
+test("a bare routed id that does not resemble the shown model still swaps in place", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, { model: VIRTUAL_MODEL });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
+		await extension.emit("message_end", {
+			type: "message_end",
+			message: { ...assistantMessage(0, "gpt-5.6-sol-2026-09-01"), provider: "openai-codex", model: "gpt-5.6-sol" },
+		}, ctx);
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol-2026-09-01$/);
+
+		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("claude-opus-5-5", "retry", "anthropic"));
+		assert.match(stripAnsi(messages.at(-1)!), / · claude-opus-5-5$/, "a retry's fallback model replaces the dated form");
+		await extension.emit("message_start", {
+			type: "message_start",
+			message: { ...assistantMessage(0), provider: "openai-codex", model: "gpt-5.6-sol" },
+		}, ctx);
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/, "a message's bare model that differs from the shown one replaces it");
+	});
+});
+
+test("under a virtual selection only the failed-route virtual model itself is hidden", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, { model: VIRTUAL_MODEL });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await extension.emit("message_end", { type: "message_end", message: { ...assistantMessage(0), provider: "openrouter", model: "auto" } }, ctx);
+		assert.match(stripAnsi(messages.at(-1)!), / · auto$/, "a routed model whose id contains the virtual id shows");
+
+		await extension.emit("message_end", { type: "message_end", message: { ...assistantMessage(0), provider: "openai-codex", model: "gpt-5.6-sol" } }, ctx);
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/);
+		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("auto", "continuation", "openrouter"));
+		assert.match(stripAnsi(messages.at(-1)!), / · auto$/, "an announcement of such a model shows");
+
+		await extension.emit("message_end", { type: "message_end", message: { ...assistantMessage(0), provider: "openai-codex", model: "gpt-5.6-sol" } }, ctx);
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/);
+		await extension.emit("message_end", { type: "message_end", message: { ...assistantMessage(0), provider: VIRTUAL_MODEL.provider, model: VIRTUAL_MODEL.id } }, ctx);
+		assert.ok(!/ · (auto|gpt-5\.6-sol)$/.test(stripAnsi(messages.at(-1)!)), "a failed route reports the virtual model itself, which is hidden");
+	});
+});
+
+test("direct-route autorouter announcements are ignored", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, { model: VIRTUAL_MODEL });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const before = messages.length;
+		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol", "direct"));
+		assert.equal(messages.length, before);
+		assert.ok(!stripAnsi(messages.at(-1)!).includes("gpt-5.6-sol"));
+
+		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol", "retry"));
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/, "other route reasons still show");
+	});
+});
+
+test("malformed autorouter announcements are ignored", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, { model: VIRTUAL_MODEL });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const before = messages.length;
+		extension.events.emit(ROUTED_MODEL_CHANNEL, { ...routedModel("gpt-5.6-sol"), version: 2 });
+		assert.equal(messages.length, before);
+		assert.ok(!stripAnsi(messages.at(-1)!).includes("gpt-5.6-sol"));
+	});
+});
+
+test("an autorouter announcement while the loader is idle is ignored", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, { model: VIRTUAL_MODEL });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
+		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
+		assert.equal(messages.length, 0);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		assert.ok(!stripAnsi(messages.at(-1)!).includes("gpt-5.6-sol"), "a background route leaves no stale model for the next turn");
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		const settled = messages.length;
+		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
+		assert.equal(messages.length, settled);
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		assert.ok(!stripAnsi(messages.at(-1)!).includes("gpt-5.6-sol"));
+	});
+});
+
+test("assistant messages without a responseModel keep the announced model, and a reported one replaces it", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, { model: VIRTUAL_MODEL });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		const update = async (partial: AssistantMessage): Promise<void> => {
+			await extension.emit("message_update", {
+				type: "message_update",
+				message: partial,
+				assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "", partial },
+			}, ctx);
+		};
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/);
+
+		await extension.emit("message_start", { type: "message_start", message: { role: "assistant" } }, ctx);
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/, "message_start without a responseModel keeps the announced model");
+		await update({ ...assistantMessage(0), model: "gpt-5.6-sol" });
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/, "message_update without a responseModel keeps the announced model");
+		await extension.emit("message_end", { type: "message_end", message: { ...assistantMessage(0), model: "gpt-5.6-sol" } }, ctx);
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/, "message_end without a responseModel keeps the announced model");
+
+		await update({ ...assistantMessage(0, "gpt-5.6-sol-2026-09-01"), model: "gpt-5.6-sol" });
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol-2026-09-01$/, "a provider-reported responseModel replaces it");
+	});
+});
+
+test("a continuation announcement naming a different model swaps in place", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, { model: VIRTUAL_MODEL });
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		const { timers } = recordTimers(t);
+
+		workingDecorator(extension.asAPI());
+		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
+		const firstSlide = slideTimer(timers);
+		assert.ok(firstSlide, "an announced model slides out like a reported one");
+		now += RESPONSE_MODEL_SLIDE_MS;
+		firstSlide.tick();
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/);
+
+		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("claude-opus-5-5", "continuation"));
+		assert.match(stripAnsi(messages.at(-1)!), / · claude-opus-5-5$/, "the continuation's model shows whole at once");
+		assert.equal(slideTimer(timers), firstSlide, "without starting another slide");
+	});
+});
+
+test("under a virtual selection the assistant message's model stands in for a missing responseModel", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const virtualCtx = createContext(messages, [], undefined, { model: VIRTUAL_MODEL });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, virtualCtx);
+		await extension.emit("message_start", { type: "message_start", message: { ...assistantMessage(0), model: "gpt-5.6-sol" } }, virtualCtx);
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/, "message_start falls back to the routed model");
+
+		const partial = { ...assistantMessage(0), model: "claude-opus-5-5" };
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: partial,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "", partial },
+		}, virtualCtx);
+		assert.match(stripAnsi(messages.at(-1)!), / · claude-opus-5-5$/, "message_update falls back to the partial's model");
+		await extension.emit("message_end", { type: "message_end", message: { ...assistantMessage(0), model: "gpt-5.6-sol" } }, virtualCtx);
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/, "message_end falls back to the routed model");
+
+		await extension.emit("message_end", { type: "message_end", message: { ...assistantMessage(0), provider: "litellm-auto", model: "auto" } }, virtualCtx);
+		assert.ok(!stripAnsi(messages.at(-1)!).includes("auto"), "a failed route leaves the virtual model on the message, which is hidden");
+		await extension.emit("agent_settled", { type: "agent_settled" }, virtualCtx);
+
+		const physicalCtx = createContext(messages, [], undefined, { selectedModel: "test" });
+		await extension.emit("agent_start", { type: "agent_start" }, physicalCtx);
+		const before = messages.length;
+		await extension.emit("message_start", { type: "message_start", message: assistantMessage(0) }, physicalCtx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0) }, physicalCtx);
+		assert.equal(messages.length, before, "a physical selection never falls back to the message's model");
+		assert.ok(!stripAnsi(messages.at(-1)!).includes(" · test"));
 	});
 });

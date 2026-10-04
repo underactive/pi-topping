@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The working loader now subscribes to pi-topping-autorouter's `pi-topping-autorouter:routed-model` event-bus announcement and shows the routed physical model as the response model as soon as a request is routed, before the first token arrives. Announcements for `direct` routes (compaction summaries and other extensions' side requests), announcements while no turn is in progress, and malformed payloads are ignored. The announced model follows the usual rules: under a physical selection it is hidden when it resembles the selected model, it slides out or swaps in place like a provider-reported one, a later assistant message without a `responseModel` keeps it, and a provider-reported `responseModel` replaces it. A bare routed id never displaces a provider-reported decorated form of itself (such as a dated name), so continuation announcements between tool calls do not repaint the loader. The completion marker and response-model footer record it too.
+
+### Changed
+- Under a Pi virtual model such as pi-topping-autorouter's `litellm-auto/auto`, assistant messages without a provider-reported `responseModel` now fall back to the message's `model`, which Pi stamps with the routed physical model, so the loader, completion marker, and footer show that model instead of nothing. Under a virtual selection the resemblance check against the selected model is not applied, since it would also hide a routed model whose id contains the virtual id (such as `openrouter/auto`); only a failed route, which leaves the virtual model's own provider and id on the message, is hidden.
+
 ## [0.9.1] - 2026-10-02
 
 ### Changed
