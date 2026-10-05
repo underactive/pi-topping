@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-05
+
 ### Added
 - The working loader now subscribes to pi-topping-autorouter's `pi-topping-autorouter:routed-model` event-bus announcement and shows the routed physical model as the response model as soon as a request is routed, before the first token arrives. Announcements for `direct` routes (compaction summaries and other extensions' side requests), announcements while no turn is in progress, and malformed payloads are ignored. The announced model follows the usual rules: under a physical selection it is hidden when it resembles the selected model, it slides out or swaps in place like a provider-reported one, a later assistant message without a `responseModel` keeps it, and a provider-reported `responseModel` replaces it. A bare routed id never displaces a provider-reported decorated form of itself (such as a dated name), so continuation announcements between tool calls do not repaint the loader. The completion marker and response-model footer record it too.
 - The completion marker can append per-call service-tier counts (e.g. `flex tier ×3`) from raw `provider_stream_event` events for Responses, chat-completions, and Anthropic; calls without a reported tier are excluded, and idle requests are ignored. The Completion Marker “Service tier” toggle is on by default. This requires Pi ≥0.99.0 to expose raw events; the published minimum remains Pi ≥0.84.4.
@@ -15,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Under a Pi virtual model such as pi-topping-autorouter's `litellm-auto/auto`, assistant messages without a provider-reported `responseModel` now fall back to the message's `model`, which Pi stamps with the routed physical model, so the loader, completion marker, and footer show that model instead of nothing. Under a virtual selection the resemblance check against the selected model is not applied, since it would also hide a routed model whose id contains the virtual id (such as `openrouter/auto`); only a failed route, which leaves the virtual model's own provider and id on the message, is hidden.
 - Verified compatibility with Pi 1.0.3; development and CI now typecheck and test against it, and the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 1.0.0 to 1.0.3. Pi 1.0.1–1.0.3 remove no public API this extension uses. No runtime behavior changes, the published `peerDependencies` remain `*`, and the minimum supported host is still Pi ≥0.84.4.
+
+### Fixed
+- Autorouter route announcements now match on exact routed id, so a new physical route updates the loader label instead of being skipped when model strings merely resemble the previous route.
 
 ## [0.9.1] - 2026-10-02
 
