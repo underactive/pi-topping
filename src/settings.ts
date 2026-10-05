@@ -119,6 +119,7 @@ export interface DecoratorSettings {
 		randomizeDoneMarker: boolean;
 		doneMarkerTokens: boolean;
 		doneMarkerInputs: boolean;
+		doneMarkerServiceTier: boolean;
 		doneMarkerModel: boolean;
 		includeDefaultWorkingText: boolean;
 	};
@@ -128,7 +129,7 @@ export interface DecoratorSettings {
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
 	decorations: { animatedSpinner: true, shimmer: true, shimmerInverted: false, shimmerDirection: "ltr", shimmerDirectionEnabled: true, shimmerSpeed: "normal", shimmerSpeedEnabled: true, tokenActivityMonitor: true, meterDirection: "rtl", meterDirectionEnabled: true, decorateUserPrompt: true, borderColor: "thinking-level", borderColorEnabled: true, borderStyle: "double", borderStyleEnabled: true, doneMarkerBorderStyle: "none", doneMarkerBorderColor: "thinking-level", doneMarkerStyle: "elite", doneMarkerModelColor: "muted", doneMarkerModelDimmed: false, spinnerColor: "thinking-level", spinnerColorEnabled: true, meterColor: "accent", meterColorEnabled: true, meterDimmed: false, meterUpperBoundTps: DEFAULT_METER_UPPER_BOUND_TPS, tokenRateColor: "warning", tokenRateDimmed: false, responseModelColor: "accent", responseModelDimmed: false, promptIcon: true, promptTimestamp: true, promptProvider: true, promptModel: true, useNerdFont: true },
-	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, responseModel: true, responseModelFooter: false, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true, doneMarkerModel: true, includeDefaultWorkingText: true },
+	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, responseModel: true, responseModelFooter: false, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true, doneMarkerServiceTier: true, doneMarkerModel: true, includeDefaultWorkingText: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 	wordPacks: {},
 };
@@ -231,6 +232,7 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "randomizeDoneMarker", label: "Randomize “Worked” text", section: "Completion Marker", group: "features", key: "randomizeDoneMarker" },
 	{ id: "doneMarkerTokens", label: "Tokens spent", section: "Completion Marker", group: "features", key: "doneMarkerTokens" },
 	{ id: "doneMarkerInputs", label: "Mid-turn inputs", section: "Completion Marker", group: "features", key: "doneMarkerInputs" },
+	{ id: "doneMarkerServiceTier", label: "Service tier", section: "Completion Marker", group: "features", key: "doneMarkerServiceTier" },
 	{ id: "doneMarkerModel", label: "Response model", section: "Completion Marker", group: "features", key: "doneMarkerModel" },
 	{ id: "doneMarkerModelColor", label: "Response model color", section: "Completion Marker", group: "decorations", key: "doneMarkerModelColor", cycleValues: THINKING_LEVEL_COLOR_VALUES, cycleValueLabels: THINKING_LEVEL_CYCLE_LABELS },
 	{ id: "doneMarkerModelDimmed", label: "Response model dimmed", section: "Completion Marker", group: "decorations", key: "doneMarkerModelDimmed" },

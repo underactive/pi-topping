@@ -37,6 +37,7 @@ type MessageEndEvent = { type: "message_end"; message: AssistantMessage };
 type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown };
 type UIPromptStartEvent = Extract<ExtensionEvent, { type: "ui_prompt_start" }>;
 type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
+type ProviderStreamEvent = Extract<ExtensionEvent, { type: "provider_stream_event" }>;
 import { ROUTED_MODEL_CHANNEL } from "../src/autorouter-feed.ts";
 import {
 	RESPONSE_MODEL_FADE_MS,
@@ -62,6 +63,7 @@ type TestedEvents = {
 	message_start: MessageStartEvent;
 	message_update: MessageUpdateEvent;
 	message_end: MessageEndEvent;
+	provider_stream_event: ProviderStreamEvent;
 	tool_execution_start: ToolExecutionStartEvent;
 	ui_prompt_start: UIPromptStartEvent;
 	ui_prompt_end: UIPromptEndEvent;
@@ -144,6 +146,22 @@ class MockExtension {
 	asAPI(): ExtensionAPI {
 		return this as unknown as ExtensionAPI;
 	}
+}
+
+function providerStreamEvent(data: unknown, provider = "openai", api = "openai-responses"): ProviderStreamEvent {
+	return { type: "provider_stream_event", provider, api, model: "test", data } as ProviderStreamEvent;
+}
+
+async function startTurn(extension: MockExtension, ctx: ExtensionContext, text = "prompt"): Promise<void> {
+	await extension.emit("input", { type: "input", text, source: "interactive" }, ctx);
+	await extension.emit("agent_start", { type: "agent_start" }, ctx);
+}
+
+function renderedDoneEntry(extension: MockExtension, ctx: ExtensionContext, data: unknown, width = 100): string {
+	const component = extension.entryRenderers["pi-topping-done"]!(
+		{ type: "custom", customType: "pi-topping-done", data }, { expanded: false }, ctx.ui.theme,
+	) as { render(width: number): string[] };
+	return component.render(width).join("\n");
 }
 
 type CustomFactory<T> = (
@@ -1034,6 +1052,11 @@ test("completion marker model preview follows its toggle and thinking-level colo
 	const renderer = new PreviewRenderer(ctx);
 	const shown = renderer.render({ doneMarker: true, doneMarkerModel: true, doneMarkerModelColor: "thinking-level" }, 0, "doneMarkerModel", 300);
 	assert.ok(shown.lines.some((line) => line.includes("<thinking-high>test-model</thinking-high>")));
+
+	const tierShown = renderer.render({ doneMarker: true, doneMarkerServiceTier: true }, 0, "doneMarkerServiceTier", 300);
+	assert.ok(tierShown.lines.some((line) => line.includes("flex tier ×3")));
+	const tierHidden = renderer.render({ doneMarker: true, doneMarkerServiceTier: false }, 0, "doneMarkerServiceTier", 300);
+	assert.ok(tierHidden.lines.every((line) => !line.includes("flex tier")));
 
 	const hidden = renderer.render({ doneMarker: true, doneMarkerModel: false }, 0, "doneMarkerModel", 300);
 	assert.ok(hidden.lines.every((line) => !line.includes("test-model")));
@@ -2020,6 +2043,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.features.randomizeDoneMarker, !DEFAULT_SETTINGS.features.randomizeDoneMarker);
 		assert.equal(persisted.features.doneMarkerTokens, !DEFAULT_SETTINGS.features.doneMarkerTokens);
 		assert.equal(persisted.features.doneMarkerInputs, !DEFAULT_SETTINGS.features.doneMarkerInputs);
+		assert.equal(persisted.features.doneMarkerServiceTier, !DEFAULT_SETTINGS.features.doneMarkerServiceTier);
 		assert.equal(persisted.features.doneMarkerModel, !DEFAULT_SETTINGS.features.doneMarkerModel);
 		assert.equal(persisted.decorations.doneMarkerModelColor, "thinking-level");
 		assert.equal(persisted.decorations.doneMarkerModelDimmed, !DEFAULT_SETTINGS.decorations.doneMarkerModelDimmed);
@@ -2443,6 +2467,509 @@ test("completion marker captures and renders the response model independently of
 			ctx.ui.theme,
 		) as { render(width: number): string[] };
 		assert.match(component.render(100).join("\n"), /<dim> · <\/dim><muted>test-model<\/muted>/);
+	});
+});
+
+test("provider response tiers are counted once per call and summarized in first-seen order", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+
+		for (const tier of ["flex", "priority", "flex"]) {
+			for (const type of ["response.created", "response.completed"]) {
+				await extension.emit("provider_stream_event", providerStreamEvent({ type, response: { service_tier: tier } }), ctx);
+			}
+			await extension.emit("message_end", { type: "message_end", message: assistantMessage() }, ctx);
+		}
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		const data = extension.appendedEntries[0]!.data as { serviceTiers?: { tier: string; calls: number }[] };
+		assert.deepEqual(data.serviceTiers, [{ tier: "flex", calls: 2 }, { tier: "priority", calls: 1 }]);
+		assert.match(renderedDoneEntry(extension, ctx, data), /· flex tier ×2, priority tier ×1\)/);
+	});
+});
+
+test("the last raw tier reported by a provider call is the one summarized", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		await extension.emit("provider_stream_event", providerStreamEvent({ service_tier: "flex" }), ctx);
+		await extension.emit("provider_stream_event", providerStreamEvent({ service_tier: "priority" }), ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage() }, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		const data = extension.appendedEntries[0]!.data as { serviceTiers?: unknown };
+		assert.deepEqual(data.serviceTiers, [{ tier: "priority", calls: 1 }]);
+		const text = renderedDoneEntry(extension, ctx, data);
+		assert.match(text, /· priority tier\)/);
+		assert.ok(!text.includes("flex tier"));
+	});
+});
+
+test("a call without a tier does not inherit the previous call's tier", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		for (const type of ["response.created", "response.completed"]) {
+			await extension.emit("provider_stream_event", providerStreamEvent({ type, response: { service_tier: "flex" } }), ctx);
+		}
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage() }, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage() }, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		const data = extension.appendedEntries[0]!.data as { serviceTiers?: unknown };
+		assert.deepEqual(data.serviceTiers, [{ tier: "flex", calls: 1 }]);
+		assert.match(renderedDoneEntry(extension, ctx, data), /· flex tier\)/);
+	});
+});
+
+test("Anthropic message_start raw tier is retained before Pi's normalized message_start", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		const message = assistantMessage();
+		await extension.emit("provider_stream_event", providerStreamEvent(
+			{ type: "message_start", message: { usage: { service_tier: "standard" } } }, "anthropic", "anthropic-messages",
+		), ctx);
+		await extension.emit("message_start", { type: "message_start", message }, ctx);
+		await extension.emit("message_end", { type: "message_end", message }, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		assert.deepEqual((extension.appendedEntries[0]!.data as { serviceTiers?: unknown }).serviceTiers, [{ tier: "standard", calls: 1 }]);
+	});
+});
+
+test("idle provider events are ignored and service tiers reset between turns", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		const idle = providerStreamEvent({ response: { service_tier: "priority" } });
+		await extension.emit("provider_stream_event", idle, ctx);
+		await startTurn(extension, ctx, "first");
+		await extension.emit("provider_stream_event", providerStreamEvent({ response: { service_tier: "flex" } }), ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("provider_stream_event", idle, ctx);
+
+		await startTurn(extension, ctx, "second");
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		const entries = extension.appendedEntries.map((entry) => entry.data as { serviceTiers?: unknown });
+		assert.deepEqual(entries[0]!.serviceTiers, [{ tier: "flex", calls: 1 }]);
+		assert.equal(Object.hasOwn(entries[1]!, "serviceTiers"), false);
+	});
+});
+
+test("no reported service tier is omitted from the entry and marker", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(39) }, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		const data = extension.appendedEntries[0]!.data as { serviceTiers?: unknown };
+		assert.equal(Object.hasOwn(data, "serviceTiers"), false);
+		const text = renderedDoneEntry(extension, ctx, data);
+		assert.match(text, /↓ 39 tokens/);
+		assert.ok(!text.includes("tier"));
+	});
+});
+
+test("doneMarkerServiceTier=false hides the summary but keeps token details", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, doneMarkerServiceTier: false } });
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		await extension.emit("provider_stream_event", providerStreamEvent({ response: { service_tier: "flex" } }), ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(39) }, ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		const text = renderedDoneEntry(extension, ctx, extension.appendedEntries[0]!.data);
+		assert.match(text, /↓ 39 tokens/);
+		assert.ok(!text.includes("flex tier"));
+	});
+});
+
+test("old and malformed service-tier entries render without tier text", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		for (const data of [
+			{ word: "Baked", elapsedMs: 5_000 },
+			{ word: "Whisked", elapsedMs: 5_000, serviceTiers: [null, { tier: "flex", calls: 0 }, { tier: "\u0000", calls: 1 }] },
+		]) {
+			const text = renderedDoneEntry(extension, ctx, data);
+			assert.ok(!text.includes("tier"));
+		}
+	});
+});
+
+test("agent_settled commits a pending tier if message_end was not observed", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		await extension.emit("provider_stream_event", providerStreamEvent({ response: { service_tier: "flex" } }), ctx);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+
+		assert.deepEqual((extension.appendedEntries[0]!.data as { serviceTiers?: unknown }).serviceTiers, [{ tier: "flex", calls: 1 }]);
+	});
+});
+
+test("Ramp Router Responses events show backend-only labels for models resembling the selection", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, responseModelFooter: true } });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		for (const [selectedId, servedModel, backend] of [
+			["kimi-k3", "moonshotai/Kimi-K3", "baseten"],
+			["deepseek-v4.1-flash", "accounts/fireworks/models/deepseek-v4p1-flash", "fireworks"],
+		] as const) {
+			const extension = new MockExtension();
+			const messages: (string | undefined)[] = [];
+			const statuses: { key: string; text: string | undefined }[] = [];
+			const ctx = createContext(messages, [], undefined, {
+				model: { provider: "ramp-router", id: selectedId, api: "openai-responses" },
+				statuses,
+			});
+			workingDecorator(extension.asAPI());
+			await startTurn(extension, ctx);
+			await extension.emit("provider_stream_event", providerStreamEvent({
+				type: "response.created",
+					response: { model: servedModel },
+					provider: backend,
+			}, "ramp-router"), ctx);
+
+			assert.match(stripAnsi(messages.at(-1)!), new RegExp(` · via ${backend}$`));
+			await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+			assert.equal((extension.appendedEntries[0]!.data as { model?: string }).model, `via ${backend}`);
+			assert.match(stripAnsi(statuses.at(-1)!.text!), new RegExp(`via ${backend}`));
+		}
+	});
+});
+
+test("a Responses served model resembling the OpenAI selection stays hidden without a backend", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, responseModelFooter: true } });
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const statuses: { key: string; text: string | undefined }[] = [];
+		const ctx = createContext(messages, [], undefined, {
+			model: { provider: "openai", id: "openai/gpt-4.1-nano", api: "openai-responses" },
+			statuses,
+		});
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		await extension.emit("provider_stream_event", providerStreamEvent({
+			type: "response.completed",
+				response: { model: "gpt-4.1-nano-2025-04-14" },
+		}, "openai"), ctx);
+
+		assert.ok(!stripAnsi(messages.at(-1)!).includes("gpt-4.1-nano-2025-04-14"));
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		assert.equal((extension.appendedEntries[0]!.data as { model?: string }).model, undefined);
+		assert.ok(statuses.every(({ text }) => text === undefined));
+	});
+});
+
+test("served-model display keeps plain models and only adds a distinct backend", async (t) => {
+	await withTempAgentDir(async () => {
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		for (const [servedModel, backend, expected] of [
+			["gpt-4.1", undefined, "gpt-4.1"],
+			["claude-sonnet-4-5", "ramp-router", "claude-sonnet-4-5"],
+			["deepseek-v4.1", "baseten", "deepseek-v4.1 via baseten"],
+		] as const) {
+			const extension = new MockExtension();
+			const messages: (string | undefined)[] = [];
+			const ctx = createContext(messages, [], undefined, {
+				model: { provider: "ramp-router", id: "selected-model", api: "openai-responses" },
+			});
+			workingDecorator(extension.asAPI());
+			await startTurn(extension, ctx);
+			await extension.emit("provider_stream_event", providerStreamEvent({
+				response: { model: servedModel },
+				...(backend ? { provider: backend } : {}),
+			}, "ramp-router"), ctx);
+			assert.ok(stripAnsi(messages.at(-1)!).endsWith(` · ${expected}`));
+		}
+	});
+});
+
+test("the Responses created/in_progress/completed sequence paints a model once", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, {
+			model: { provider: "ramp-router", id: "selected-model", api: "openai-responses" },
+		});
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		const before = messages.length;
+		await extension.emit("provider_stream_event", providerStreamEvent({
+			type: "response.created",
+			response: { model: "served-model" },
+			provider: "baseten",
+		}, "ramp-router"), ctx);
+		const afterCreated = messages.length;
+		assert.equal(afterCreated, before + 1);
+
+		for (const type of ["response.in_progress", "response.completed"]) {
+			await extension.emit("provider_stream_event", providerStreamEvent({
+				type,
+				response: { model: "served-model" },
+				provider: "baseten",
+			}, "ramp-router"), ctx);
+		}
+		assert.equal(messages.length, afterCreated);
+	});
+});
+
+test("a backend flip swaps in place without starting another loader slide", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, {
+			model: { provider: "ramp-router", id: "selected-model", api: "openai-responses" },
+		});
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		const { timers, cleared } = recordTimers(t);
+		workingDecorator(extension.asAPI());
+		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
+		await startTurn(extension, ctx);
+		await extension.emit("provider_stream_event", providerStreamEvent({
+			type: "response.created",
+			response: { model: "served-model" },
+			provider: "baseten",
+		}, "ramp-router"), ctx);
+		const firstSlide = slideTimer(timers);
+		assert.ok(firstSlide);
+
+		now += RESPONSE_MODEL_SLIDE_FRAME_MS;
+		firstSlide.tick();
+		assert.ok(!cleared.has(firstSlide.id));
+		await extension.emit("provider_stream_event", providerStreamEvent({
+			type: "response.in_progress",
+			response: { model: "served-model" },
+			provider: "fireworks",
+		}, "ramp-router"), ctx);
+		assert.equal(slideTimer(timers), firstSlide);
+		assert.equal(timers.filter((timer) => timer.ms === RESPONSE_MODEL_SLIDE_FRAME_MS).length, 1);
+		assert.ok(!cleared.has(firstSlide.id));
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		assert.equal((extension.appendedEntries[0]!.data as { model?: string }).model, "served-model via fireworks");
+	});
+});
+
+test("idle and settled stream events are ignored, and the next turn starts clean", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, {
+			model: { provider: "ramp-router", id: "selected-model", api: "openai-responses" },
+		});
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		const event = (model: string, backend: string): ProviderStreamEvent => providerStreamEvent({
+			response: { model },
+			provider: backend,
+		}, "ramp-router");
+
+		await extension.emit("provider_stream_event", event("idle-model", "baseten"), ctx);
+		await startTurn(extension, ctx, "first");
+		assert.ok(!stripAnsi(messages.at(-1)!).includes("idle-model"));
+		await extension.emit("provider_stream_event", event("turn-model", "baseten"), ctx);
+		assert.match(stripAnsi(messages.at(-1)!), /turn-model via baseten$/);
+		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		const afterSettle = messages.length;
+		await extension.emit("provider_stream_event", event("late-model", "fireworks"), ctx);
+		assert.equal(messages.length, afterSettle);
+
+		await startTurn(extension, ctx, "second");
+		assert.ok(!stripAnsi(messages.at(-1)!).includes("turn-model via baseten"));
+	});
+});
+
+test("message lifecycle events do not clear a stream model in either order", async (t) => {
+	await withTempAgentDir(async () => {
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		for (const streamFirst of [true, false]) {
+			const extension = new MockExtension();
+			const messages: (string | undefined)[] = [];
+			const ctx = createContext(messages, [], undefined, {
+				model: { provider: "ramp-router", id: "selected-model", api: "openai-responses" },
+			});
+			const message = assistantMessage();
+			workingDecorator(extension.asAPI());
+			await startTurn(extension, ctx);
+			if (streamFirst) {
+				await extension.emit("provider_stream_event", providerStreamEvent({
+					response: { model: "served-model" },
+					provider: "baseten",
+				}, "ramp-router"), ctx);
+			}
+			await extension.emit("message_start", { type: "message_start", message }, ctx);
+			await extension.emit("message_update", {
+				type: "message_update",
+				message,
+				assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "text", partial: message },
+			}, ctx);
+			await extension.emit("message_end", { type: "message_end", message }, ctx);
+			if (!streamFirst) {
+				await extension.emit("provider_stream_event", providerStreamEvent({
+					response: { model: "served-model" },
+					provider: "baseten",
+				}, "ramp-router"), ctx);
+			}
+			assert.match(stripAnsi(messages.at(-1)!), /served-model via baseten$/);
+		}
+	});
+});
+
+test("a same-model message report inherits the backend, while a different report replaces it", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, {
+			model: { provider: "ramp-router", id: "kimi-k3", api: "openai-responses" },
+		});
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		await extension.emit("provider_stream_event", providerStreamEvent({
+			response: { model: "moonshotai/Kimi-K3" },
+			provider: "baseten",
+		}, "ramp-router"), ctx);
+		const sameModelPaints = messages.length;
+		await extension.emit("message_end", {
+			type: "message_end",
+			message: assistantMessage(0, "moonshotai/Kimi-K3"),
+		}, ctx);
+		assert.equal(messages.length, sameModelPaints);
+		assert.match(stripAnsi(messages.at(-1)!), /via baseten$/);
+
+		await extension.emit("message_end", {
+			type: "message_end",
+			message: assistantMessage(0, "deepseek-r1"),
+		}, ctx);
+		assert.ok(stripAnsi(messages.at(-1)!).endsWith(" · deepseek-r1"));
+	});
+});
+
+test("strong virtual-selection stream reports replace weak routes and preserve decorated ids", async (t) => {
+	await withTempAgentDir(async () => {
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		for (const backend of [undefined, "baseten"] as const) {
+			const extension = new MockExtension();
+			const messages: (string | undefined)[] = [];
+			const ctx = createContext(messages, [], undefined, { model: VIRTUAL_MODEL });
+			workingDecorator(extension.asAPI());
+			await startTurn(extension, ctx);
+			extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("early-route"));
+			assert.ok(stripAnsi(messages.at(-1)!).endsWith(" · early-route"));
+			await extension.emit("provider_stream_event", providerStreamEvent({
+				response: { model: "gpt-5.6-sol-2026-09-01" },
+				...(backend ? { provider: backend } : {}),
+			}, "litellm-auto"), ctx);
+			const expected = backend ? "gpt-5.6-sol-2026-09-01 via baseten" : "gpt-5.6-sol-2026-09-01";
+			assert.ok(stripAnsi(messages.at(-1)!).endsWith(` · ${expected}`));
+
+			const paints = messages.length;
+			extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol", "continuation"));
+			assert.equal(messages.length, paints);
+			assert.ok(stripAnsi(messages.at(-1)!).endsWith(` · ${expected}`));
+		}
+	});
+});
+
+test("virtual failed routes stay hidden and openrouter auto routes remain visible", async (t) => {
+	await withTempAgentDir(async () => {
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		const failedExtension = new MockExtension();
+		const failedMessages: (string | undefined)[] = [];
+		const failedCtx = createContext(failedMessages, [], undefined, { model: VIRTUAL_MODEL });
+		workingDecorator(failedExtension.asAPI());
+		await startTurn(failedExtension, failedCtx);
+		await failedExtension.emit("provider_stream_event", providerStreamEvent({
+			response: { model: "auto" },
+		}, VIRTUAL_MODEL.provider), failedCtx);
+		assert.ok(!stripAnsi(failedMessages.at(-1)!).includes(" · auto"));
+
+		const routeExtension = new MockExtension();
+		const routeMessages: (string | undefined)[] = [];
+		const routeCtx = createContext(routeMessages, [], undefined, { model: VIRTUAL_MODEL });
+		workingDecorator(routeExtension.asAPI());
+		await startTurn(routeExtension, routeCtx);
+		await routeExtension.emit("provider_stream_event", providerStreamEvent({
+			response: { model: "auto" },
+		}, "openrouter"), routeCtx);
+		assert.ok(stripAnsi(routeMessages.at(-1)!).endsWith(" · auto"));
+	});
+});
+
+test("chat-completions and Anthropic raw events do not alter the served-model display", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, {
+			model: { provider: "ramp-router", id: "selected-model", api: "openai-responses" },
+		});
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		await extension.emit("provider_stream_event", providerStreamEvent({
+			response: { model: "responses-model" },
+			provider: "baseten",
+		}, "ramp-router"), ctx);
+		const before = messages.length;
+		await extension.emit("provider_stream_event", providerStreamEvent({ model: "chat-model" }, "ramp-router", "openai-completions"), ctx);
+		await extension.emit("provider_stream_event", providerStreamEvent({ message: { model: "claude-model" } }, "anthropic", "anthropic-messages"), ctx);
+		assert.equal(messages.length, before);
+		assert.ok(stripAnsi(messages.at(-1)!).endsWith("responses-model via baseten"));
 	});
 });
 

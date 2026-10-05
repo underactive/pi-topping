@@ -5,6 +5,7 @@ import { DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatTokenRat
 import { buildLoaderMessage } from "./loader-message.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
+import { formatServiceTierSummary } from "./service-tier.ts";
 import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleMeterUpperBound, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderColor, isDoneMarkerBorderStyle, isDoneMarkerStyle, isPromptBorderColor, isSpinnerColor, isThinkingLevelColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
 import { isWordPackEnabled, selectWorkingTextSelection, WORD_PACK_MENU_PREFIX, wordPacksPath, type WordPack } from "./word-packs.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tps for the meter,
@@ -143,6 +144,7 @@ export class PreviewRenderer {
 		const details: string[] = [];
 		if (values.doneMarkerTokens === true) details.push("↓ 949 tokens");
 		if (values.doneMarkerInputs === true) details.push("2 mid-turn inputs");
+		if (values.doneMarkerServiceTier === true) details.push(formatServiceTierSummary([{ tier: "flex", calls: 3 }]));
 		let model = "";
 		if (values.doneMarkerModel === true) {
 			const color = isThinkingLevelColor(values.doneMarkerModelColor) ? values.doneMarkerModelColor : DEFAULT_SETTINGS.decorations.doneMarkerModelColor;

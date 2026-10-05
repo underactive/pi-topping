@@ -6,11 +6,11 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Example of pi-topping's decorated user prompt](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_user_prompt.png)
 
-**“Working” Loader** — animated spinner (with color choice), randomized activity word, optional word packs, shimmer, token activity monitor with an adjustable full-scale rate, elapsed timer, output token display, live output-token rate, and the response model when it meaningfully differs from the selected model — all arrangeable left to right. Under a Pi virtual model such as pi-topping-autorouter's `litellm-auto/auto`, the response model is the routed physical model. During a blocking extension prompt, the loader switches to a stable dim waiting line with a pulsing indicator, then resumes afterward.
+**“Working” Loader** — animated spinner (with color choice), randomized activity word, optional word packs, shimmer, token activity monitor with an adjustable full-scale rate, elapsed timer, output token display, live output-token rate, and the response model when it meaningfully differs from the selected model — all arrangeable left to right. For raw Responses-API stream events, it can also include Ramp Router's gateway backend as `<model> via <backend>`, or just `via <backend>` when the served model restates the selection (requires Pi ≥0.99.0). Under a Pi virtual model such as pi-topping-autorouter's `litellm-auto/auto`, the response model is the routed physical model. During a blocking extension prompt, the loader switches to a stable dim waiting line with a pulsing indicator, then resumes afterward.
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
-**Completion Marker** — end-of-turn marker with icon, randomized verb (or `Worked`; matching past tense when Randomize "Worked" text is on), token consumption display, and optional marker-style, border-style, and border-color decorations spanning the full terminal width. It can append the response model when it differs from the selected model, with its own color option. The default `elite` style trails the summary with tapering dashes; `bookend` fills the remaining width to a closing corner glyph. Hooks into Pi's `agent_settled` event.
+**Completion Marker** — end-of-turn marker with icon, randomized verb (or `Worked`; matching past tense when Randomize "Worked" text is on), token consumption display, and optional marker-style, border-style, and border-color decorations spanning the full terminal width. It can append the response model when it differs from the selected model, with its own color option. It can also append per-call service-tier counts (e.g. `flex tier ×3`), but only for calls whose provider reports a tier; this requires Pi ≥0.99.0. The default `elite` style trails the summary with tapering dashes; `bookend` fills the remaining width to a closing corner glyph. Hooks into Pi's `agent_settled` event.
 
 ![Example of pi-topping's completion marker](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_completion_marker.png)
 
@@ -86,6 +86,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║    [■] Randomize “Worked” text                        ON      ║
 ║    [■] Tokens spent                                   ON      ║
 ║    [■] Mid-turn inputs                                ON      ║
+║    [■] Service tier                                   ON      ║
 ║    [■] Response model                                 ON      ║
 ║    [■] Response model color                      ‹ muted ›    ║
 ║    [■] Response model dimmed                         OFF      ║
@@ -109,7 +110,7 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ╟───────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  PgUp/PgDn page  ←→ select                           ║
 ║  ␣ toggle  ⏎ apply  esc cancel                                ║
-╚═══════════════════════════════════════════════════════[ 9/57 ]╝
+╚═══════════════════════════════════════════════════════[ 9/58 ]╝
 ```
 
 ### Word packs
@@ -147,7 +148,7 @@ restarts the cycle.
 
 The token activity monitor reaches full `⣿` at or above its configurable upper bound (80 tps by default), with lower levels scaled proportionally to that bound. In `/topping-settings`, `←`/`→` cycle through presets spanning 10–1000 tps, and `␣` (Space) lets you enter any whole number from 10–1000. Invalid typed entries show an inline error and keep the editor open without changing the current value; invalid hand-edited `meterUpperBoundTps` values in `settings.json` revert to 80 on load.
 
-The response model is captured from assistant responses, displayed as its sanitized value with no label only when it meaningfully differs from the selected model, and defaults to the final loader detail after output tokens. Under a Pi virtual model such as pi-topping-autorouter's `litellm-auto/auto`, it is the routed physical model: taken from the router's `pi-topping-autorouter:routed-model` announcement when present, which arrives before the first token (announcements for `direct` routes such as compaction are ignored), and otherwise from the assistant message's model. There only a failed route, which reports the virtual model itself, is hidden, and a bare routed id never displaces a provider-reported decorated form of itself such as a dated name. While pi-topping-statusline embeds the loader in its status bar, the model slides out tail first from behind its separator over 0.3 seconds when it first appears in a run, like that bar's embedded status; elsewhere it appears at once, and a different model replacing it always swaps in place. Equivalent local paths and decorated filenames are suppressed. Its loader display can be hidden, recolored, permanently dimmed, or reordered. The independent **Response model footer** option is disabled by default; when enabled, the final model appears under the editor after settlement, remains visible for 3 seconds, fades through five theme-aware shades over 0.5 seconds, then clears. New work cancels the pending fade. When the active provider is `switchyard`, the loader and footer hold/fade use NVIDIA green (`#84c51a`, matching pi-topping-statusline) regardless of the configured Response model color; the dim setting still applies.
+The response model is captured from assistant responses and raw Responses-API stream events (Pi ≥0.99.0), displayed as its sanitized value with no label only when it meaningfully differs from the selected model, and defaults to the final loader detail after output tokens. When Ramp Router reports a gateway backend in the raw event, the label can include it as `<model> via <backend>`, or `via <backend>` alone when the served model restates the selection. Under a Pi virtual model such as pi-topping-autorouter's `litellm-auto/auto`, it is the routed physical model: taken from the router's `pi-topping-autorouter:routed-model` announcement when present, which arrives before the first token (announcements for `direct` routes such as compaction are ignored), and otherwise from the assistant message's model. There only a failed route, which reports the virtual model itself, is hidden, and a bare routed id never displaces a provider-reported decorated form of itself such as a dated name. While pi-topping-statusline embeds the loader in its status bar, the model slides out tail first from behind its separator over 0.3 seconds when it first appears in a run, like that bar's embedded status; elsewhere it appears at once, and a different model replacing it always swaps in place. Equivalent local paths and decorated filenames are suppressed. Its loader display can be hidden, recolored, permanently dimmed, or reordered. The independent **Response model footer** option is disabled by default; when enabled, the final model appears under the editor after settlement, remains visible for 3 seconds, fades through five theme-aware shades over 0.5 seconds, then clears. New work cancels the pending fade. When the active provider is `switchyard`, the loader and footer hold/fade use NVIDIA green (`#84c51a`, matching pi-topping-statusline) regardless of the configured Response model color; the dim setting still applies.
 
 ## Requirements
 
@@ -163,13 +164,14 @@ npm test
 npm run typecheck
 ```
 
-Tests cover the word/shimmer rendering, prompt box and completion marker rendering, activity meter behavior and its configurable upper bound, timer resets, settings persistence and schema migrations, word-pack parsing, loading, and default-text selection, response-model loader and footer behavior, the `menu.ts` component and its typed number entry, the settings menu wiring end to end, and the `/topping-setup` command's install and uninstall flows.
+Tests cover the word/shimmer rendering, prompt box and completion marker rendering, activity meter behavior and its configurable upper bound, timer resets, settings persistence and schema migrations, word-pack parsing, loading, and default-text selection, response-model loader and footer behavior, served-model and service-tier extraction, the `menu.ts` component and its typed number entry, the settings menu wiring end to end, and the `/topping-setup` command's install and uninstall flows.
 
 ## Limitations
 
 - Token counts are a streaming word-count estimate, not an exact tokenizer count — they self-correct when each message finishes, so you'll see a small jump at that point.
 - Elapsed time normally starts when you submit a prompt; for auto-continuations without that event, it starts slightly later instead.
 - If another extension also customizes the working message, whichever one runs last wins.
+- Service-tier details and Responses-API served-model/backend labels depend on Pi's `provider_stream_event`; raw events require Pi ≥0.99.0 and are unavailable on older Pi hosts and SDK adapters that do not expose them.
 
 ## Author
 

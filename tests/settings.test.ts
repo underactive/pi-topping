@@ -53,7 +53,7 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Word Packs", "Options"]);
 	const itemIds = sections.flatMap(section => section.items).map(item => item.id);
 	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
-	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "meterUpperBoundTps", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "showResponseModel", "responseModelColor", "responseModelDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel", "doneMarker", "doneMarkerStyle", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "doneMarkerModel", "doneMarkerModelColor", "doneMarkerModelDimmed", "pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars", "includeDefaultWorkingText", "useNerdFont", "showResponseModelFooter"]);
+	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "meterUpperBoundTps", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "showResponseModel", "responseModelColor", "responseModelDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel", "doneMarker", "doneMarkerStyle", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "doneMarkerServiceTier", "doneMarkerModel", "doneMarkerModelColor", "doneMarkerModelDimmed", "pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars", "includeDefaultWorkingText", "useNerdFont", "showResponseModelFooter"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:simcity")!.value, false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:star-trek")!.value, false);
@@ -222,6 +222,7 @@ test("applyMenuResult validates specialized spinner and prompt border colors", (
 	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { tokenRateColor: "thinking-level" }).decorations.tokenRateColor, "thinking-level");
 	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { responseModelColor: "thinking-level" }).decorations.responseModelColor, "thinking-level");
 	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { doneMarkerModelColor: "thinking-level" }).decorations.doneMarkerModelColor, "thinking-level");
+	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { doneMarkerServiceTier: false }).features.doneMarkerServiceTier, false);
 	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { doneMarkerModel: false }).features.doneMarkerModel, false);
 	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { doneMarkerModelDimmed: true }).decorations.doneMarkerModelDimmed, true);
 	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { spinnerColor: "default" }).decorations.spinnerColor, DEFAULT_SETTINGS.decorations.spinnerColor);
@@ -263,6 +264,8 @@ test("loadSettings backfills settings missing from a current-schema file", () =>
 		const loaded = loadSettings();
 		assert.equal(loaded.features.responseModelFooter, false);
 		assert.equal(loaded.features.doneMarkerModel, true);
+		assert.equal(loaded.features.doneMarkerServiceTier, true);
+		assert.equal(DEFAULT_SETTINGS.features.doneMarkerServiceTier, true);
 		assert.equal(loaded.features.includeDefaultWorkingText, true);
 		assert.equal(loaded.decorations.doneMarkerModelColor, "muted");
 		assert.equal(loaded.decorations.doneMarkerModelDimmed, false);

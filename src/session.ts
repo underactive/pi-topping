@@ -48,6 +48,8 @@ import { announceMissingToppingsOnce, type MissingToppingsEntryData, renderMissi
 import { PreviewRenderer } from "./preview.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
 import { isPlainObject, modelsResemble, stripControlChars } from "./util.ts";
+import { formatServiceTierSummary, recordServiceTierCall, serviceTierCountsOf, serviceTierOf, type ServiceTierCount } from "./service-tier.ts";
+import { servedModelOf } from "./served-model.ts";
 import { loadBundledWordPacks, loadUserWordPacks, pickWorkingTextSelection, type WorkingTextSelection, type WordPack } from "./word-packs.ts";
 
 type MessageStartEvent = Extract<ExtensionEvent, { type: "message_start" }>;
@@ -56,6 +58,7 @@ type MessageEndEvent = Extract<ExtensionEvent, { type: "message_end" }>;
 type ToolExecutionStartEvent = Extract<ExtensionEvent, { type: "tool_execution_start" }>;
 type UIPromptStartEvent = Extract<ExtensionEvent, { type: "ui_prompt_start" }>;
 type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
+type ProviderStreamEvent = Extract<ExtensionEvent, { type: "provider_stream_event" }>;
 type UIPromptKind = UIPromptStartEvent["kind"];
 
 const DONE_ENTRY_TYPE = "pi-topping-done";
@@ -80,6 +83,7 @@ interface DoneEntryData {
 	elapsedMs: number;
 	tokens?: number;
 	midTurnInputs?: number;
+	serviceTiers?: ServiceTierCount[];
 	thinkingLevel?: ThinkingLevel;
 	model?: string;
 }
@@ -95,6 +99,7 @@ interface ResponseModelReport {
 	weak: boolean;
 	/** The message's own provider when `raw` is its `model`, to recognize a failed route. */
 	provider?: string;
+	backend?: string;
 }
 
 interface SessionState {
@@ -108,6 +113,13 @@ interface SessionState {
 	lastTokenRateSampledAt: number;
 	lastTokenRateTotal: number;
 	responseModel: string;
+	responseModelServed: string;
+	responseModelBackend: string;
+	/** The backend companion to the last raw response-model report. */
+	lastResponseModelBackend: string | undefined | typeof NOT_SENT;
+	/** The tier reported by the in-flight provider call, added to counts at its assistant message_end. */
+	pendingServiceTier: string;
+	serviceTiers: ServiceTierCount[];
 	/** Last raw responseModel value seen, or the NOT_SENT sentinel before the first call. */
 	lastResponseModelRaw: unknown;
 	responseModelHoldTimer: ReturnType<typeof setTimeout> | null;
@@ -150,6 +162,11 @@ function makeFreshState(): SessionState {
 		lastTokenRateSampledAt: 0,
 		lastTokenRateTotal: 0,
 		responseModel: "",
+		responseModelServed: "",
+		responseModelBackend: "",
+		lastResponseModelBackend: NOT_SENT,
+		pendingServiceTier: "",
+		serviceTiers: [],
 		lastResponseModelRaw: NOT_SENT,
 		responseModelHoldTimer: null,
 		responseModelFadeTimer: null,
@@ -280,6 +297,7 @@ export class SessionManager {
 	#onMessageEnd = async (event: MessageEndEvent, ctx: ExtensionContext): Promise<void> => {
 		this.#currentCtx = ctx;
 		if (!this.usable(ctx) || event.message.role !== "assistant") return;
+		this.commitServiceTierCall();
 
 		const rawTokens = event.message.usage?.output;
 		const exactTokens =
@@ -296,6 +314,22 @@ export class SessionManager {
 		this.#counter.reset();
 		this.updateResponseModel(this.responseModelOf(event.message));
 	};
+
+	#onProviderStreamEvent = (event: ProviderStreamEvent, ctx: ExtensionContext): void => {
+		if (!this.usable(ctx) || !this.#state.busy) return;
+		const tier = serviceTierOf(event.data);
+		if (tier) this.#state.pendingServiceTier = tier;
+		const served = servedModelOf(event.data);
+		if (served) {
+			this.updateResponseModel({ raw: served.model, weak: false, provider: event.provider, backend: served.backend });
+		}
+	};
+
+	private commitServiceTierCall(): void {
+		if (!this.#state.pendingServiceTier) return;
+		recordServiceTierCall(this.#state.serviceTiers, this.#state.pendingServiceTier);
+		this.#state.pendingServiceTier = "";
+	}
 
 	#onToolExecutionStart = async (_e: ToolExecutionStartEvent, ctx: ExtensionContext): Promise<void> => {
 		this.#currentCtx = ctx;
@@ -326,6 +360,7 @@ export class SessionManager {
 	#onAgentSettled = async (_e: AgentSettledEvent, ctx: ExtensionContext): Promise<void> => {
 		this.#currentCtx = ctx;
 		if (!this.usable(ctx)) return;
+		this.commitServiceTierCall();
 
 		const hadPrompt = !!this.#state.startTime;
 		const elapsedMs = hadPrompt ? Date.now() - this.#state.startTime : 0;
@@ -350,6 +385,7 @@ export class SessionManager {
 				elapsedMs,
 				tokens: this.#state.confirmTokens,
 				midTurnInputs: this.#state.midTurnInputs,
+				...(this.#state.serviceTiers.length ? { serviceTiers: this.#state.serviceTiers.map((count) => ({ ...count })) } : {}),
 				thinkingLevel: ctx.thinkingLevel,
 				model: this.#state.responseModel || undefined,
 			});
@@ -373,6 +409,10 @@ export class SessionManager {
 		if (features.doneMarkerTokens && typeof entry.data.tokens === "number" && Number.isFinite(entry.data.tokens) && entry.data.tokens >= 0) details.push(`↓ ${formatTokens(entry.data.tokens)} tokens`);
 		if (features.doneMarkerInputs && typeof entry.data.midTurnInputs === "number" && Number.isInteger(entry.data.midTurnInputs) && entry.data.midTurnInputs > 0) {
 			details.push(`${entry.data.midTurnInputs} mid-turn input${entry.data.midTurnInputs === 1 ? "" : "s"}`);
+		}
+		if (features.doneMarkerServiceTier) {
+			const summary = formatServiceTierSummary(serviceTierCountsOf(entry.data.serviceTiers));
+			if (summary) details.push(summary);
 		}
 		const icon = features.doneMarkerIcon ? theme.fg("text", this.#settings.decorations.useNerdFont ? "" : "π") : "";
 		const thinkingLevel = isThinkingLevel(entry.data.thinkingLevel) ? entry.data.thinkingLevel : undefined;
@@ -411,6 +451,7 @@ export class SessionManager {
 		this.#pi.on("message_start", this.#onMessageStart);
 		this.#pi.on("message_update", this.#onMessageUpdate);
 		this.#pi.on("message_end", this.#onMessageEnd);
+		this.#pi.on("provider_stream_event", this.#onProviderStreamEvent);
 		this.#pi.on("tool_execution_start", this.#onToolExecutionStart);
 		this.#pi.on("agent_settled", this.#onAgentSettled);
 		this.#pi.on("ui_prompt_start", this.#onUIPromptStart);
@@ -520,25 +561,39 @@ export class SessionManager {
 	}
 
 	private updateResponseModel(report: ResponseModelReport | undefined): void {
-		if (report?.raw === this.#state.lastResponseModelRaw) return;
+		const backendReport = report?.backend;
+		if (report?.raw === this.#state.lastResponseModelRaw && backendReport === this.#state.lastResponseModelBackend) return;
 		this.#state.lastResponseModelRaw = report?.raw;
+		this.#state.lastResponseModelBackend = backendReport;
 		if (!report) return;
-		const responseModel = typeof report.raw === "string" ? stripControlChars(report.raw).trim() : "";
-		if (!responseModel) return;
-		if (this.restatesSelection(report, responseModel)) {
+		const model = typeof report.raw === "string" ? stripControlChars(report.raw).trim() : "";
+		if (!model) return;
+		const backend = report.backend ?? (model === this.#state.responseModelServed ? this.#state.responseModelBackend : "");
+		const showBackend = !!backend && backend !== report.provider;
+		const restates = this.restatesSelection(report, model);
+		const display = restates ? (showBackend ? `via ${backend}` : "") : (showBackend ? `${model} via ${backend}` : model);
+		if (!display) {
 			if (this.#state.responseModel) {
 				this.#state.responseModel = "";
 				this.stopResponseModelSlide();
 				this.tick();
 			}
+			this.#state.responseModelServed = "";
+			this.#state.responseModelBackend = "";
 			return;
 		}
-		if (responseModel === this.#state.responseModel) return;
+		if (display === this.#state.responseModel) {
+			this.#state.responseModelServed = model;
+			this.#state.responseModelBackend = backend;
+			return;
+		}
 		// A bare routed id that the shown decorated form already contains would only flicker.
-		if (report.weak && modelsResemble(responseModel, this.#state.responseModel)) return;
+		if (report.weak && modelsResemble(model, this.#state.responseModelServed || this.#state.responseModel)) return;
 		// A model replacing one already shown swaps in place; only an appearing one slides out.
 		if (!this.#state.responseModel) this.startResponseModelSlide();
-		this.#state.responseModel = responseModel;
+		this.#state.responseModel = display;
+		this.#state.responseModelServed = model;
+		this.#state.responseModelBackend = backend;
 		this.tick();
 	}
 
@@ -647,7 +702,12 @@ export class SessionManager {
 		state.confirmTokens = 0;
 		state.liveTokens = 0;
 		state.responseModel = "";
+		state.responseModelServed = "";
+		state.responseModelBackend = "";
+		state.pendingServiceTier = "";
+		state.serviceTiers = [];
 		state.lastResponseModelRaw = NOT_SENT;
+		state.lastResponseModelBackend = NOT_SENT;
 		state.activityMeter.reset();
 		resetTokenRateState(state);
 		state.midTurnInputs = 0;
