@@ -1,4 +1,4 @@
-import { isPlainObject, stripControlChars } from "./util.ts";
+import { isPlainObject, sanitizedText } from "./util.ts";
 
 /**
  * Extract provider-reported service tiers from Pi's raw `provider_stream_event` payloads.
@@ -13,8 +13,7 @@ export interface ServiceTierCount {
 
 /** Sanitize a provider-supplied tier into a short, safe display label. */
 export function sanitizeServiceTier(raw: unknown): string | undefined {
-	if (typeof raw !== "string") return undefined;
-	let tier = stripControlChars(raw).trim();
+	let tier = sanitizedText(raw);
 	if (tier.length > 32) {
 		let end = 0;
 		let characters = 0;

@@ -1,4 +1,4 @@
-import { isPlainObject, stripControlChars } from "./util.ts";
+import { isPlainObject, sanitizedText } from "./util.ts";
 
 /**
  * Event-bus channel on which pi-topping-autorouter announces the physical model it routed
@@ -35,10 +35,6 @@ export interface RoutedModelAnnouncement {
 	reason: RouteReason;
 }
 
-function announcedString(value: unknown): string {
-	return typeof value === "string" ? stripControlChars(value).trim() : "";
-}
-
 function isRouteReason(value: string): value is RouteReason {
 	return ROUTE_REASONS.includes(value);
 }
@@ -46,9 +42,9 @@ function isRouteReason(value: string): value is RouteReason {
 /** The sanitized provider, model id, and route reason of a ROUTED_MODEL_CHANNEL announcement, or undefined if malformed. */
 export function routedModelAnnouncement(data: unknown): RoutedModelAnnouncement | undefined {
 	if (!isPlainObject(data) || data.version !== 1) return undefined;
-	const provider = announcedString(data.provider);
-	const modelId = announcedString(data.modelId);
-	const reason = announcedString(data.reason);
+	const provider = sanitizedText(data.provider);
+	const modelId = sanitizedText(data.modelId);
+	const reason = sanitizedText(data.reason);
 	if (!provider || !modelId || !isRouteReason(reason)) return undefined;
 	return { provider, modelId, reason };
 }

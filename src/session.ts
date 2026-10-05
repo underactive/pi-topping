@@ -47,7 +47,7 @@ import { announcesEmbedded, STATUSLINE_EMBED_CHANNEL } from "./statusline-embed.
 import { announceMissingToppingsOnce, type MissingToppingsEntryData, renderMissingToppingsEntry, SETUP_ENTRY_TYPE } from "./toppings.ts";
 import { PreviewRenderer } from "./preview.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
-import { isPlainObject, modelsResemble, stripControlChars } from "./util.ts";
+import { isPlainObject, modelsResemble, sanitizedText, stripControlChars } from "./util.ts";
 import { formatServiceTierSummary, recordServiceTierCall, serviceTierCountsOf, serviceTierOf, type ServiceTierCount } from "./service-tier.ts";
 import { servedModelOf } from "./served-model.ts";
 import { loadBundledWordPacks, loadUserWordPacks, pickWorkingTextSelection, type WorkingTextSelection, type WordPack } from "./word-packs.ts";
@@ -416,7 +416,7 @@ export class SessionManager {
 		}
 		const icon = features.doneMarkerIcon ? theme.fg("text", this.#settings.decorations.useNerdFont ? "" : "π") : "";
 		const thinkingLevel = isThinkingLevel(entry.data.thinkingLevel) ? entry.data.thinkingLevel : undefined;
-		const rawModel = typeof entry.data.model === "string" ? stripControlChars(entry.data.model).trim() : "";
+		const rawModel = sanitizedText(entry.data.model);
 		const modelColored = features.doneMarkerModel && rawModel
 			? getThinkingLevelColorizer(theme, this.#settings.decorations.doneMarkerModelColor, thinkingLevel)(rawModel)
 			: "";
@@ -566,7 +566,7 @@ export class SessionManager {
 		this.#state.lastResponseModelRaw = report?.raw;
 		this.#state.lastResponseModelBackend = backendReport;
 		if (!report) return;
-		const model = typeof report.raw === "string" ? stripControlChars(report.raw).trim() : "";
+		const model = sanitizedText(report.raw);
 		if (!model) return;
 		const backend = report.backend ?? (model === this.#state.responseModelServed ? this.#state.responseModelBackend : "");
 		const showBackend = !!backend && backend !== report.provider;

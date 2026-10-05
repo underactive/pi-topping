@@ -8,6 +8,10 @@ export function stripControlChars(text: string): string {
 	return text.replace(/[\p{Cc}\p{Cf}]/gu, "");
 }
 
+export function sanitizedText(value: unknown): string {
+	return typeof value === "string" ? stripControlChars(value).trim() : "";
+}
+
 /** True when a reported response model appears to be a decorated form of the selected model. */
 export function modelsResemble(selectedModel?: string, responseModel?: string): boolean {
 	if (!selectedModel || !responseModel) return false;
