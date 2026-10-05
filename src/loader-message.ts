@@ -3,7 +3,7 @@ import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, fadeThemeColor
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import type { DecoratorSettings } from "./settings.ts";
 
-type Features = Pick<DecoratorSettings["features"], "substituteDefaultMessage" | "elapsedTime" | "outputTokens" | "tokenRate" | "responseModel">;
+type Features = Pick<DecoratorSettings["features"], "substituteDefaultMessage" | "elapsedTime" | "outputTokens" | "tokenRate">;
 type Decorations = Pick<DecoratorSettings["decorations"], "shimmer" | "shimmerInverted" | "shimmerDirection" | "shimmerSpeed" | "tokenActivityMonitor" | "meterColor" | "meterDimmed" | "tokenRateColor" | "tokenRateDimmed" | "responseModelColor" | "responseModelDimmed" | "spinnerColor">;
 interface LoaderParts {
 	spinnerAtMs?: number;

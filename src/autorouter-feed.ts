@@ -25,9 +25,8 @@ import { isPlainObject, sanitizedText } from "./util.ts";
  */
 export const ROUTED_MODEL_CHANNEL = "pi-topping-autorouter:routed-model";
 
-export type RouteReason = "user" | "continuation" | "retry" | "direct";
-
-const ROUTE_REASONS: readonly string[] = ["user", "continuation", "retry", "direct"] satisfies RouteReason[];
+const ROUTE_REASONS = ["user", "continuation", "retry", "direct"] as const;
+export type RouteReason = (typeof ROUTE_REASONS)[number];
 
 export interface RoutedModelAnnouncement {
 	provider: string;
@@ -36,7 +35,7 @@ export interface RoutedModelAnnouncement {
 }
 
 function isRouteReason(value: string): value is RouteReason {
-	return ROUTE_REASONS.includes(value);
+	return ROUTE_REASONS.some((reason) => reason === value);
 }
 
 /** The sanitized provider, model id, and route reason of a ROUTED_MODEL_CHANNEL announcement, or undefined if malformed. */

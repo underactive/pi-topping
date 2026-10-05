@@ -96,7 +96,6 @@ export function buildPromptBoxLines(
 	const thinkingLevel = isThinkingLevel(options.thinkingLevel) ? options.thinkingLevel : undefined;
 	const border = getThinkingLevelColorizer(theme, borderColor, thinkingLevel);
 	const iconColor = (text: string) => theme.fg("text", text);
-	const label = (text: string) => theme.fg("customMessageLabel", text);
 	const muted = (text: string) => theme.fg("dim", text);
 	const bodyText = (text: string) => theme.fg("customMessageText", text);
 	const time = options.showTimestamp === false || !submittedAt

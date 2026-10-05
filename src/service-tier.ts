@@ -1,11 +1,6 @@
 import { isPlainObject, sanitizedText } from "./util.ts";
 
-/**
- * Extract provider-reported service tiers from Pi's raw `provider_stream_event` payloads.
- * OpenAI chat-completions uses `service_tier`; Responses uses `response.service_tier`;
- * Anthropic reports `message.usage.service_tier` at `message_start` and
- * `usage.service_tier` at `message_delta`. `serviceTier` covers camel-case adapters.
- */
+/** Provider calls that reported one service tier during a run. */
 export interface ServiceTierCount {
 	tier: string;
 	calls: number;
@@ -27,7 +22,12 @@ export function sanitizeServiceTier(raw: unknown): string | undefined {
 	return tier || undefined;
 }
 
-/** Return the first sanitized tier reported in a raw provider stream event, without throwing. */
+/**
+ * Return the first sanitized tier reported in a raw provider stream event, without throwing.
+ * OpenAI chat-completions uses `service_tier`; Responses uses `response.service_tier`;
+ * Anthropic reports `message.usage.service_tier` at `message_start` and
+ * `usage.service_tier` at `message_delta`. `serviceTier` covers camel-case adapters.
+ */
 export function serviceTierOf(data: unknown): string | undefined {
 	try {
 		if (!isPlainObject(data)) return undefined;
@@ -62,20 +62,16 @@ export function serviceTierCountsOf(raw: unknown): ServiceTierCount[] {
 	if (!Array.isArray(raw)) return [];
 	const counts: ServiceTierCount[] = [];
 	for (const item of raw) {
-		try {
-			if (!isPlainObject(item)) continue;
-			const tier = sanitizeServiceTier(item.tier);
-			const calls = item.calls;
-			if (!tier || typeof calls !== "number" || !Number.isSafeInteger(calls) || calls <= 0) continue;
-			const existing = counts.find((entry) => entry.tier === tier);
-			if (existing) {
-				const sum = existing.calls + calls;
-				if (Number.isSafeInteger(sum)) existing.calls = sum;
-			} else {
-				counts.push({ tier, calls });
-			}
-		} catch {
-			// Persisted session entries may come from older or malformed hosts.
+		if (!isPlainObject(item)) continue;
+		const tier = sanitizeServiceTier(item.tier);
+		const calls = item.calls;
+		if (!tier || typeof calls !== "number" || !Number.isSafeInteger(calls) || calls <= 0) continue;
+		const existing = counts.find((entry) => entry.tier === tier);
+		if (existing) {
+			const sum = existing.calls + calls;
+			if (Number.isSafeInteger(sum)) existing.calls = sum;
+		} else {
+			counts.push({ tier, calls });
 		}
 	}
 	return counts;

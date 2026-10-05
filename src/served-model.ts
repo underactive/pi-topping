@@ -11,7 +11,7 @@ export function servedModelOf(data: unknown): ServedModelReport | undefined {
 		if (!isPlainObject(data) || !isPlainObject(data.response)) return undefined;
 		const model = sanitizedText(data.response.model) || undefined;
 		if (!model) return undefined;
-		const backend = sanitizedText(data.provider) || undefined;
+		const backend = sanitizedText(data.provider);
 		return { model, ...(backend ? { backend } : {}) };
 	} catch {
 		return undefined;
