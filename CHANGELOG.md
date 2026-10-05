@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Under a Pi virtual model such as pi-topping-autorouter's `litellm-auto/auto`, assistant messages without a provider-reported `responseModel` now fall back to the message's `model`, which Pi stamps with the routed physical model, so the loader, completion marker, and footer show that model instead of nothing. Under a virtual selection the resemblance check against the selected model is not applied, since it would also hide a routed model whose id contains the virtual id (such as `openrouter/auto`); only a failed route, which leaves the virtual model's own provider and id on the message, is hidden.
+- Verified compatibility with Pi 1.0.3; development and CI now typecheck and test against it, and the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 1.0.0 to 1.0.3. Pi 1.0.1–1.0.3 remove no public API this extension uses. No runtime behavior changes, the published `peerDependencies` remain `*`, and the minimum supported host is still Pi ≥0.84.4.
 
 ## [0.9.1] - 2026-10-02
 
