@@ -100,6 +100,7 @@ interface ResponseModelReport {
 	/** The message's own provider when `raw` is its `model`, to recognize a failed route. */
 	provider?: string;
 	backend?: string;
+	routedId?: string;
 }
 
 interface SessionState {
@@ -113,8 +114,7 @@ interface SessionState {
 	lastTokenRateSampledAt: number;
 	lastTokenRateTotal: number;
 	responseModel: string;
-	responseModelServed: string;
-	responseModelBackend: string;
+	served: { model: string; backend: string; routedId: string } | null;
 	/** The backend companion to the last raw response-model report. */
 	lastResponseModelBackend: string | undefined | typeof NOT_SENT;
 	/** The tier reported by the in-flight provider call, added to counts at its assistant message_end. */
@@ -162,8 +162,7 @@ function makeFreshState(): SessionState {
 		lastTokenRateSampledAt: 0,
 		lastTokenRateTotal: 0,
 		responseModel: "",
-		responseModelServed: "",
-		responseModelBackend: "",
+		served: null,
 		lastResponseModelBackend: NOT_SENT,
 		pendingServiceTier: "",
 		serviceTiers: [],
@@ -465,7 +464,7 @@ export class SessionManager {
 			// is such a background request too, and must not leave a stale model for the next turn.
 			const announcement = routedModelAnnouncement(data);
 			if (!announcement || announcement.reason === "direct" || !this.#state.busy) return;
-			this.updateResponseModel({ raw: announcement.modelId, weak: true, provider: announcement.provider });
+			this.updateResponseModel({ raw: announcement.modelId, weak: true, provider: announcement.provider, routedId: announcement.modelId });
 		});
 		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) => this.#renderDoneEntry(entry, theme));
 		this.#pi.registerEntryRenderer<MissingToppingsEntryData>(SETUP_ENTRY_TYPE, (entry, _o, theme) => renderMissingToppingsEntry(entry, theme));
@@ -542,7 +541,9 @@ export class SessionManager {
 	 */
 	private responseModelOf(message: unknown): ResponseModelReport | undefined {
 		if (!isPlainObject(message)) return undefined;
-		if (message.responseModel !== undefined) return { raw: message.responseModel, weak: false };
+		if (message.responseModel !== undefined) {
+			return { raw: message.responseModel, weak: false, routedId: sanitizedText(message.model) || undefined };
+		}
 		if (this.#currentCtx?.model?.api !== VIRTUAL_MODEL_API) return undefined;
 		return { raw: message.model, weak: true, provider: typeof message.provider === "string" ? message.provider : undefined };
 	}
@@ -568,7 +569,7 @@ export class SessionManager {
 		if (!report) return;
 		const model = sanitizedText(report.raw);
 		if (!model) return;
-		const backend = report.backend ?? (model === this.#state.responseModelServed ? this.#state.responseModelBackend : "");
+		const backend = report.backend ?? (model === this.#state.served?.model ? this.#state.served.backend : "");
 		const showBackend = !!backend && backend !== report.provider;
 		const restates = this.restatesSelection(report, model);
 		const display = restates ? (showBackend ? `via ${backend}` : "") : (showBackend ? `${model} via ${backend}` : model);
@@ -578,23 +579,18 @@ export class SessionManager {
 				this.stopResponseModelSlide();
 				this.tick();
 			}
-			this.#state.responseModelServed = "";
-			this.#state.responseModelBackend = "";
+			this.#state.served = null;
 			return;
 		}
-		if (display === this.#state.responseModel) {
-			this.#state.responseModelServed = model;
-			this.#state.responseModelBackend = backend;
-			return;
+		if (report.weak && model === this.#state.served?.routedId) return;
+		const changed = display !== this.#state.responseModel;
+		if (changed) {
+			// A model replacing one already shown swaps in place; only an appearing one slides out.
+			if (!this.#state.responseModel) this.startResponseModelSlide();
+			this.#state.responseModel = display;
 		}
-		// A bare routed id that the shown decorated form already contains would only flicker.
-		if (report.weak && modelsResemble(model, this.#state.responseModelServed || this.#state.responseModel)) return;
-		// A model replacing one already shown swaps in place; only an appearing one slides out.
-		if (!this.#state.responseModel) this.startResponseModelSlide();
-		this.#state.responseModel = display;
-		this.#state.responseModelServed = model;
-		this.#state.responseModelBackend = backend;
-		this.tick();
+		this.#state.served = { model, backend, routedId: report.routedId ?? model };
+		if (changed) this.tick();
 	}
 
 	/**
@@ -702,8 +698,7 @@ export class SessionManager {
 		state.confirmTokens = 0;
 		state.liveTokens = 0;
 		state.responseModel = "";
-		state.responseModelServed = "";
-		state.responseModelBackend = "";
+		state.served = null;
 		state.pendingServiceTier = "";
 		state.serviceTiers = [];
 		state.lastResponseModelRaw = NOT_SENT;

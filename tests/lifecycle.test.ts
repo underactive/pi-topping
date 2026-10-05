@@ -2897,7 +2897,7 @@ test("a same-model message report inherits the backend, while a different report
 	});
 });
 
-test("strong virtual-selection stream reports replace weak routes and preserve decorated ids", async (t) => {
+test("a distinct route replaces a strong virtual-selection stream report", async (t) => {
 	await withTempAgentDir(async () => {
 		t.mock.method(Date, "now", () => 1_000);
 		mockTimers(t, () => {});
@@ -2918,8 +2918,8 @@ test("strong virtual-selection stream reports replace weak routes and preserve d
 
 			const paints = messages.length;
 			extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol", "continuation"));
-			assert.equal(messages.length, paints);
-			assert.ok(stripAnsi(messages.at(-1)!).endsWith(` · ${expected}`));
+			assert.equal(messages.length, paints + 1);
+			assert.ok(stripAnsi(messages.at(-1)!).endsWith(" · gpt-5.6-sol"));
 		}
 	});
 });
@@ -3256,7 +3256,7 @@ test("an autorouter announcement during a busy turn shows the routed model befor
 	});
 });
 
-test("a bare routed id never displaces the provider-reported decorated form it resembles", async (t) => {
+test("a bare routed id preserves only the matching provider-reported route", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];
@@ -3290,6 +3290,9 @@ test("a bare routed id never displaces the provider-reported decorated form it r
 		assert.equal(messages.length, painted, "neither bare id repaints the loader");
 		await update(routed("gpt-5.6-sol-2026-09-01"));
 		assert.equal(messages.length, painted, "the dated form reported again does not repaint either");
+
+		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol-2026"));
+		assert.ok(stripAnsi(messages.at(-1)!).endsWith(" · gpt-5.6-sol-2026"), "a distinct but similar route replaces the decorated form");
 	});
 });
 
