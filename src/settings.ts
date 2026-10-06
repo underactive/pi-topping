@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "
 import { dirname, join } from "node:path";
 import { DEFAULT_METER_UPPER_BOUND_TPS, METER_UPPER_BOUND_TPS_MAX, METER_UPPER_BOUND_TPS_MIN } from "./activity-meter.ts";
 import { DEFAULT_LOADER_ORDER, type LoaderElement } from "./format.ts";
+import { fromLegacyOutputStyle, isOutputStyleId, OUTPUT_STYLE_IDS, OUTPUT_STYLE_LABELS, type OutputStyleId } from "./output-style.ts";
 import type { MenuNumberEntry, MenuSection } from "./menu.ts";
 import { isWordPackEnabled, isWordPackId, WORD_PACK_MENU_PREFIX, type WordPack } from "./word-packs.ts";
 import { isPlainObject } from "./util.ts";
@@ -125,6 +126,7 @@ export interface DecoratorSettings {
 	};
 	loaderOrder: LoaderElement[];
 	wordPacks: Record<string, boolean>;
+	outputStyle: OutputStyleId;
 }
 
 export const DEFAULT_SETTINGS: DecoratorSettings = {
@@ -132,10 +134,13 @@ export const DEFAULT_SETTINGS: DecoratorSettings = {
 	features: { substituteDefaultMessage: true, elapsedTime: true, outputTokens: true, tokenRate: true, responseModel: true, responseModelFooter: false, doneMarker: true, doneMarkerIcon: true, randomizeDoneMarker: true, doneMarkerTokens: true, doneMarkerInputs: true, doneMarkerServiceTier: true, doneMarkerModel: true, includeDefaultWorkingText: true },
 	loaderOrder: [...DEFAULT_LOADER_ORDER],
 	wordPacks: {},
+	outputStyle: "default",
 };
 
 /** Menu key carrying the loader element order as a comma-joined list of element ids. */
 export const LOADER_ORDER_ID = "loaderOrder";
+/** Menu key for the output style cycle row. */
+export const OUTPUT_STYLE_ID = "outputStyle";
 const LOADER_ELEMENT_LABELS: Record<LoaderElement, string> = {
 	spinner: "Animated spinner",
 	text: "“Working” text",
@@ -163,6 +168,19 @@ export function parseLoaderOrder(value: unknown): LoaderElement[] {
 }
 
 export function settingsPath(): string { return join(getAgentDir(), "pi-topping", "settings.json"); }
+
+/** pi-topping-insights' saved style, honored until pi-topping's own settings record one. */
+function legacyOutputStyle(): OutputStyleId {
+	try {
+		const parsed: unknown = JSON.parse(readFileSync(join(getAgentDir(), "pi-topping-insights", "settings.json"), "utf8"));
+		return (isPlainObject(parsed) ? fromLegacyOutputStyle(parsed.style) : undefined) ?? DEFAULT_SETTINGS.outputStyle;
+	} catch { return DEFAULT_SETTINGS.outputStyle; }
+}
+
+function defaultSettings(): DecoratorSettings {
+	return { ...structuredClone(DEFAULT_SETTINGS), outputStyle: legacyOutputStyle() };
+}
+
 function mergeGroup<T extends Record<string, boolean | string | number>>(defaults: T, parsed: unknown): T {
 	const merged = { ...defaults };
 	if (!isPlainObject(parsed)) return merged;
@@ -313,6 +331,10 @@ export function buildMenuSections(settings: DecoratorSettings, bundledPacks: rea
 				...buildSection("Word Packs", settings).items.map((item, index) => ({ ...item, spacerBefore: index === 0, disabledUnlessAnyOf: packIds })),
 			],
 		},
+		{
+			title: "Output Style",
+			items: [{ id: OUTPUT_STYLE_ID, label: "Style", value: settings.outputStyle, cycleValues: OUTPUT_STYLE_IDS, cycleValueLabels: OUTPUT_STYLE_LABELS }],
+		},
 		buildSection("Options", settings),
 	];
 }
@@ -337,6 +359,8 @@ export function applyMenuResult(settings: DecoratorSettings, values: Record<stri
 		if (isWordPackId(packId)) next.wordPacks[packId] = value;
 	}
 	if (typeof values[LOADER_ORDER_ID] === "string") next.loaderOrder = parseLoaderOrder(values[LOADER_ORDER_ID]);
+	const outputStyle = values[OUTPUT_STYLE_ID];
+	if (isOutputStyleId(outputStyle)) next.outputStyle = outputStyle;
 	return next;
 }
 
@@ -350,12 +374,13 @@ export function applyMenuResult(settings: DecoratorSettings, values: Record<stri
  * border color is reset. Below 4, the response-model footer inherits the response-model
  * setting. A missing, non-integer, or out-of-range meter upper bound resolves
  * to the default of 80 tps. A legacy `features.simCityWorkingText: true` enables the
- * `simcity` pack when no explicit preference is stored.
+ * `simcity` pack when no explicit preference is stored. A missing or invalid `outputStyle`
+ * falls back to `pi-topping-insights/settings.json`'s `style`, then to `default`, without a schema-version gate.
  */
 export function loadSettings(): DecoratorSettings {
 	try {
 		const parsed = JSON.parse(readFileSync(settingsPath(), "utf8"));
-		if (!isPlainObject(parsed)) return structuredClone(DEFAULT_SETTINGS);
+		if (!isPlainObject(parsed)) return defaultSettings();
 		const wordPacks: Record<string, boolean> = { ...DEFAULT_SETTINGS.wordPacks };
 		if (isPlainObject(parsed.wordPacks)) {
 			for (const [id, enabled] of Object.entries(parsed.wordPacks)) {
@@ -365,7 +390,9 @@ export function loadSettings(): DecoratorSettings {
 		if (isPlainObject(parsed.features) && parsed.features.simCityWorkingText === true && !("simcity" in wordPacks)) {
 			wordPacks.simcity = true;
 		}
-		const settings = { decorations: mergeGroup(DEFAULT_SETTINGS.decorations, parsed.decorations), features: mergeGroup(DEFAULT_SETTINGS.features, parsed.features), loaderOrder: parseLoaderOrder(parsed.loaderOrder), wordPacks };
+		const storedOutputStyle = parsed.outputStyle;
+		const outputStyle = isOutputStyleId(storedOutputStyle) ? storedOutputStyle : legacyOutputStyle();
+		const settings = { decorations: mergeGroup(DEFAULT_SETTINGS.decorations, parsed.decorations), features: mergeGroup(DEFAULT_SETTINGS.features, parsed.features), loaderOrder: parseLoaderOrder(parsed.loaderOrder), wordPacks, outputStyle };
 		if (isPlainObject(parsed.decorations)) {
 			for (const [key, value] of Object.entries(parsed.decorations)) {
 				if (!Object.hasOwn(DEFAULT_SETTINGS.decorations, key) || typeof value !== "string") continue;
@@ -394,7 +421,7 @@ export function loadSettings(): DecoratorSettings {
 			}
 		}
 		return settings;
-	} catch { return structuredClone(DEFAULT_SETTINGS); }
+	} catch { return defaultSettings(); }
 }
 
 export function atomicWriteFile(path: string, contents: string): void {

@@ -24,8 +24,10 @@ import {
 	parseLoaderOrder,
 	saveSettings,
 	DONE_MARKER_BORDER_STYLE_VALUES,
+	OUTPUT_STYLE_ID,
 	settingsPath,
 } from "../src/settings.ts";
+import { OUTPUT_STYLE_IDS, OUTPUT_STYLE_LABELS } from "../src/output-style.ts";
 import { loadBundledWordPacks } from "../src/word-packs.ts";
 
 function withTempAgentDir<T>(fn: (dir: string) => T): T {
@@ -47,13 +49,14 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 		features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: true, elapsedTime: false, outputTokens: true, doneMarker: false },
 		loaderOrder: [...DEFAULT_SETTINGS.loaderOrder],
 		wordPacks: { ...DEFAULT_SETTINGS.wordPacks },
+		outputStyle: DEFAULT_SETTINGS.outputStyle,
 	};
 
 	const sections = buildMenuSections(settings, loadBundledWordPacks());
-	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Word Packs", "Options"]);
+	assert.deepEqual(sections.map(section => section.title), ["User Prompt", "“Working” Loader", "Elements Order", "Completion Marker", "Word Packs", "Output Style", "Options"]);
 	const itemIds = sections.flatMap(section => section.items).map(item => item.id);
 	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
-	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "meterUpperBoundTps", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "showResponseModel", "responseModelColor", "responseModelDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel", "doneMarker", "doneMarkerStyle", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "doneMarkerServiceTier", "doneMarkerModel", "doneMarkerModelColor", "doneMarkerModelDimmed", "pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars", "includeDefaultWorkingText", "useNerdFont", "showResponseModelFooter"]);
+	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "meterUpperBoundTps", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "showResponseModel", "responseModelColor", "responseModelDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel", "doneMarker", "doneMarkerStyle", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "doneMarkerServiceTier", "doneMarkerModel", "doneMarkerModelColor", "doneMarkerModelDimmed", "pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars", "includeDefaultWorkingText", "outputStyle", "useNerdFont", "showResponseModelFooter"]);
 	assert.equal(sections[1]!.items[0]!.value, false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:simcity")!.value, false);
 	assert.equal(sections[4]!.items.find(item => item.id === "pack:star-trek")!.value, false);
@@ -100,7 +103,14 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.deepEqual(sections[4]!.items.find(item => item.id === "includeDefaultWorkingText")!.disabledUnlessAnyOf, [
 		"pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars",
 	]);
-	assert.equal(sections[5]!.items.find(item => item.id === "showResponseModelFooter")!.value, false);
+	const outputStyle = sections[5]!.items[0]!;
+	assert.equal(outputStyle.id, OUTPUT_STYLE_ID);
+	assert.equal(outputStyle.label, "Style");
+	assert.equal(outputStyle.value, "default");
+	assert.deepEqual(outputStyle.cycleValues, OUTPUT_STYLE_IDS);
+	assert.deepEqual(outputStyle.cycleValueLabels, OUTPUT_STYLE_LABELS);
+	assert.equal(outputStyle.cycleEnabledBy, undefined);
+	assert.equal(sections[6]!.items.find(item => item.id === "showResponseModelFooter")!.value, false);
 	const meterUpperBound = sections[1]!.items.find(item => item.id === "meterUpperBoundTps")!;
 	assert.equal(meterUpperBound.label, "Token activity monitor upper bound");
 	assert.equal(meterUpperBound.value, "80");
@@ -138,6 +148,13 @@ test("applyMenuResult adopts the reordered element list from the menu", () => {
 	const updated = applyMenuResult(DEFAULT_SETTINGS, { [LOADER_ORDER_ID]: "text,meter,spinner,elapsed,tokens" });
 	assert.deepEqual(updated.loaderOrder, ["text", "meter", "spinner", "elapsed", "tokens", "tokenRate", "responseModel"]);
 	assert.deepEqual(DEFAULT_SETTINGS.loaderOrder, ["spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel"]);
+});
+
+test("applyMenuResult validates output style cycle values", () => {
+	assert.equal(applyMenuResult(DEFAULT_SETTINGS, { [OUTPUT_STYLE_ID]: "explanatory" }).outputStyle, "explanatory");
+	for (const value of ["Explanatory", "Bogus", true]) {
+		assert.equal(applyMenuResult(DEFAULT_SETTINGS, { [OUTPUT_STYLE_ID]: value }).outputStyle, "default");
+	}
 });
 
 test("cycle values validate stored values and invalid preview inputs", () => {
@@ -239,6 +256,57 @@ test("loadSettings returns defaults when the file is missing", () => {
 	});
 });
 
+test("loadSettings imports the legacy style when pi-topping has no settings file", () => {
+	withTempAgentDir((dir) => {
+		const legacyPath = join(dir, "pi-topping-insights", "settings.json");
+		mkdirSync(dirname(legacyPath), { recursive: true });
+		writeFileSync(legacyPath, JSON.stringify({ style: "Explanatory" }));
+		assert.equal(loadSettings().outputStyle, "explanatory");
+	});
+});
+
+test("loadSettings imports the legacy style when its own file is not an object", () => {
+	withTempAgentDir((dir) => {
+		const legacyPath = join(dir, "pi-topping-insights", "settings.json");
+		mkdirSync(dirname(legacyPath), { recursive: true });
+		writeFileSync(legacyPath, JSON.stringify({ style: "Explanatory" }));
+		mkdirSync(dirname(settingsPath()), { recursive: true });
+		writeFileSync(settingsPath(), JSON.stringify("not an object"));
+		assert.equal(loadSettings().outputStyle, "explanatory");
+	});
+});
+
+test("loadSettings falls back to Default for an invalid outputStyle without legacy settings", () => {
+	withTempAgentDir(() => {
+		mkdirSync(dirname(settingsPath()), { recursive: true });
+		writeFileSync(settingsPath(), JSON.stringify({ outputStyle: "Explanatory" }));
+		assert.equal(loadSettings().outputStyle, "default");
+	});
+});
+
+test("loadSettings validates outputStyle and lets an explicit Default win over legacy", () => {
+	withTempAgentDir((dir) => {
+		const legacyPath = join(dir, "pi-topping-insights", "settings.json");
+		mkdirSync(dirname(legacyPath), { recursive: true });
+		writeFileSync(legacyPath, JSON.stringify({ style: "Explanatory" }));
+		mkdirSync(dirname(settingsPath()), { recursive: true });
+		writeFileSync(settingsPath(), JSON.stringify({ outputStyle: "Bogus" }));
+		assert.equal(loadSettings().outputStyle, "explanatory");
+
+		writeFileSync(settingsPath(), JSON.stringify({ outputStyle: "default" }));
+		assert.equal(loadSettings().outputStyle, "default");
+	});
+});
+
+test("loadSettings falls back to Default for a corrupt legacy style file", () => {
+	withTempAgentDir((dir) => {
+		const legacyPath = join(dir, "pi-topping-insights", "settings.json");
+		mkdirSync(dirname(legacyPath), { recursive: true });
+		writeFileSync(legacyPath, "{ not json");
+		assert.equal(loadSettings().outputStyle, "default");
+	});
+});
+
 test("loadSettings deep-merges a partial nested file over defaults", () => {
 	withTempAgentDir(() => {
 		mkdirSync(join(settingsPath(), ".."), { recursive: true });
@@ -253,6 +321,7 @@ test("loadSettings deep-merges a partial nested file over defaults", () => {
 			features: { ...DEFAULT_SETTINGS.features, outputTokens: false },
 			wordPacks: { simcity: true },
 			loaderOrder: [...DEFAULT_SETTINGS.loaderOrder],
+			outputStyle: "default",
 		});
 	});
 });
@@ -365,6 +434,7 @@ test("saveSettings then loadSettings round-trips the full schema", () => {
 			features: { ...DEFAULT_SETTINGS.features, substituteDefaultMessage: false, elapsedTime: true, outputTokens: false, tokenRate: false, responseModel: false, doneMarker: true },
 			wordPacks: { simcity: true, "star-trek": false, "star-wars": false },
 			loaderOrder: ["meter", "elapsed", "spinner", "tokens", "text", "tokenRate", "responseModel"],
+			outputStyle: "explanatory",
 		};
 		saveSettings(custom);
 		assert.deepEqual(loadSettings(), custom);
@@ -397,7 +467,9 @@ test("loadSettings migrates legacy spinner and default border colors once", () =
 test("saveSettings writes the settings schema version", () => {
 	withTempAgentDir(() => {
 		saveSettings(DEFAULT_SETTINGS);
-		assert.equal(JSON.parse(readFileSync(settingsPath(), "utf8")).schemaVersion, SETTINGS_SCHEMA_VERSION);
+		const saved = JSON.parse(readFileSync(settingsPath(), "utf8"));
+		assert.equal(saved.schemaVersion, SETTINGS_SCHEMA_VERSION);
+		assert.equal(saved.schemaVersion, 4);
 	});
 });
 

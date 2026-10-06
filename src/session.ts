@@ -1,6 +1,8 @@
 import type {
 	AgentSettledEvent,
 	AgentStartEvent,
+	BeforeAgentStartEvent,
+	BeforeAgentStartEventResult,
 	CustomEntry,
 	ExtensionAPI,
 	ExtensionCommandContext,
@@ -40,6 +42,7 @@ import {
 } from "./format.ts";
 import { buildLoaderMessage } from "./loader-message.ts";
 import { showMenu } from "./menu.ts";
+import { applyOutputStyle, OUTPUT_STYLES } from "./output-style.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { registerSetupCommand } from "./setup-command.ts";
 import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type ThinkingLevelColor } from "./settings.ts";
@@ -63,6 +66,7 @@ type UIPromptKind = UIPromptStartEvent["kind"];
 
 const DONE_ENTRY_TYPE = "pi-topping-done";
 const RESPONSE_MODEL_STATUS_KEY = "pi-topping-response-model";
+const OUTPUT_STYLE_STATUS_KEY = "pi-topping-output-style";
 /** Pi's `VIRTUAL_MODEL_API` for extension-registered virtual models; Pi does not export it from its public index. */
 const VIRTUAL_MODEL_API = "pi-virtual";
 const WAITING_LABELS: Record<UIPromptKind, string> = {
@@ -217,9 +221,14 @@ export class SessionManager {
 		this.#state.activityMeter.setDirection(this.#settings.decorations.meterDirection);
 		if (this.usable(ctx)) {
 			this.applyIndicator(ctx);
+			this.applyOutputStyleStatus(ctx);
 			announceMissingToppingsOnce(this.#pi);
 		}
 	};
+
+	/** Unlike the UI handlers, this runs in every mode: the output style shapes the model's prompt. */
+	#onBeforeAgentStart = (event: BeforeAgentStartEvent): BeforeAgentStartEventResult | undefined =>
+		applyOutputStyle(event.systemPromptOptions?.sections, this.#settings.outputStyle);
 
 	#onInput = async (event: InputEvent, ctx: ExtensionContext): Promise<InputEventResult | void> => {
 		this.#currentCtx = ctx;
@@ -445,6 +454,7 @@ export class SessionManager {
 
 	install(): void {
 		this.#pi.on("session_start", this.#onSessionStart);
+		this.#pi.on("before_agent_start", this.#onBeforeAgentStart);
 		this.#pi.on("input", this.#onInput);
 		this.#pi.on("agent_start", this.#onAgentStart);
 		this.#pi.on("message_start", this.#onMessageStart);
@@ -470,7 +480,7 @@ export class SessionManager {
 		this.#pi.registerEntryRenderer<MissingToppingsEntryData>(SETUP_ENTRY_TYPE, (entry, _o, theme) => renderMissingToppingsEntry(entry, theme));
 		this.#pi.registerMessageRenderer<PromptBoxDetails>(PROMPT_BOX_TYPE, promptBoxRenderer);
 		this.#pi.registerCommand("topping-settings", {
-			description: "Configure prompt decoration, working-loader features/order, and completion-marker settings.",
+			description: "Configure prompt decoration, working-loader features/order, completion-marker settings, and output style.",
 			handler: async (_a, ctx) => this.showSettings(ctx),
 		});
 		registerSetupCommand(this.#pi);
@@ -513,6 +523,10 @@ export class SessionManager {
 			frames: WAITING_PULSE_FRAMES.map((frame) => ctx.ui.theme.fg("dim", frame)),
 			intervalMs: WAITING_PULSE_INTERVAL_MS,
 		});
+	}
+
+	private applyOutputStyleStatus(ctx: ExtensionContext): void {
+		ctx.ui.setStatus(OUTPUT_STYLE_STATUS_KEY, OUTPUT_STYLES[this.#settings.outputStyle].status);
 	}
 
 	private applyIndicator(ctx: ExtensionContext): void {
@@ -789,6 +803,7 @@ export class SessionManager {
 		this.#userPacks = loadUserWordPacks();
 		this.#allPacks = [...this.#bundledPacks, ...this.#userPacks];
 		const before = this.indicatorFingerprint();
+		const styleBefore = this.#settings.outputStyle;
 		const preview = new PreviewRenderer(ctx, this.#allPacks);
 		const result = await showMenu<Record<string, boolean | string>>(ctx, {
 			title: "Pi Topping: Settings",
@@ -808,6 +823,7 @@ export class SessionManager {
 		}
 
 		this.#settings = updatedSettings;
+		this.applyOutputStyleStatus(ctx);
 		if (before !== this.indicatorFingerprint()) {
 			if (this.#state.waiting) this.applyWaitingIndicator(ctx);
 			else this.applyIndicator(ctx);
@@ -818,6 +834,9 @@ export class SessionManager {
 			this.startTimer();
 			this.tick();
 		}
-		ctx.ui.notify("Pi Topping settings saved", "info");
+		const notification = styleBefore === this.#settings.outputStyle
+			? "Pi Topping settings saved"
+			: `Pi Topping settings saved · ${OUTPUT_STYLES[this.#settings.outputStyle].label} output style applies from your next message`;
+		ctx.ui.notify(notification, "info");
 	}
 }

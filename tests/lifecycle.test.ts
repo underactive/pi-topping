@@ -7,6 +7,7 @@ import test from "node:test";
 import type {
 	AgentSettledEvent,
 	AgentStartEvent,
+	BeforeAgentStartEvent,
 	ExtensionAPI,
 	ExtensionCommandContext,
 	ExtensionContext,
@@ -48,6 +49,7 @@ import {
 	TOKEN_RATE_FADE_SHADE_COUNT,
 } from "../src/format.ts";
 import { PreviewRenderer } from "../src/preview.ts";
+import { EXPLANATORY_REMINDER, EXPLANATORY_SECTION, INSIGHT_STAR, OUTPUT_STYLE_MESSAGE_TYPE, OUTPUT_STYLE_SECTION, OUTPUT_STYLES } from "../src/output-style.ts";
 import { PROMPT_BOX_TYPE } from "../src/prompt-decorator.ts";
 import { buildMenuSections, DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/settings.ts";
 import { STATUSLINE_EMBED_CHANNEL } from "../src/statusline-embed.ts";
@@ -57,6 +59,7 @@ import workingDecorator from "../index.ts";
 
 type TestedEvents = {
 	input: InputEvent;
+	before_agent_start: BeforeAgentStartEvent;
 	agent_start: AgentStartEvent;
 	agent_settled: AgentSettledEvent;
 	session_start: SessionStartEvent;
@@ -150,6 +153,25 @@ class MockExtension {
 
 function providerStreamEvent(data: unknown, provider = "openai", api = "openai-responses"): ProviderStreamEvent {
 	return { type: "provider_stream_event", provider, api, model: "test", data } as ProviderStreamEvent;
+}
+
+function beforeAgentStartEvent(sections: Record<string, string>): BeforeAgentStartEvent {
+	return {
+		type: "before_agent_start",
+		prompt: "prompt",
+		systemPrompt: "system prompt",
+		systemPromptOptions: {
+			cwd: process.cwd(),
+			selectedTools: [],
+			toolSnippets: {},
+			toolGuidelines: {},
+			promptGuidelines: [],
+			appendSystemPrompt: "",
+			sections,
+			contextFiles: [],
+			skills: [],
+		},
+	};
 }
 
 async function startTurn(extension: MockExtension, ctx: ExtensionContext, text = "prompt"): Promise<void> {
@@ -1442,6 +1464,7 @@ test("fully-default settings (nothing customized) restore pi's untouched default
 			},
 			loaderOrder: [...DEFAULT_SETTINGS.loaderOrder],
 			wordPacks: { ...DEFAULT_SETTINGS.wordPacks },
+			outputStyle: DEFAULT_SETTINGS.outputStyle,
 		});
 
 		const extension = new MockExtension();
@@ -1698,6 +1721,162 @@ test("/topping-settings requires TUI mode and notifies otherwise", async (t) => 
 		assert.equal(notifications.length, 1);
 		assert.equal(notifications[0]!.type, "error");
 		assert.match(notifications[0]!.message, /TUI mode/);
+	});
+});
+
+test("Default output style leaves foreign prompt sections untouched", async () => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		workingDecorator(extension.asAPI());
+
+		const sections = { foo: "x" };
+		const result = await extension.emit("before_agent_start", beforeAgentStartEvent(sections), ctx);
+		assert.equal(result, undefined);
+		assert.deepEqual(sections, { foo: "x" });
+	});
+});
+
+test("Explanatory style injects prompt guidance, reminder, and footer status", async () => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, outputStyle: "explanatory" });
+		const extension = new MockExtension();
+		const statuses: { key: string; text: string | undefined }[] = [];
+		const ctx = createContext([], [], undefined, { statuses });
+		workingDecorator(extension.asAPI());
+		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
+		assert.deepEqual(statuses.at(-1), { key: "pi-topping-output-style", text: `${INSIGHT_STAR} Explanatory` });
+
+		const sections = { foo: "x" };
+		const result = await extension.emit("before_agent_start", beforeAgentStartEvent(sections), ctx);
+		assert.deepEqual(sections, { foo: "x", [OUTPUT_STYLE_SECTION]: EXPLANATORY_SECTION });
+		assert.deepEqual(result, {
+			message: { customType: OUTPUT_STYLE_MESSAGE_TYPE, content: EXPLANATORY_REMINDER, display: false },
+		});
+	});
+});
+
+test("print mode applies Explanatory prompt guidance without setting UI status", async () => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, outputStyle: "explanatory" });
+		const extension = new MockExtension();
+		const statuses: { key: string; text: string | undefined }[] = [];
+		const ctx = createContext([], [], undefined, { mode: "print", statuses });
+		workingDecorator(extension.asAPI());
+		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
+		assert.equal(statuses.some(status => status.key === "pi-topping-output-style"), false);
+
+		const sections: Record<string, string> = {};
+		const result = await extension.emit("before_agent_start", beforeAgentStartEvent(sections), ctx);
+		assert.equal(sections[OUTPUT_STYLE_SECTION], EXPLANATORY_SECTION);
+		assert.deepEqual(result, {
+			message: { customType: OUTPUT_STYLE_MESSAGE_TYPE, content: EXPLANATORY_REMINDER, display: false },
+		});
+	});
+});
+
+test("Output Style menu cycles with arrows, previews, and applies on Enter", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		let capturedComponent: { render(width: number): string[]; handleInput?(data: string): void } | undefined;
+		const notifications: { message: string; type?: string }[] = [];
+		const statuses: { key: string; text: string | undefined }[] = [];
+		mockTimers(t, () => {});
+		const ctx = createContext([], [], (_color, text) => text, {
+			mode: "tui",
+			notifications,
+			statuses,
+			onCustomComponent: (component) => { capturedComponent = component; },
+		}) as unknown as ExtensionCommandContext;
+
+		workingDecorator(extension.asAPI());
+		const handlerPromise = extension.commands["topping-settings"]!.handler("", ctx);
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.ok(capturedComponent);
+		moveMenuCursor(capturedComponent!, "decorateUserPrompt", "outputStyle");
+
+		const initial = capturedComponent!.render(72).map(stripAnsi).join("\n");
+		assert.ok(initial.includes("‹ Default ›"));
+		assert.ok(initial.includes(OUTPUT_STYLES.default.description));
+		assert.ok(initial.includes("Applies from your next message"));
+
+		capturedComponent!.handleInput!("\x1b[C");
+		const explanatory = capturedComponent!.render(72).map(stripAnsi).join("\n");
+		assert.ok(explanatory.includes("‹ Explanatory ›"));
+		assert.ok(explanatory.includes(OUTPUT_STYLES.explanatory.description));
+		capturedComponent!.handleInput!(" ");
+		assert.ok(capturedComponent!.render(72).map(stripAnsi).join("\n").includes("‹ Explanatory ›"), "Space does not change a cycle-only row");
+
+		capturedComponent!.handleInput!("\r");
+		await handlerPromise;
+		assert.equal(loadSettings().outputStyle, "explanatory");
+		assert.deepEqual(statuses.at(-1), { key: "pi-topping-output-style", text: `${INSIGHT_STAR} Explanatory` });
+		assert.match(notifications.at(-1)!.message, /next message/);
+
+		const sections: Record<string, string> = {};
+		const result = await extension.emit("before_agent_start", beforeAgentStartEvent(sections), ctx);
+		assert.equal(sections[OUTPUT_STYLE_SECTION], EXPLANATORY_SECTION);
+		assert.deepEqual(result, {
+			message: { customType: OUTPUT_STYLE_MESSAGE_TYPE, content: EXPLANATORY_REMINDER, display: false },
+		});
+	});
+});
+
+test("switching Output Style back to Default clears the footer and owned prompt section", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, outputStyle: "explanatory" });
+		const extension = new MockExtension();
+		let capturedComponent: { render(width: number): string[]; handleInput?(data: string): void } | undefined;
+		const notifications: { message: string; type?: string }[] = [];
+		const statuses: { key: string; text: string | undefined }[] = [];
+		mockTimers(t, () => {});
+		const ctx = createContext([], [], (_color, text) => text, {
+			mode: "tui",
+			notifications,
+			statuses,
+			onCustomComponent: (component) => { capturedComponent = component; },
+		}) as unknown as ExtensionCommandContext;
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
+		const handlerPromise = extension.commands["topping-settings"]!.handler("", ctx);
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.ok(capturedComponent);
+		moveMenuCursor(capturedComponent!, "decorateUserPrompt", "outputStyle");
+		capturedComponent!.handleInput!("\x1b[D");
+		assert.ok(capturedComponent!.render(72).map(stripAnsi).join("\n").includes("‹ Default ›"));
+		capturedComponent!.handleInput!("\r");
+		await handlerPromise;
+
+		assert.equal(loadSettings().outputStyle, "default");
+		assert.deepEqual(statuses.at(-1), { key: "pi-topping-output-style", text: undefined });
+		assert.match(notifications.at(-1)!.message, /Default output style applies from your next message/);
+		const sections = { foo: "x", [OUTPUT_STYLE_SECTION]: EXPLANATORY_SECTION };
+		const result = await extension.emit("before_agent_start", beforeAgentStartEvent(sections), ctx);
+		assert.equal(result, undefined);
+		assert.deepEqual(sections, { foo: "x" });
+	});
+});
+
+test("Escape after cycling Output Style does not save the selection", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		let capturedComponent: { render(width: number): string[]; handleInput?(data: string): void } | undefined;
+		mockTimers(t, () => {});
+		const ctx = createContext([], [], (_color, text) => text, {
+			mode: "tui",
+			onCustomComponent: (component) => { capturedComponent = component; },
+		}) as unknown as ExtensionCommandContext;
+
+		workingDecorator(extension.asAPI());
+		const handlerPromise = extension.commands["topping-settings"]!.handler("", ctx);
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.ok(capturedComponent);
+		moveMenuCursor(capturedComponent!, "decorateUserPrompt", "outputStyle");
+		capturedComponent!.handleInput!("\x1b[C");
+		capturedComponent!.handleInput!("\x1b");
+		await handlerPromise;
+		assert.equal(loadSettings().outputStyle, "default");
 	});
 });
 
@@ -2049,6 +2228,7 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		assert.equal(persisted.decorations.doneMarkerModelDimmed, !DEFAULT_SETTINGS.decorations.doneMarkerModelDimmed);
 		assert.equal(persisted.decorations.useNerdFont, !DEFAULT_SETTINGS.decorations.useNerdFont);
 		assert.equal(persisted.features.responseModelFooter, !DEFAULT_SETTINGS.features.responseModelFooter);
+		assert.equal(persisted.outputStyle, "explanatory");
 	});
 });
 

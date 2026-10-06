@@ -4,9 +4,10 @@ import { ActivityMeter, METER_UPPER_BOUND_TPS_MAX, METER_UPPER_BOUND_TPS_MIN, ra
 import { DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatTokenRate, getThinkingLevelColorizer, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, SPINNER_FRAME_MS } from "./format.ts";
 import { buildLoaderMessage } from "./loader-message.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
+import { isOutputStyleId, OUTPUT_STYLES } from "./output-style.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, buildPromptBoxLines } from "./prompt-decorator.ts";
 import { formatServiceTierSummary } from "./service-tier.ts";
-import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleMeterUpperBound, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderColor, isDoneMarkerBorderStyle, isDoneMarkerStyle, isPromptBorderColor, isSpinnerColor, isThinkingLevelColor, LOADER_ORDER_ID, MENU_ENTRIES, parseLoaderOrder } from "./settings.ts";
+import { DEFAULT_SETTINGS, fromCycleDirection, fromCycleMeterUpperBound, fromCycleSpeed, isBorderStyle, isDoneMarkerBorderColor, isDoneMarkerBorderStyle, isDoneMarkerStyle, isPromptBorderColor, isSpinnerColor, isThinkingLevelColor, LOADER_ORDER_ID, MENU_ENTRIES, OUTPUT_STYLE_ID, parseLoaderOrder } from "./settings.ts";
 import { isWordPackEnabled, selectWorkingTextSelection, WORD_PACK_MENU_PREFIX, wordPacksPath, type WordPack } from "./word-packs.ts";
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tps for the meter,
 // flat 28 tps for the token readouts.
@@ -33,6 +34,10 @@ export class PreviewRenderer {
 		if (PROMPT_IDS.has(activeItemId ?? "")) return this.promptPreview(values, width);
 		if (MARKER_IDS.has(activeItemId ?? "")) return this.markerPreview(values, width);
 		if (activeItemId === "useNerdFont") return { lines: ["", `Icon preview: ${values.useNerdFont ? "" : "π"}`, ""] };
+		if (activeItemId === OUTPUT_STYLE_ID) {
+			const id = isOutputStyleId(values[OUTPUT_STYLE_ID]) ? values[OUTPUT_STYLE_ID] : DEFAULT_SETTINGS.outputStyle;
+			return { lines: ["", OUTPUT_STYLES[id].description, this.#ctx.ui.theme.fg("dim", "Applies from your next message")] };
+		}
 		if (activeItemId === "showResponseModelFooter") {
 			if (values.showResponseModelFooter !== true) return { lines: ["", "Response model footer is disabled.", ""] };
 			const color = isThinkingLevelColor(values.responseModelColor) ? values.responseModelColor : DEFAULT_SETTINGS.decorations.responseModelColor;

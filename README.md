@@ -12,6 +12,8 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 **Completion Marker** — end-of-turn marker with icon, randomized verb (or `Worked`; matching past tense when Randomize "Worked" text is on), token consumption display, and optional marker-style, border-style, and border-color decorations spanning the full terminal width. It can append the response model when it differs from the selected model, with its own color option. It can also append per-call service-tier counts (e.g. `flex tier ×3`), but only for calls whose provider reports a tier; this requires Pi ≥0.99.0. The default `elite` style trails the summary with tapering dashes; `bookend` fills the remaining width to a closing corner glyph. Hooks into Pi's `agent_settled` event.
 
+**Output Styles** — choose prompt-instruction styles such as Explanatory to guide how the model responds, with a `★ Explanatory` status in Pi's footer while active. Styles are instructions, not output formatters.
+
 ![Example of pi-topping's completion marker](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_completion_marker.png)
 
 ## Install
@@ -104,14 +106,25 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 ║                                                               ║
 ║    [■] Include default/random “Working” text          ON      ║
 ║                                                               ║
+╟─ Output Style ────────────────────────────────────────────────╢
+║    [■] Style                                   ‹ Default ›    ║
+║                                                               ║
 ╟─ Options ─────────────────────────────────────────────────────╢
 ║    [■] Use NerdFont icons                             ON      ║
 ║    [ ] Response model footer                         OFF      ║
 ╟───────────────────────────────────────────────────────────────╢
 ║  ↑↓ move  PgUp/PgDn page  ←→ select                           ║
 ║  ␣ toggle  ⏎ apply  esc cancel                                ║
-╚═══════════════════════════════════════════════════════[ 9/58 ]╝
+╚═══════════════════════════════════════════════════════[ 9/59 ]╝
 ```
+
+### Output styles
+
+Choose an output style with `←`/`→` in the Output Style section of `/topping-settings`. The selected style changes the model's prompt instructions from your next message. Explanatory requests brief Insight blocks before and after coding and adds `★ Explanatory` to Pi's footer while active. This is a prompt instruction, not a formatter, so a turn may have no Insight.
+
+Output styles also apply in print and RPC modes. Set `"outputStyle": "explanatory"` in `~/.pi/agent/pi-topping/settings.json`; if you edit the file while an interactive session is running, use `/reload` to load the change. Switching styles invalidates the prompt cache once so the next message uses the updated instructions.
+
+The Explanatory prompt is copied word for word from Claude Code's output styles, with two Pi clarifications: a lead-in that frames the instructions for Pi, and an exception allowing Insight blocks despite Pi's conciseness rule. When migrating from `pi-topping-insights`, its saved style is imported until you next save `/topping-settings`. Remove the old extension to avoid duplicate hidden reminders. `/insights` is gone; use `/topping-settings`.
 
 ### Word packs
 
@@ -164,7 +177,7 @@ npm test
 npm run typecheck
 ```
 
-Tests cover the word/shimmer rendering, prompt box and completion marker rendering, activity meter behavior and its configurable upper bound, timer resets, settings persistence and schema migrations, word-pack parsing, loading, and default-text selection, response-model loader and footer behavior, served-model and service-tier extraction, the `menu.ts` component and its typed number entry, the settings menu wiring end to end, and the `/topping-setup` command's install and uninstall flows.
+Tests cover the word/shimmer rendering, prompt box and completion marker rendering, activity meter behavior and its configurable upper bound, timer resets, settings persistence and schema migrations, word-pack parsing, loading, and default-text selection, output-style selection and prompt integration, response-model loader and footer behavior, served-model and service-tier extraction, the `menu.ts` component and its typed number entry, the settings menu wiring end to end, and the `/topping-setup` command's install and uninstall flows.
 
 ## Limitations
 
@@ -172,6 +185,7 @@ Tests cover the word/shimmer rendering, prompt box and completion marker renderi
 - Elapsed time normally starts when you submit a prompt; for auto-continuations without that event, it starts slightly later instead.
 - If another extension also customizes the working message, whichever one runs last wins.
 - Service-tier details and Responses-API served-model/backend labels depend on Pi's `provider_stream_event`; raw events require Pi ≥0.99.0 and are unavailable on older Pi hosts and SDK adapters that do not expose them.
+- Output styles require a host exposing `systemPromptOptions.sections` (verified on 1.0.3); they do nothing on hosts without it.
 
 ## Author
 
