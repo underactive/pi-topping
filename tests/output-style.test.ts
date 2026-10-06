@@ -12,6 +12,8 @@ import {
 	OUTPUT_STYLE_MESSAGE_TYPE,
 	OUTPUT_STYLE_SECTION,
 	OUTPUT_STYLES,
+	SIMPLIFIED_TECHNICAL_ENGLISH_REMINDER,
+	SIMPLIFIED_TECHNICAL_ENGLISH_SECTION,
 } from "../src/output-style.ts";
 
 test("output style section name is valid for pi and not reserved", () => {
@@ -90,4 +92,23 @@ test("Explanatory sets its prompt section and returns a hidden reminder", () => 
 
 test("hosts without structured prompt sections receive no prompt or reminder", () => {
 	assert.equal(applyOutputStyle(undefined, "explanatory"), undefined);
+});
+
+test("Simplified Technical English prompt contains rules and explanations", () => {
+	assert.ok(SIMPLIFIED_TECHNICAL_ENGLISH_SECTION.includes("ASD-STE100"));
+	assert.ok(SIMPLIFIED_TECHNICAL_ENGLISH_SECTION.includes("Simplified Technical English"));
+	assert.ok(SIMPLIFIED_TECHNICAL_ENGLISH_SECTION.includes("Sentence length"));
+	assert.ok(SIMPLIFIED_TECHNICAL_ENGLISH_SECTION.includes("Active voice"));
+});
+
+test("Simplified Technical English sets its prompt section and returns a hidden reminder", () => {
+	const sections = { other: "preserved" };
+	assert.deepEqual(applyOutputStyle(sections, "simplified"), {
+		message: {
+			customType: OUTPUT_STYLE_MESSAGE_TYPE,
+			content: SIMPLIFIED_TECHNICAL_ENGLISH_REMINDER,
+			display: false,
+		},
+	});
+	assert.deepEqual(sections, { other: "preserved", [OUTPUT_STYLE_SECTION]: SIMPLIFIED_TECHNICAL_ENGLISH_SECTION });
 });
