@@ -11,8 +11,6 @@ export interface OutputStyle {
 	section?: string;
 	/** Hidden reminder sent with each prompt while the style is active. */
 	reminder?: string;
-	/** Footer status while the style is active. */
-	status?: string;
 }
 
 // Matches figures.star from Claude Code: a fallback glyph on Windows, and ★ elsewhere.
@@ -53,7 +51,6 @@ export const OUTPUT_STYLES: Readonly<Record<OutputStyleId, OutputStyle>> = {
 		description: "pi explains its implementation choices and codebase patterns",
 		section: EXPLANATORY_SECTION,
 		reminder: EXPLANATORY_REMINDER,
-		status: `${INSIGHT_STAR} Explanatory`,
 	},
 };
 

@@ -64,7 +64,6 @@ test("every output style has a bounded description and Default has no decoration
 	}
 	assert.equal(OUTPUT_STYLES.default.section, undefined);
 	assert.equal(OUTPUT_STYLES.default.reminder, undefined);
-	assert.equal(OUTPUT_STYLES.default.status, undefined);
 });
 
 test("Default clears only this registry's prompt section", () => {

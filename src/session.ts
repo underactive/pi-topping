@@ -66,7 +66,6 @@ type UIPromptKind = UIPromptStartEvent["kind"];
 
 const DONE_ENTRY_TYPE = "pi-topping-done";
 const RESPONSE_MODEL_STATUS_KEY = "pi-topping-response-model";
-const OUTPUT_STYLE_STATUS_KEY = "pi-topping-output-style";
 /** Pi's `VIRTUAL_MODEL_API` for extension-registered virtual models; Pi does not export it from its public index. */
 const VIRTUAL_MODEL_API = "pi-virtual";
 const WAITING_LABELS: Record<UIPromptKind, string> = {
@@ -221,7 +220,6 @@ export class SessionManager {
 		this.#state.activityMeter.setDirection(this.#settings.decorations.meterDirection);
 		if (this.usable(ctx)) {
 			this.applyIndicator(ctx);
-			this.applyOutputStyleStatus(ctx);
 			announceMissingToppingsOnce(this.#pi);
 		}
 	};
@@ -525,10 +523,6 @@ export class SessionManager {
 		});
 	}
 
-	private applyOutputStyleStatus(ctx: ExtensionContext): void {
-		ctx.ui.setStatus(OUTPUT_STYLE_STATUS_KEY, OUTPUT_STYLES[this.#settings.outputStyle].status);
-	}
-
 	private applyIndicator(ctx: ExtensionContext): void {
 		if (!this.#settings.decorations.animatedSpinner || this.spinnerInMessage()) {
 			ctx.ui.setWorkingIndicator({ frames: [] });
@@ -823,7 +817,6 @@ export class SessionManager {
 		}
 
 		this.#settings = updatedSettings;
-		this.applyOutputStyleStatus(ctx);
 		if (before !== this.indicatorFingerprint()) {
 			if (this.#state.waiting) this.applyWaitingIndicator(ctx);
 			else this.applyIndicator(ctx);

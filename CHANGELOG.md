@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Added an Output Style row to `/topping-settings` with Default and Explanatory choices, structured prompt instructions, a hidden per-turn reminder, a `★ Explanatory` footer status, and support in print/RPC modes.
+- Added an Output Style row to `/topping-settings` with Default and Explanatory choices, structured prompt instructions, a hidden per-turn reminder, and support in print/RPC modes.
 - Imported the legacy `pi-topping-insights` saved style until `/topping-settings` is next saved.
 
 ### Changed

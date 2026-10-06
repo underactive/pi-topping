@@ -49,7 +49,7 @@ import {
 	TOKEN_RATE_FADE_SHADE_COUNT,
 } from "../src/format.ts";
 import { PreviewRenderer } from "../src/preview.ts";
-import { EXPLANATORY_REMINDER, EXPLANATORY_SECTION, INSIGHT_STAR, OUTPUT_STYLE_MESSAGE_TYPE, OUTPUT_STYLE_SECTION, OUTPUT_STYLES } from "../src/output-style.ts";
+import { EXPLANATORY_REMINDER, EXPLANATORY_SECTION, OUTPUT_STYLE_MESSAGE_TYPE, OUTPUT_STYLE_SECTION, OUTPUT_STYLES } from "../src/output-style.ts";
 import { PROMPT_BOX_TYPE } from "../src/prompt-decorator.ts";
 import { buildMenuSections, DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/settings.ts";
 import { STATUSLINE_EMBED_CHANNEL } from "../src/statusline-embed.ts";
@@ -1737,7 +1737,7 @@ test("Default output style leaves foreign prompt sections untouched", async () =
 	});
 });
 
-test("Explanatory style injects prompt guidance, reminder, and footer status", async () => {
+test("Explanatory style injects prompt guidance and a reminder without a footer status", async () => {
 	await withTempAgentDir(async () => {
 		saveSettings({ ...DEFAULT_SETTINGS, outputStyle: "explanatory" });
 		const extension = new MockExtension();
@@ -1745,7 +1745,7 @@ test("Explanatory style injects prompt guidance, reminder, and footer status", a
 		const ctx = createContext([], [], undefined, { statuses });
 		workingDecorator(extension.asAPI());
 		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
-		assert.deepEqual(statuses.at(-1), { key: "pi-topping-output-style", text: `${INSIGHT_STAR} Explanatory` });
+		assert.equal(statuses.some(({ text }) => text?.includes("Explanatory")), false);
 
 		const sections = { foo: "x" };
 		const result = await extension.emit("before_agent_start", beforeAgentStartEvent(sections), ctx);
@@ -1756,15 +1756,13 @@ test("Explanatory style injects prompt guidance, reminder, and footer status", a
 	});
 });
 
-test("print mode applies Explanatory prompt guidance without setting UI status", async () => {
+test("print mode applies Explanatory prompt guidance", async () => {
 	await withTempAgentDir(async () => {
 		saveSettings({ ...DEFAULT_SETTINGS, outputStyle: "explanatory" });
 		const extension = new MockExtension();
-		const statuses: { key: string; text: string | undefined }[] = [];
-		const ctx = createContext([], [], undefined, { mode: "print", statuses });
+		const ctx = createContext([], [], undefined, { mode: "print" });
 		workingDecorator(extension.asAPI());
 		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
-		assert.equal(statuses.some(status => status.key === "pi-topping-output-style"), false);
 
 		const sections: Record<string, string> = {};
 		const result = await extension.emit("before_agent_start", beforeAgentStartEvent(sections), ctx);
@@ -1810,7 +1808,7 @@ test("Output Style menu cycles with arrows, previews, and applies on Enter", asy
 		capturedComponent!.handleInput!("\r");
 		await handlerPromise;
 		assert.equal(loadSettings().outputStyle, "explanatory");
-		assert.deepEqual(statuses.at(-1), { key: "pi-topping-output-style", text: `${INSIGHT_STAR} Explanatory` });
+		assert.equal(statuses.some(({ text }) => text?.includes("Explanatory")), false);
 		assert.match(notifications.at(-1)!.message, /next message/);
 
 		const sections: Record<string, string> = {};
@@ -1822,18 +1820,16 @@ test("Output Style menu cycles with arrows, previews, and applies on Enter", asy
 	});
 });
 
-test("switching Output Style back to Default clears the footer and owned prompt section", async (t) => {
+test("switching Output Style back to Default clears the owned prompt section", async (t) => {
 	await withTempAgentDir(async () => {
 		saveSettings({ ...DEFAULT_SETTINGS, outputStyle: "explanatory" });
 		const extension = new MockExtension();
 		let capturedComponent: { render(width: number): string[]; handleInput?(data: string): void } | undefined;
 		const notifications: { message: string; type?: string }[] = [];
-		const statuses: { key: string; text: string | undefined }[] = [];
 		mockTimers(t, () => {});
 		const ctx = createContext([], [], (_color, text) => text, {
 			mode: "tui",
 			notifications,
-			statuses,
 			onCustomComponent: (component) => { capturedComponent = component; },
 		}) as unknown as ExtensionCommandContext;
 
@@ -1849,7 +1845,6 @@ test("switching Output Style back to Default clears the footer and owned prompt 
 		await handlerPromise;
 
 		assert.equal(loadSettings().outputStyle, "default");
-		assert.deepEqual(statuses.at(-1), { key: "pi-topping-output-style", text: undefined });
 		assert.match(notifications.at(-1)!.message, /Default output style applies from your next message/);
 		const sections = { foo: "x", [OUTPUT_STYLE_SECTION]: EXPLANATORY_SECTION };
 		const result = await extension.emit("before_agent_start", beforeAgentStartEvent(sections), ctx);
