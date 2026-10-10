@@ -10,7 +10,7 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
-**Completion Marker** — end-of-turn marker with icon, randomized verb (or `Worked`; matching past tense when Randomize "Worked" text is on), token consumption display, and optional marker-style, border-style, and border-color decorations spanning the full terminal width. It can append the response model when it differs from the selected model, with its own color option. It can also append per-call service-tier counts (e.g. `flex tier ×3`), but only for calls whose provider reports a tier; this requires Pi ≥0.99.0. The default `elite` style trails the summary with tapering dashes; `bookend` fills the remaining width to a closing corner glyph. Hooks into Pi's `agent_settled` event.
+**Completion Marker** — end-of-turn marker with icon, randomized verb (or `Worked`; matching past tense when Randomize "Worked" text is on), token consumption display, and optional marker-style, border-style, and border-color decorations spanning the full terminal width. It can append the response model when it differs from the selected model, with its own color option. It can also append per-call service-tier counts (e.g. `flex tier ×3`), but only for calls whose provider reports a tier; this requires Pi ≥0.99.0. The default `elite` style trails the summary with tapering dashes; `bookend` fills the remaining width to a closing corner glyph. Hooks into Pi's `agent_settled` event. On Pi ≥1.1.0, cancelled runs use `Interrupted` with a warning-colored word and border, while keeping time, tokens, and other enabled details. The existing completion-marker toggle controls it. Older hosts keep the normal marker, so the minimum remains Pi ≥0.84.4.
 
 **Output Styles** — choose prompt-instruction styles such as Explanatory or Simplified Technical English to guide how the model responds. Styles are instructions, not output formatters.
 
@@ -187,7 +187,7 @@ Tests cover the word/shimmer rendering, prompt box and completion marker renderi
 - Elapsed time normally starts when you submit a prompt; for auto-continuations without that event, it starts slightly later instead.
 - If another extension also customizes the working message, whichever one runs last wins.
 - Service-tier details and Responses-API served-model/backend labels depend on Pi's `provider_stream_event`; raw events require Pi ≥0.99.0 and are unavailable on older Pi hosts and SDK adapters that do not expose them.
-- Output styles require a host exposing `systemPromptOptions.sections` (verified on 1.0.3); they do nothing on hosts without it.
+- Output styles require a host exposing `systemPromptOptions.sections` (verified on 1.1.0); they do nothing on hosts without it.
 
 ## Author
 

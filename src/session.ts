@@ -82,6 +82,7 @@ const TOKEN_RATE_HOLD_MS = 1_500;
 const TOKEN_RATE_FADE_MS = 250;
 
 interface DoneEntryData {
+	aborted?: boolean;
 	word: string;
 	elapsedMs: number;
 	tokens?: number;
@@ -363,7 +364,7 @@ export class SessionManager {
 		this.tick();
 	};
 
-	#onAgentSettled = async (_e: AgentSettledEvent, ctx: ExtensionContext): Promise<void> => {
+	#onAgentSettled = async (e: AgentSettledEvent, ctx: ExtensionContext): Promise<void> => {
 		this.#currentCtx = ctx;
 		if (!this.usable(ctx)) return;
 		this.commitServiceTierCall();
@@ -386,8 +387,10 @@ export class SessionManager {
 		resetTokenRateState(this.#state);
 		this.#state.lastMessage = NOT_SENT;
 		if (this.#settings.features.doneMarker && hadPrompt) {
+			const aborted = e.aborted === true;
 			this.#pi.appendEntry<DoneEntryData>(DONE_ENTRY_TYPE, {
-				word: this.#settings.features.randomizeDoneMarker ? this.#state.workingText.pastTense : "Worked",
+				...(aborted ? { aborted: true } : {}),
+				word: aborted ? "Interrupted" : this.#settings.features.randomizeDoneMarker ? this.#state.workingText.pastTense : "Worked",
 				elapsedMs,
 				tokens: this.#state.confirmTokens,
 				midTurnInputs: this.#state.midTurnInputs,
@@ -408,7 +411,8 @@ export class SessionManager {
 
 	#renderDoneEntry(entry: CustomEntry<DoneEntryData>, theme: Theme): Component | undefined {
 		if (!entry.data) return undefined;
-		const word = typeof entry.data.word === "string" ? stripControlChars(entry.data.word) : "Worked";
+		const aborted = entry.data.aborted === true;
+		const word = aborted ? "Interrupted" : typeof entry.data.word === "string" ? stripControlChars(entry.data.word) : "Worked";
 		const elapsedMs = typeof entry.data.elapsedMs === "number" && Number.isFinite(entry.data.elapsedMs) ? entry.data.elapsedMs : 0;
 		const features = this.#settings.features;
 		const details: string[] = [];
@@ -427,9 +431,9 @@ export class SessionManager {
 			? getThinkingLevelColorizer(theme, this.#settings.decorations.doneMarkerModelColor, thinkingLevel)(rawModel)
 			: "";
 		const model = modelColored && this.#settings.decorations.doneMarkerModelDimmed ? dimAttribute(modelColored) : modelColored;
-		const markerContent = buildCompletionMarkerContent(theme, icon, word, formatElapsed(elapsedMs), details, model);
+		const markerContent = buildCompletionMarkerContent(theme, icon, word, formatElapsed(elapsedMs), details, model, aborted ? "warning" : "dim");
 		const borderStyle = this.#settings.decorations.doneMarkerBorderStyle;
-		const borderColor = this.#settings.decorations.doneMarkerBorderColor;
+		const borderColor = aborted ? "warning" : this.#settings.decorations.doneMarkerBorderColor;
 		const markerStyle = this.#settings.decorations.doneMarkerStyle;
 		if (borderStyle === "none") return new Text(markerContent);
 

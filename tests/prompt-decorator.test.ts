@@ -120,6 +120,21 @@ test("completion marker content appends a pre-styled model after the detail grou
 	assert.ok(visibleWidth(buildCompletionMarkerLine(content, 18, theme, "heavy", "accent")) <= 18);
 });
 
+test("warning marker words are separate from dim time and token details", () => {
+	assert.equal(
+		buildCompletionMarkerContent(taggedTheme, "π", "Interrupted", "5s", ["↓ 39 tokens"], "", "warning"),
+		"π<dim> </dim><warning>Interrupted</warning><dim> for 5s (↓ 39 tokens)</dim>",
+	);
+	const ansiTheme = {
+		...theme,
+		fg: (color: string, text: string) => color === "dim" ? `\x1b[2m${text}\x1b[22;39m` : `\x1b[33m${text}\x1b[39m`,
+	};
+	assert.equal(
+		buildCompletionMarkerContent(ansiTheme, "", "Interrupted", "5s", ["↓ 39 tokens"], "", "warning"),
+		"\x1b[33mInterrupted\x1b[39m\x1b[2m for 5s (↓ 39 tokens)\x1b[22;39m",
+	);
+});
+
 test("completion marker uses the selected border color", () => {
 	for (const color of DONE_MARKER_BORDER_COLOR_VALUES) {
 		const line = buildCompletionMarkerLine(" Mustered", 80, taggedTheme, "heavy", color);

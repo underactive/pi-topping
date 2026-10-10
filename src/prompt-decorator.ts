@@ -1,4 +1,4 @@
-import type { MessageRenderer } from "@earendil-works/pi-coding-agent";
+import type { MessageRenderer, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { getThinkingLevelColorizer, isThinkingLevel, type ThinkingLevel } from "./format.ts";
 import { DEFAULT_SETTINGS, isBorderStyle, isPromptBorderColor, type BorderStyle, type DoneMarkerBorderColor, type DoneMarkerBorderStyle, type DoneMarkerStyle, type PromptBorderColor } from "./settings.ts";
@@ -41,7 +41,7 @@ type PromptTheme = {
 
 const COMPLETION_MARKER_TRAIL_RUNS = [6, 4, 2, 1] as const;
 
-/** Assemble the completion-marker content: an optional icon, then the dim `word for elapsed (details)` summary, then an optional pre-styled model suffix. */
+/** Assemble the completion summary with an optional word color and pre-styled model suffix. */
 export function buildCompletionMarkerContent(
 	theme: PromptTheme,
 	icon: string,
@@ -49,9 +49,12 @@ export function buildCompletionMarkerContent(
 	elapsed: string,
 	details: string[],
 	model = "",
+	wordColor: ThemeColor = "dim",
 ): string {
 	const tail = details.length ? ` (${details.join(" · ")})` : "";
-	const summary = theme.fg("dim", `${icon ? " " : ""}${word} for ${elapsed}${tail}`);
+	const summary = wordColor === "dim"
+		? theme.fg("dim", `${icon ? " " : ""}${word} for ${elapsed}${tail}`)
+		: `${icon ? theme.fg("dim", " ") : ""}${theme.fg(wordColor, word)}${theme.fg("dim", ` for ${elapsed}${tail}`)}`;
 	return `${icon}${summary}${model ? `${theme.fg("dim", " · ")}${model}` : ""}`;
 }
 

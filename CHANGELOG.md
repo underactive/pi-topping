@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added an Output Style row to `/topping-settings` with Default, Explanatory, and Simplified Technical English choices, structured prompt instructions, a hidden per-turn reminder, and support in print/RPC modes.
 - Imported the legacy `pi-topping-insights` saved style until `/topping-settings` is next saved.
+- Added an `Interrupted` completion marker for cancelled runs on Pi ≥1.1.0. The word and optional border use the warning color, independent of random marker text. It keeps time, tokens, and other enabled details, renders from stored abort data after resume, and uses the existing completion-marker toggle. Older hosts keep the normal marker; the minimum remains Pi ≥0.84.4.
 
 ### Changed
 - Folded the insights behavior into output styles; the `/insights` command was not carried over.
+- Verified compatibility with Pi 1.1.0; development and CI now typecheck and test against it, and the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 1.0.3 to 1.1.0. Updated test fixtures for the required `AgentSettledEvent.aborted` and normalized prompt-options `hiddenTools` fields. The published `peerDependencies` remain `*`, and the minimum supported host is still Pi ≥0.84.4.
 
 ## [0.10.0] - 2026-10-05
 

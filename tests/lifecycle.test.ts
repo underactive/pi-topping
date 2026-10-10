@@ -151,6 +151,10 @@ class MockExtension {
 	}
 }
 
+function agentSettledEvent(aborted = false): AgentSettledEvent {
+	return { type: "agent_settled", aborted };
+}
+
 function providerStreamEvent(data: unknown, provider = "openai", api = "openai-responses"): ProviderStreamEvent {
 	return { type: "provider_stream_event", provider, api, model: "test", data } as ProviderStreamEvent;
 }
@@ -163,6 +167,7 @@ function beforeAgentStartEvent(sections: Record<string, string>): BeforeAgentSta
 		systemPromptOptions: {
 			cwd: process.cwd(),
 			selectedTools: [],
+			hiddenTools: [],
 			toolSnippets: {},
 			toolGuidelines: {},
 			promptGuidelines: [],
@@ -392,7 +397,7 @@ test("an input-less run resets the token count after settling", async (t) => {
 		await extension.emit("input", { type: "input", text: "first", source: "interactive" }, ctx);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(500) }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		now = 10_000;
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
@@ -553,7 +558,7 @@ test("tracks streamed tokens, usage reconciliation, tool words, and settlement",
 		tick!();
 		assert.match(stripAnsi(messages.at(-1)!), /^Zigzagging/);
 
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.equal(messages.at(-1), undefined);
 		assert.deepEqual(indicators.at(-1), { frames: SPINNER_FRAMES });
 	});
@@ -645,7 +650,7 @@ test("settling while waiting restores the loader and retains wall-clock elapsed 
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		await extension.emit("ui_prompt_start", { type: "ui_prompt_start", reason: "ui_prompt", kind: "editor" }, ctx);
 		now = 6_000;
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.equal(messages.at(-1), undefined);
 		assert.deepEqual(indicators.at(-1), { frames: SPINNER_FRAMES });
 		assert.equal((extension.appendedEntries.at(-1)!.data as { elapsedMs: number }).elapsedMs, 5_000);
@@ -938,7 +943,7 @@ test("response model footer is disabled by default", async (t) => {
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		assert.ok(statuses.every(({ text }) => text === undefined));
 	});
@@ -962,7 +967,7 @@ test("response model footer works independently of the loader toggle", async (t)
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
 		assert.ok(!messages.at(-1)!.includes("test-model"));
 
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.match(statuses.at(-1)!.text!, /test-model/);
 	});
 });
@@ -986,7 +991,7 @@ test("response model is sanitized, configurable, and holds then fades after sett
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "\u0000 test-model \u001b") }, ctx);
 		assert.match(messages.at(-1)!, /\x1b\[2m\x1b\[38;2;224;224;224mtest-model\x1b\[0m\x1b\[22m$/);
 
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.match(statuses.at(-1)!.text!, /\x1b\[2m\x1b\[38;2;224;224;224mtest-model\x1b\[0m\x1b\[22m$/);
 		assert.equal(timers.filter((timer) => timer.ms === RESPONSE_MODEL_HOLD_MS).length, 1);
 		const hold = holdTimer(timers);
@@ -1023,7 +1028,7 @@ test("Switchyard response model overrides the configured loader color with NVIDI
 		assert.match(messages.at(-1)!, /\x1b\[38;2;132;197;26mtest-model\x1b\[39m/);
 		assert.ok(!messages.at(-1)!.includes("<error>test-model</error>"));
 
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.match(statuses.at(-1)!.text!, /\x1b\[38;2;132;197;26mtest-model\x1b\[39m/);
 	});
 });
@@ -1048,7 +1053,7 @@ test("thinking-level response model color follows the active thinking level", as
 
 		assert.match(messages.at(-1)!, /<thinking-high>test-model<\/thinking-high>/);
 
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.match(statuses.at(-1)!.text!, /<thinking-high>test-model<\/thinking-high>/);
 	});
 });
@@ -1111,7 +1116,7 @@ test("resembling response models are suppressed during streaming and settlement"
 		assert.ok(!messages.at(-1)!.includes("Qwen3"));
 
 		await extension.emit("message_end", { type: "message_end", message: partial }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.ok(statuses.every(({ text }) => text === undefined), "suppressed models must not start a response-model fade");
 		assert.equal((extension.appendedEntries[0]!.data as { model?: string }).model, undefined);
 	});
@@ -1146,7 +1151,7 @@ test("auto selections retain resolved response models and clear stale streamed v
 		assert.ok(!messages.at(-1)!.includes("resolved-model"));
 
 		await extension.emit("message_end", { type: "message_end", message: resolved }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.match(statuses.at(-1)!.text!, /resolved-model/);
 	});
 });
@@ -1164,7 +1169,7 @@ test("response model fade is cancelled by a new run and shutdown", async (t) => 
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		const firstHold = holdTimer(timers);
 		assert.ok(firstHold);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
@@ -1176,7 +1181,7 @@ test("response model fade is cancelled by a new run and shutdown", async (t) => 
 		assert.equal(fadeTimer(timers, firstHold), fadeBefore, "a cancelled hold schedules no fade timer");
 
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.equal(timers.filter((timer) => timer.ms === RESPONSE_MODEL_HOLD_MS).length, 2);
 		const secondHold = holdTimer(timers);
 		assert.ok(secondHold && secondHold !== firstHold);
@@ -1273,7 +1278,7 @@ test("settling or shutting down mid-slide stops the response model's slide timer
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
 		const settled = slideTimer(timers);
 		assert.ok(settled);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.ok(cleared.has(settled.id), "settling stops the slide");
 
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
@@ -1317,7 +1322,7 @@ test("a response model shows whole at once unless pi-topping-statusline embeds t
 		await run();
 		assert.match(stripAnsi(messages.at(-1)!), /↓ 0 tokens · test-model$/, "without statusline announcing, the model shows at once");
 		assert.equal(slideTimer(timers), undefined);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
 		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: false });
@@ -1591,7 +1596,7 @@ test("animatedSpinner=false hides the spinner via empty frames and stays hidden 
 		assert.deepEqual(indicators.at(-1), { frames: [] });
 
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.deepEqual(indicators.at(-1), { frames: [] });
 	});
 });
@@ -1608,7 +1613,7 @@ test("animatedSpinner=true (default) uses thinking-level spinner frames", async 
 		workingDecorator(extension.asAPI());
 		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		assert.ok(!indicators.some((i) => JSON.stringify(i) === JSON.stringify({ frames: [] })));
 		assert.deepEqual(indicators.at(-1), {
@@ -1629,7 +1634,7 @@ test("agent_start refreshes the leading spinner when thinking level changes betw
 		workingDecorator(extension.asAPI());
 		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		assert.deepEqual(indicators.at(-1), {
 			frames: SPINNER_FRAMES.map((frame) => `<thinking-off>${frame}</thinking-off>`),
@@ -2463,6 +2468,138 @@ test("prompt decoration can be disabled", async () => {
 	});
 });
 
+test("aborted settlement keeps turn details and overrides randomized marker text", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`, { thinkingLevel: "high" });
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		t.mock.method(Math, "random", () => 0);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(39, "served-model") }, ctx);
+		await extension.emit("provider_stream_event", providerStreamEvent({ service_tier: "flex" }), ctx);
+		await extension.emit("input", { type: "input", text: "more", source: "interactive", streamingBehavior: "steer" }, ctx);
+		now = 6_000;
+		await extension.emit("agent_settled", agentSettledEvent(true), ctx);
+
+		const data = extension.appendedEntries[0]!.data;
+		assert.deepEqual(data, {
+			aborted: true, word: "Interrupted", elapsedMs: 5_000, tokens: 39, midTurnInputs: 1,
+			serviceTiers: [{ tier: "flex", calls: 1 }], thinkingLevel: "high", model: "served-model",
+		});
+		const text = renderedDoneEntry(extension, ctx, data, 300);
+		assert.match(text, /<warning>Interrupted<\/warning><dim> for 5s \(↓ 39 tokens · 1 mid-turn input · flex tier\)<\/dim>/);
+		assert.match(text, /<muted>served-model<\/muted>/);
+		assert.doesNotMatch(text, /<dim>[^<]*<warning>/);
+	});
+});
+
+test("non-aborted settlement keeps the normal marker and stored entry shape", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, randomizeDoneMarker: false } });
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(false), ctx);
+		const data = extension.appendedEntries[0]!.data as { word: string; aborted?: boolean };
+		assert.equal(data.word, "Worked");
+		assert.equal(Object.hasOwn(data, "aborted"), false);
+		assert.match(renderedDoneEntry(extension, ctx, data), /Worked for 0s/);
+	});
+});
+
+test("an older host without the abort field keeps the normal marker", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, randomizeDoneMarker: false } });
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		// Model the pre-1.1.0 runtime event without weakening the production type.
+		const legacyEvent = { type: "agent_settled" } as AgentSettledEvent;
+		assert.equal(Object.hasOwn(legacyEvent, "aborted"), false);
+		await extension.emit("agent_settled", legacyEvent, ctx);
+		const data = extension.appendedEntries[0]!.data as { word: string; aborted?: boolean };
+		assert.equal(data.word, "Worked");
+		assert.equal(Object.hasOwn(data, "aborted"), false);
+	});
+});
+
+test("resumed aborted entries use the stored flag and warning border", async () => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, decorations: { ...DEFAULT_SETTINGS.decorations, doneMarkerBorderStyle: "heavy", doneMarkerBorderColor: "success" } });
+		const extension = new MockExtension();
+		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
+		workingDecorator(extension.asAPI());
+		await extension.emit("session_start", { type: "session_start", reason: "resume" }, ctx);
+		// A different stored word proves the renderer uses the abort flag, not just the word.
+		const text = renderedDoneEntry(extension, ctx, { aborted: true, word: "Baked", elapsedMs: 5_000, tokens: 39 }, 300);
+		assert.match(text, /<warning>┗━━ /);
+		assert.match(text, /<warning>Interrupted<\/warning><dim> for 5s \(↓ 39 tokens\)<\/dim>/);
+		assert.doesNotMatch(text, /Baked|<success>/);
+	});
+});
+
+test("interrupted markers stay warning colored without a border or icon", async () => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			features: { ...DEFAULT_SETTINGS.features, doneMarkerIcon: false },
+			decorations: { ...DEFAULT_SETTINGS.decorations, doneMarkerBorderStyle: "none" },
+		});
+		const extension = new MockExtension();
+		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
+		workingDecorator(extension.asAPI());
+		const text = renderedDoneEntry(extension, ctx, { aborted: true, word: "Baked", elapsedMs: 5_000, tokens: 39 }, 300);
+		assert.equal(text.trim(), "<warning>Interrupted</warning><dim> for 5s (↓ 39 tokens)</dim>");
+	});
+});
+
+test("aborted settlement respects doneMarker=false", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, doneMarker: false } });
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(true), ctx);
+		assert.equal(extension.appendedEntries.length, 0);
+	});
+});
+
+test("aborted settlement still holds and fades the response-model footer", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, responseModelFooter: true } });
+		const extension = new MockExtension();
+		const statuses: { key: string; text: string | undefined }[] = [];
+		const ctx = createContext([], [], truecolorThemeFg, { statuses });
+		t.mock.method(Date, "now", () => 1_000);
+		const { timers, cleared } = recordTimers(t);
+		workingDecorator(extension.asAPI());
+		await startTurn(extension, ctx);
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(39, "served-model") }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(true), ctx);
+		assert.match(statuses.at(-1)!.text!, /served-model/);
+		const hold = holdTimer(timers);
+		assert.ok(hold);
+		hold.tick();
+		const fade = fadeTimer(timers, hold);
+		assert.ok(fade);
+		for (let i = 0; i < TOKEN_RATE_FADE_SHADE_COUNT; i++) fade.tick();
+		assert.equal(statuses.at(-1)!.text, undefined);
+		assert.ok(cleared.has(fade.id));
+	});
+});
+
 test("agent_settled uses the matching past tense when the final working text is SimCity", async (t) => {
 	await withTempAgentDir(async () => {
 		saveSettings({
@@ -2482,7 +2619,7 @@ test("agent_settled uses the matching past tense when the final working text is 
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 
 		now = 1_000 + 6 * 60_000 + 41_000; // 6m 41s later
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		assert.equal(extension.appendedEntries.length, 1);
 		const entry = extension.appendedEntries[0]!;
@@ -2509,7 +2646,7 @@ test("built-in completion marker matches the final working text", async (t) => {
 		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		assert.match(stripAnsi(messages.at(-1)!), /^Newspapering/);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		const data = extension.appendedEntries[0]!.data as { word: string };
 		assert.equal(data.word, "Newspapered");
@@ -2540,7 +2677,7 @@ test("completion marker follows the last working-text source", async (t) => {
 			toolName: "read",
 			args: {},
 		}, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		// Second turn: SimCity prompt, then built-in tool text => its paired past tense.
 		await extension.emit("input", { type: "input", text: "second", source: "interactive" }, ctx);
@@ -2551,7 +2688,7 @@ test("completion marker follows the last working-text source", async (t) => {
 			toolName: "read",
 			args: {},
 		}, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		const words = extension.appendedEntries.map((entry) => (entry.data as { word: string }).word);
 		assert.deepEqual(words, ["Zeroed", "Accomplished"]);
@@ -2573,7 +2710,7 @@ test("agent_settled does not append a completion marker when doneMarker is disab
 		workingDecorator(extension.asAPI());
 		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		assert.equal(extension.appendedEntries.length, 0);
 	});
@@ -2588,7 +2725,7 @@ test("agent_settled without a preceding prompt start does not append a completio
 
 		workingDecorator(extension.asAPI());
 		// No "input"/"agent_start" emitted first, so state.startTime is still 0.
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		assert.equal(extension.appendedEntries.length, 0);
 	});
@@ -2632,7 +2769,7 @@ test("completion marker captures and renders the response model independently of
 		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(39, "test-model") }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		const data = extension.appendedEntries[0]!.data as { model?: string };
 		assert.equal(data.model, "test-model");
@@ -2660,7 +2797,7 @@ test("provider response tiers are counted once per call and summarized in first-
 			}
 			await extension.emit("message_end", { type: "message_end", message: assistantMessage() }, ctx);
 		}
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		const data = extension.appendedEntries[0]!.data as { serviceTiers?: { tier: string; calls: number }[] };
 		assert.deepEqual(data.serviceTiers, [{ tier: "flex", calls: 2 }, { tier: "priority", calls: 1 }]);
@@ -2679,7 +2816,7 @@ test("the last raw tier reported by a provider call is the one summarized", asyn
 		await extension.emit("provider_stream_event", providerStreamEvent({ service_tier: "flex" }), ctx);
 		await extension.emit("provider_stream_event", providerStreamEvent({ service_tier: "priority" }), ctx);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage() }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		const data = extension.appendedEntries[0]!.data as { serviceTiers?: unknown };
 		assert.deepEqual(data.serviceTiers, [{ tier: "priority", calls: 1 }]);
@@ -2702,7 +2839,7 @@ test("a call without a tier does not inherit the previous call's tier", async (t
 		}
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage() }, ctx);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage() }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		const data = extension.appendedEntries[0]!.data as { serviceTiers?: unknown };
 		assert.deepEqual(data.serviceTiers, [{ tier: "flex", calls: 1 }]);
@@ -2724,7 +2861,7 @@ test("Anthropic message_start raw tier is retained before Pi's normalized messag
 		), ctx);
 		await extension.emit("message_start", { type: "message_start", message }, ctx);
 		await extension.emit("message_end", { type: "message_end", message }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		assert.deepEqual((extension.appendedEntries[0]!.data as { serviceTiers?: unknown }).serviceTiers, [{ tier: "standard", calls: 1 }]);
 	});
@@ -2741,11 +2878,11 @@ test("idle provider events are ignored and service tiers reset between turns", a
 		await extension.emit("provider_stream_event", idle, ctx);
 		await startTurn(extension, ctx, "first");
 		await extension.emit("provider_stream_event", providerStreamEvent({ response: { service_tier: "flex" } }), ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		await extension.emit("provider_stream_event", idle, ctx);
 
 		await startTurn(extension, ctx, "second");
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		const entries = extension.appendedEntries.map((entry) => entry.data as { serviceTiers?: unknown });
 		assert.deepEqual(entries[0]!.serviceTiers, [{ tier: "flex", calls: 1 }]);
@@ -2762,7 +2899,7 @@ test("no reported service tier is omitted from the entry and marker", async (t) 
 		workingDecorator(extension.asAPI());
 		await startTurn(extension, ctx);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(39) }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		const data = extension.appendedEntries[0]!.data as { serviceTiers?: unknown };
 		assert.equal(Object.hasOwn(data, "serviceTiers"), false);
@@ -2783,7 +2920,7 @@ test("doneMarkerServiceTier=false hides the summary but keeps token details", as
 		await startTurn(extension, ctx);
 		await extension.emit("provider_stream_event", providerStreamEvent({ response: { service_tier: "flex" } }), ctx);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(39) }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		const text = renderedDoneEntry(extension, ctx, extension.appendedEntries[0]!.data);
 		assert.match(text, /↓ 39 tokens/);
@@ -2816,7 +2953,7 @@ test("agent_settled commits a pending tier if message_end was not observed", asy
 		workingDecorator(extension.asAPI());
 		await startTurn(extension, ctx);
 		await extension.emit("provider_stream_event", providerStreamEvent({ response: { service_tier: "flex" } }), ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		assert.deepEqual((extension.appendedEntries[0]!.data as { serviceTiers?: unknown }).serviceTiers, [{ tier: "flex", calls: 1 }]);
 	});
@@ -2848,7 +2985,7 @@ test("Ramp Router Responses events show backend-only labels for models resemblin
 			}, "ramp-router"), ctx);
 
 			assert.match(stripAnsi(messages.at(-1)!), new RegExp(` · via ${backend}$`));
-			await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+			await extension.emit("agent_settled", agentSettledEvent(), ctx);
 			assert.equal((extension.appendedEntries[0]!.data as { model?: string }).model, `via ${backend}`);
 			assert.match(stripAnsi(statuses.at(-1)!.text!), new RegExp(`via ${backend}`));
 		}
@@ -2875,7 +3012,7 @@ test("a Responses served model resembling the OpenAI selection stays hidden with
 		}, "openai"), ctx);
 
 		assert.ok(!stripAnsi(messages.at(-1)!).includes("gpt-4.1-nano-2025-04-14"));
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.equal((extension.appendedEntries[0]!.data as { model?: string }).model, undefined);
 		assert.ok(statuses.every(({ text }) => text === undefined));
 	});
@@ -2969,7 +3106,7 @@ test("a backend flip swaps in place without starting another loader slide", asyn
 		assert.equal(slideTimer(timers), firstSlide);
 		assert.equal(timers.filter((timer) => timer.ms === RESPONSE_MODEL_SLIDE_FRAME_MS).length, 1);
 		assert.ok(!cleared.has(firstSlide.id));
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.equal((extension.appendedEntries[0]!.data as { model?: string }).model, "served-model via fireworks");
 	});
 });
@@ -2994,7 +3131,7 @@ test("idle and settled stream events are ignored, and the next turn starts clean
 		assert.ok(!stripAnsi(messages.at(-1)!).includes("idle-model"));
 		await extension.emit("provider_stream_event", event("turn-model", "baseten"), ctx);
 		assert.match(stripAnsi(messages.at(-1)!), /turn-model via baseten$/);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		const afterSettle = messages.length;
 		await extension.emit("provider_stream_event", event("late-model", "fireworks"), ctx);
 		assert.equal(messages.length, afterSettle);
@@ -3261,7 +3398,7 @@ test("completion marker default border uses the active thinking level", async (t
 		workingDecorator(extension.asAPI());
 		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		const data = extension.appendedEntries[0]!.data as { thinkingLevel?: string };
 		assert.equal(data.thinkingLevel, "high");
@@ -3294,7 +3431,7 @@ test("mid-stream steer input preserves the elapsed timer and token count and is 
 		await extension.emit("input", { type: "input", text: "change of plans", source: "interactive", streamingBehavior: "steer" }, ctx);
 
 		now = 38_000;
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		assert.equal(extension.appendedEntries.length, 1);
 		const data = extension.appendedEntries[0]!.data as { elapsedMs: number; tokens?: number; midTurnInputs?: number };
@@ -3319,13 +3456,13 @@ test("mid-turn inputs accumulate across the working span and reset on the next i
 		for (const streamingBehavior of ["steer", "steer", "followUp", "followUp"] as const) {
 			await extension.emit("input", { type: "input", text: "more", source: "interactive", streamingBehavior }, ctx);
 		}
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		now = 50_000;
 		await extension.emit("input", { type: "input", text: "fresh", source: "interactive" }, ctx);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		now = 51_000;
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		const entries = extension.appendedEntries.map((entry) => entry.data as { elapsedMs: number; midTurnInputs?: number });
 		assert.equal(entries.length, 2);
@@ -3356,7 +3493,7 @@ test("mid-stream commands don't reset the turn and only queued user input is cou
 		await extension.emit("input", { type: "input", text: "/skill:review", source: "interactive", streamingBehavior: "steer" }, ctx);
 
 		now = 10_000;
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		const data = extension.appendedEntries[0]!.data as { elapsedMs: number; midTurnInputs?: number };
 		assert.equal(data.elapsedMs, 9_000);
@@ -3424,7 +3561,7 @@ test("an autorouter announcement during a busy turn shows the routed model befor
 		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
 		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/, "the announced model shows before message_start");
 
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		const data = extension.appendedEntries[0]!.data as { model?: string };
 		assert.equal(data.model, "gpt-5.6-sol", "the completion marker records the announced model");
 		assert.match(stripAnsi(statuses.at(-1)!.text!), /gpt-5\.6-sol/, "the response-model footer records the announced model");
@@ -3574,7 +3711,7 @@ test("an autorouter announcement while the loader is idle is ignored", async (t)
 		assert.equal(messages.length, 0);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		assert.ok(!stripAnsi(messages.at(-1)!).includes("gpt-5.6-sol"), "a background route leaves no stale model for the next turn");
-		await extension.emit("agent_settled", { type: "agent_settled" }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		const settled = messages.length;
 		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
@@ -3666,7 +3803,7 @@ test("under a virtual selection the assistant message's model stands in for a mi
 
 		await extension.emit("message_end", { type: "message_end", message: { ...assistantMessage(0), provider: "litellm-auto", model: "auto" } }, virtualCtx);
 		assert.ok(!stripAnsi(messages.at(-1)!).includes("auto"), "a failed route leaves the virtual model on the message, which is hidden");
-		await extension.emit("agent_settled", { type: "agent_settled" }, virtualCtx);
+		await extension.emit("agent_settled", agentSettledEvent(), virtualCtx);
 
 		const physicalCtx = createContext(messages, [], undefined, { selectedModel: "test" });
 		await extension.emit("agent_start", { type: "agent_start" }, physicalCtx);
