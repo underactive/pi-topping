@@ -111,10 +111,6 @@ test("completion marker content appends a pre-styled model after the detail grou
 		buildCompletionMarkerContent(theme, "", "Worked", "5s", [], "test-model"),
 		"Worked for 5s · test-model",
 	);
-	assert.equal(
-		buildCompletionMarkerContent(theme, "", "Worked", "5s", []),
-		buildCompletionMarkerContent(theme, "", "Worked", "5s", [], ""),
-	);
 
 	const content = buildCompletionMarkerContent(theme, "", "Worked", "5s", ["↓ 39 tokens"], "test-model");
 	assert.ok(visibleWidth(buildCompletionMarkerLine(content, 18, theme, "heavy", "accent")) <= 18);

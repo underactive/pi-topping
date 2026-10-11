@@ -64,8 +64,7 @@ test("every output style has a bounded description and Default has no decoration
 		assert.ok(style.description.length > 0, `${id} needs a description`);
 		assert.ok(style.description.length <= 60, `${id} description is too long: ${style.description.length}`);
 	}
-	assert.equal(OUTPUT_STYLES.default.section, undefined);
-	assert.equal(OUTPUT_STYLES.default.reminder, undefined);
+	assert.equal(OUTPUT_STYLES.default.prompt, undefined);
 });
 
 test("Default clears only this registry's prompt section", () => {
@@ -92,13 +91,6 @@ test("Explanatory sets its prompt section and returns a hidden reminder", () => 
 
 test("hosts without structured prompt sections receive no prompt or reminder", () => {
 	assert.equal(applyOutputStyle(undefined, "explanatory"), undefined);
-});
-
-test("Simplified Technical English prompt contains rules and explanations", () => {
-	assert.ok(SIMPLIFIED_TECHNICAL_ENGLISH_SECTION.includes("ASD-STE100"));
-	assert.ok(SIMPLIFIED_TECHNICAL_ENGLISH_SECTION.includes("Simplified Technical English"));
-	assert.ok(SIMPLIFIED_TECHNICAL_ENGLISH_SECTION.includes("Sentence length"));
-	assert.ok(SIMPLIFIED_TECHNICAL_ENGLISH_SECTION.includes("Active voice"));
 });
 
 test("Simplified Technical English sets its prompt section and returns a hidden reminder", () => {

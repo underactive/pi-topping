@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "
 import { dirname, join } from "node:path";
 import { DEFAULT_METER_UPPER_BOUND_TPS, METER_UPPER_BOUND_TPS_MAX, METER_UPPER_BOUND_TPS_MIN } from "./activity-meter.ts";
 import { DEFAULT_LOADER_ORDER, type LoaderElement } from "./format.ts";
-import { fromLegacyOutputStyle, isOutputStyleId, OUTPUT_STYLE_IDS, OUTPUT_STYLE_LABELS, type OutputStyleId } from "./output-style.ts";
+import { fromLegacyOutputStyle, isOutputStyleId, OUTPUT_STYLE_IDS, OUTPUT_STYLES, type OutputStyleId } from "./output-style.ts";
 import type { MenuNumberEntry, MenuSection } from "./menu.ts";
 import { isWordPackEnabled, isWordPackId, WORD_PACK_MENU_PREFIX, type WordPack } from "./word-packs.ts";
 import { isPlainObject } from "./util.ts";
@@ -333,7 +333,7 @@ export function buildMenuSections(settings: DecoratorSettings, bundledPacks: rea
 		},
 		{
 			title: "Output Style",
-			items: [{ id: OUTPUT_STYLE_ID, label: "Style", value: settings.outputStyle, cycleValues: OUTPUT_STYLE_IDS, cycleValueLabels: OUTPUT_STYLE_LABELS }],
+			items: [{ id: OUTPUT_STYLE_ID, label: "Style", value: settings.outputStyle, cycleValues: OUTPUT_STYLE_IDS, cycleValueLabels: Object.fromEntries(OUTPUT_STYLE_IDS.map(id => [id, OUTPUT_STYLES[id].label])) }],
 		},
 		buildSection("Options", settings),
 	];

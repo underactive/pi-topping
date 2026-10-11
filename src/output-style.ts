@@ -7,10 +7,8 @@ export interface OutputStyle {
 	label: string;
 	/** Settings-preview line; keep within 60 columns so the menu doesn't truncate it. */
 	description: string;
-	/** System-prompt section; omitted for Default, which leaves Pi's prompt unchanged. */
-	section?: string;
-	/** Hidden reminder sent with each prompt while the style is active. */
-	reminder?: string;
+	/** System-prompt section and hidden reminder; omitted for Default, which leaves Pi's prompt unchanged. */
+	prompt?: { section: string; reminder: string };
 }
 
 // Matches figures.star from Claude Code: a fallback glyph on Windows, and ★ elsewhere.
@@ -121,20 +119,14 @@ export const OUTPUT_STYLES: Readonly<Record<OutputStyleId, OutputStyle>> = {
 	explanatory: {
 		label: "Explanatory",
 		description: "pi explains its implementation choices and codebase patterns",
-		section: EXPLANATORY_SECTION,
-		reminder: EXPLANATORY_REMINDER,
+		prompt: { section: EXPLANATORY_SECTION, reminder: EXPLANATORY_REMINDER },
 	},
 	simplified: {
 		label: "Simplified Technical English",
 		description: "pi writes simple prose in Simplified Technical English",
-		section: SIMPLIFIED_TECHNICAL_ENGLISH_SECTION,
-		reminder: SIMPLIFIED_TECHNICAL_ENGLISH_REMINDER,
+		prompt: { section: SIMPLIFIED_TECHNICAL_ENGLISH_SECTION, reminder: SIMPLIFIED_TECHNICAL_ENGLISH_REMINDER },
 	},
 };
-
-export const OUTPUT_STYLE_LABELS: Readonly<Record<string, string>> = Object.fromEntries(
-	OUTPUT_STYLE_IDS.map(id => [id, OUTPUT_STYLES[id].label]),
-);
 
 export function isOutputStyleId(value: unknown): value is OutputStyleId {
 	return typeof value === "string" && OUTPUT_STYLE_IDS.some(id => id === value);
@@ -159,9 +151,9 @@ export function applyOutputStyle(
 	if (!sections) return undefined;
 
 	const style = OUTPUT_STYLES[id];
-	if (style.section === undefined) {
+	if (!style.prompt) {
 		if (OUTPUT_STYLE_IDS.some(styleId => {
-			const ownedSection = OUTPUT_STYLES[styleId].section;
+			const ownedSection = OUTPUT_STYLES[styleId].prompt?.section;
 			return ownedSection !== undefined && ownedSection === sections[OUTPUT_STYLE_SECTION];
 		})) {
 			delete sections[OUTPUT_STYLE_SECTION];
@@ -169,12 +161,11 @@ export function applyOutputStyle(
 		return undefined;
 	}
 
-	sections[OUTPUT_STYLE_SECTION] = style.section;
-	if (!style.reminder) return undefined;
+	sections[OUTPUT_STYLE_SECTION] = style.prompt.section;
 	return {
 		message: {
 			customType: OUTPUT_STYLE_MESSAGE_TYPE,
-			content: style.reminder,
+			content: style.prompt.reminder,
 			display: false,
 		},
 	};

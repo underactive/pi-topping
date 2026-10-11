@@ -27,7 +27,7 @@ import {
 	OUTPUT_STYLE_ID,
 	settingsPath,
 } from "../src/settings.ts";
-import { OUTPUT_STYLE_IDS, OUTPUT_STYLE_LABELS } from "../src/output-style.ts";
+import { OUTPUT_STYLE_IDS } from "../src/output-style.ts";
 import { loadBundledWordPacks } from "../src/word-packs.ts";
 
 function withTempAgentDir<T>(fn: (dir: string) => T): T {
@@ -108,7 +108,7 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	assert.equal(outputStyle.label, "Style");
 	assert.equal(outputStyle.value, "default");
 	assert.deepEqual(outputStyle.cycleValues, OUTPUT_STYLE_IDS);
-	assert.deepEqual(outputStyle.cycleValueLabels, OUTPUT_STYLE_LABELS);
+	assert.deepEqual(outputStyle.cycleValueLabels, { default: "Default", explanatory: "Explanatory", simplified: "Simplified Technical English" });
 	assert.equal(outputStyle.cycleEnabledBy, undefined);
 	assert.equal(sections[6]!.items.find(item => item.id === "showResponseModelFooter")!.value, false);
 	const meterUpperBound = sections[1]!.items.find(item => item.id === "meterUpperBoundTps")!;

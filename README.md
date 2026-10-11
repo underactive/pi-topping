@@ -10,11 +10,11 @@ We garnish our pies. It seemed rude not to extend Pi the same courtesy. This is 
 
 ![Demo of pi-topping's shimmering activity word, scrolling activity meter, elapsed timer, token count, and token rate](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo.gif)
 
-**Completion Marker** — end-of-turn marker with icon, randomized verb (or `Worked`; matching past tense when Randomize "Worked" text is on), token consumption display, and optional marker-style, border-style, and border-color decorations spanning the full terminal width. It can append the response model when it differs from the selected model, with its own color option. It can also append per-call service-tier counts (e.g. `flex tier ×3`), but only for calls whose provider reports a tier; this requires Pi ≥0.99.0. The default `elite` style trails the summary with tapering dashes; `bookend` fills the remaining width to a closing corner glyph. Hooks into Pi's `agent_settled` event. On Pi ≥1.1.0, cancelled runs use `Interrupted` with a warning-colored word and border, while keeping time, tokens, and other enabled details. The existing completion-marker toggle controls it. Older hosts keep the normal marker, so the minimum remains Pi ≥0.84.4.
-
-**Output Styles** — choose prompt-instruction styles such as Explanatory or Simplified Technical English to guide how the model responds. Styles are instructions, not output formatters.
+**Completion Marker** — end-of-turn marker with icon, randomized verb (or `Worked`; matching past tense when Randomize "Worked" text is on), token consumption display, and optional marker-style, border-style, and border-color decorations spanning the full terminal width. It can append the response model when it differs from the selected model, with its own color option. It can also append per-call service-tier counts (e.g. `flex tier ×3`), but only for calls whose provider reports a tier; this requires Pi ≥0.99.0. The default `elite` style trails the summary with tapering dashes; `bookend` fills the remaining width to a closing corner glyph. Hooks into Pi's `agent_settled` event. On Pi ≥1.1.0, a cancelled run (for example, one stopped with Escape) shows `Interrupted` instead of the random verb, with the word and any border in the warning color; time, tokens, and other enabled details still appear. **Show completion marker** also controls this marker. Older Pi versions show the normal marker for cancelled runs.
 
 ![Example of pi-topping's completion marker](https://raw.githubusercontent.com/underactive/pi-topping/main/media/demo_completion_marker.png)
+
+**Output Styles** — choose prompt-instruction styles such as Explanatory or Simplified Technical English to guide how the model responds. Styles are instructions, not output formatters.
 
 ## Install
 
@@ -122,11 +122,13 @@ Run `/topping-settings` (TUI only) to customize your toppings. Settings persist 
 
 Choose an output style with `←`/`→` in the Output Style section of `/topping-settings`. The selected style changes the model's prompt instructions from your next message.
 - **Explanatory** requests brief Insight blocks before and after coding. This is a prompt instruction, not a formatter, so a turn may have no Insight.
-- **Simplified Technical English** instructs the model to write all English responses using ASD-STE100 Simplified Technical English (controlled language rules, active voice, simple tenses, short sentences, and small noun clusters).
+- **Simplified Technical English** instructs the model to write all English prose (not code or quoted text) using ASD-STE100 Simplified Technical English (controlled language rules, active voice, simple tenses, short sentences, and small noun clusters).
 
-Output styles also apply in print and RPC modes. Set `"outputStyle": "explanatory"` (or `"simplified"`) in `~/.pi/agent/pi-topping/settings.json`; if you edit the file while an interactive session is running, use `/reload` to load the change. Switching styles invalidates the prompt cache once so the next message uses the updated instructions.
+While a non-default style is active, each prompt also carries a one-line hidden reminder of the style; the model receives it, but the transcript does not show it.
 
-The Explanatory prompt is copied word for word from Claude Code's output styles, with two Pi clarifications: a lead-in that frames the instructions for Pi, and an exception allowing Insight blocks despite Pi's conciseness rule. The Simplified Technical English prompt conforms to the ASD-STE100 standard. When migrating from `pi-topping-insights`, its saved style is imported until you next save `/topping-settings`. Remove the old extension to avoid duplicate hidden reminders. `/insights` is gone; use `/topping-settings`.
+Output styles also apply in print and RPC modes. Set `"outputStyle": "explanatory"` (or `"simplified"`) in `~/.pi/agent/pi-topping/settings.json`; if you edit the file while an interactive session is running, use `/reload` to load the change. Switching styles changes one system-prompt section. Pi appends that change to the conversation, so providers that support mid-conversation prompt updates keep their cached prefix; other providers may re-read the full prompt once.
+
+The Explanatory prompt is copied word for word from Claude Code's output styles, with two Pi clarifications: a lead-in that frames the instructions for Pi, and an exception allowing Insight blocks despite Pi's conciseness rule. The Simplified Technical English prompt adapts the ASD-STE100 writing rules but does not include the STE dictionary of approved words. A more specific instruction from you, your project instructions, a skill, or the file being edited takes precedence over it. When migrating from `pi-topping-insights`, its saved style is imported until you next save `/topping-settings`. Remove the old extension to avoid duplicate hidden reminders. `/insights` is gone; use `/topping-settings`.
 
 ### Word packs
 
@@ -146,6 +148,8 @@ Bundled packs live in [`wordpacks/`](wordpacks/). Copy `wordpacks/doctor-who.jso
 ```
 
 Pack IDs must start with a lowercase letter, contain only lowercase letters, digits, and `-`, and be at most 64 characters. Each pack needs a non-empty `name` and at least one word with non-empty `present_tense` and `past_tense` strings. An optional `description` appears in the settings preview when the pack row is selected, and an optional `attribution` records the source. Invalid entries are ignored. Packs reload when a session starts and whenever `/topping-settings` opens, not while a turn is running. Preferences for missing packs are retained so they apply when the pack returns.
+
+### Colors and loader details
 
 Every color setting offers `thinking-level` (shown as `thinkingLevel` in `/topping-settings`); it is the default for the animated spinner, the prompt border, and the completion marker border. The spinner, token activity monitor, token rate, and response model follow Pi's current thinking level. The prompt border uses the level captured when the prompt was submitted, and the completion marker uses the level captured when the turn settled, so earlier entries keep their color after you change level. When hand-editing `settings.json`, write `thinking-level`; the legacy `default` spelling is only recognised for `spinnerColor` and `doneMarkerBorderColor`.
 
@@ -168,6 +172,8 @@ The response model is captured from assistant responses and raw Responses-API st
 ## Requirements
 
 - [Pi](https://github.com/earendil-works/pi-coding-agent). Pi ≥0.84.4 is required for the waiting-for-input loader state; older Pi versions keep the animated loader.
+- Output styles need a Pi version that exposes structured system-prompt sections (tested on Pi 1.0.3 and 1.1.0); on older hosts the style setting has no effect.
+- Pi ≥1.1.0 shows `Interrupted` for cancelled runs; older versions show the normal completion marker.
 - On Pi ≥0.85.0, the working indicator is embedded in the default editor border and long loaders are truncated to the border width instead of wrapping; custom editors that do not opt in keep the standalone wrapping indicator.
 - Node.js ≥22.19.0
 
@@ -187,7 +193,7 @@ Tests cover the word/shimmer rendering, prompt box and completion marker renderi
 - Elapsed time normally starts when you submit a prompt; for auto-continuations without that event, it starts slightly later instead.
 - If another extension also customizes the working message, whichever one runs last wins.
 - Service-tier details and Responses-API served-model/backend labels depend on Pi's `provider_stream_event`; raw events require Pi ≥0.99.0 and are unavailable on older Pi hosts and SDK adapters that do not expose them.
-- Output styles require a host exposing `systemPromptOptions.sections` (verified on 1.1.0); they do nothing on hosts without it.
+- Output styles have no effect on hosts without structured system-prompt sections (see Requirements).
 
 ## Author
 

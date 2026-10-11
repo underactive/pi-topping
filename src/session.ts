@@ -237,7 +237,7 @@ export class SessionManager {
 		else if (event.streamingBehavior && event.source !== "extension") this.#state.midTurnInputs++;
 		if (
 			this.#settings.decorations.decorateUserPrompt &&
-			OUTPUT_STYLES[this.#settings.outputStyle].section === undefined &&
+			OUTPUT_STYLES[this.#settings.outputStyle].prompt === undefined &&
 			this.shouldDecorate(event)
 		) {
 			try {
@@ -416,7 +416,7 @@ export class SessionManager {
 	#renderDoneEntry(entry: CustomEntry<DoneEntryData>, theme: Theme): Component | undefined {
 		if (!entry.data) return undefined;
 		const aborted = entry.data.aborted === true;
-		const word = aborted ? "Interrupted" : typeof entry.data.word === "string" ? stripControlChars(entry.data.word) : "Worked";
+		const word = typeof entry.data.word === "string" ? stripControlChars(entry.data.word) : "Worked";
 		const elapsedMs = typeof entry.data.elapsedMs === "number" && Number.isFinite(entry.data.elapsedMs) ? entry.data.elapsedMs : 0;
 		const features = this.#settings.features;
 		const details: string[] = [];
@@ -486,7 +486,7 @@ export class SessionManager {
 		this.#pi.registerEntryRenderer<MissingToppingsEntryData>(SETUP_ENTRY_TYPE, (entry, _o, theme) => renderMissingToppingsEntry(entry, theme));
 		this.#pi.registerMessageRenderer<PromptBoxDetails>(PROMPT_BOX_TYPE, promptBoxRenderer);
 		this.#pi.registerCommand("topping-settings", {
-			description: "Configure prompt decoration, working-loader features/order, completion-marker settings, and output style.",
+			description: "Configure the prompt box, working loader, completion marker, word packs, and output style.",
 			handler: async (_a, ctx) => this.showSettings(ctx),
 		});
 		registerSetupCommand(this.#pi);

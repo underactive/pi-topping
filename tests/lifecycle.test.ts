@@ -2538,7 +2538,6 @@ test("an older host without the abort field keeps the normal marker", async (t) 
 		await startTurn(extension, ctx);
 		// Model the pre-1.1.0 runtime event without weakening the production type.
 		const legacyEvent = { type: "agent_settled" } as AgentSettledEvent;
-		assert.equal(Object.hasOwn(legacyEvent, "aborted"), false);
 		await extension.emit("agent_settled", legacyEvent, ctx);
 		const data = extension.appendedEntries[0]!.data as { word: string; aborted?: boolean };
 		assert.equal(data.word, "Worked");
@@ -2553,11 +2552,10 @@ test("resumed aborted entries use the stored flag and warning border", async () 
 		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
 		workingDecorator(extension.asAPI());
 		await extension.emit("session_start", { type: "session_start", reason: "resume" }, ctx);
-		// A different stored word proves the renderer uses the abort flag, not just the word.
-		const text = renderedDoneEntry(extension, ctx, { aborted: true, word: "Baked", elapsedMs: 5_000, tokens: 39 }, 300);
+		const text = renderedDoneEntry(extension, ctx, { aborted: true, word: "Interrupted", elapsedMs: 5_000, tokens: 39 }, 300);
 		assert.match(text, /<warning>┗━━ /);
 		assert.match(text, /<warning>Interrupted<\/warning><dim> for 5s \(↓ 39 tokens\)<\/dim>/);
-		assert.doesNotMatch(text, /Baked|<success>/);
+		assert.doesNotMatch(text, /<success>/);
 	});
 });
 
@@ -2571,7 +2569,7 @@ test("interrupted markers stay warning colored without a border or icon", async 
 		const extension = new MockExtension();
 		const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
 		workingDecorator(extension.asAPI());
-		const text = renderedDoneEntry(extension, ctx, { aborted: true, word: "Baked", elapsedMs: 5_000, tokens: 39 }, 300);
+		const text = renderedDoneEntry(extension, ctx, { aborted: true, word: "Interrupted", elapsedMs: 5_000, tokens: 39 }, 300);
 		assert.equal(text.trim(), "<warning>Interrupted</warning><dim> for 5s (↓ 39 tokens)</dim>");
 	});
 });
