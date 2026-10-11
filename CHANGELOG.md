@@ -7,13 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-10
+
 ### Added
 - Added an Output Style section to `/topping-settings` with Default, Explanatory, and Simplified Technical English. A non-default style adds a system-prompt section and a hidden one-line reminder to each prompt, and it also applies in print and RPC modes. Output styles need a host that exposes structured prompt sections (tested on Pi 1.0.3 and 1.1.0) and have no effect on other hosts; the published minimum remains Pi ≥0.84.4.
 - Replaces the separate `pi-topping-insights` extension: its Explanatory style is now the Explanatory output style. Until `/topping-settings` is first applied, pi-topping uses the style saved by `pi-topping-insights`; applying the menu saves it to pi-topping's settings. pi-topping has no `/insights` command.
-- Added an `Interrupted` completion marker for runs cancelled on Pi ≥1.1.0 (for example with Escape). It always reads `Interrupted`, even with Randomize “Worked” text on, and the word and any border use the warning color. Time, tokens, and other enabled details still appear, resumed sessions show the same marker, and **Show completion marker** controls it. Older hosts show the normal marker; the minimum remains Pi ≥0.84.4.
+- Added an `Interrupted` completion marker for runs cancelled on Pi ≥1.1.0 (for example with Escape). It always reads `Interrupted`, even with Randomize "Worked" text on, and the word and any border use the warning color. Time, tokens, and other enabled details still appear, resumed sessions show the same marker, and **Show completion marker** controls it. Older hosts show the normal marker; the minimum remains Pi ≥0.84.4.
 
 ### Changed
 - Verified compatibility with Pi 1.1.0; development and CI now typecheck and test against it, and the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 1.0.3 to 1.1.0. The published `peerDependencies` remain `*`, and the minimum supported host is still Pi ≥0.84.4.
+- Consolidated the `OutputStyle` type: separate `section` and `reminder` fields are now a single optional `prompt` object, and removed the unused `OUTPUT_STYLE_LABELS` export.
+
+### Fixed
+- Output-styled prompts are now routed through the agent-start hook instead of the prompt-box decorator, so they apply correctly when both the style and prompt decorations are active.
+- Removed the Explanatory footer status line that duplicated the output-style indicator already shown in the settings menu.
 
 ## [0.10.0] - 2026-10-05
 
