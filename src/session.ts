@@ -235,7 +235,11 @@ export class SessionManager {
 
 		if (!event.streamingBehavior && !this.#state.busy) this.resetTurn(Date.now());
 		else if (event.streamingBehavior && event.source !== "extension") this.#state.midTurnInputs++;
-		if (this.#settings.decorations.decorateUserPrompt && this.shouldDecorate(event)) {
+		if (
+			this.#settings.decorations.decorateUserPrompt &&
+			OUTPUT_STYLES[this.#settings.outputStyle].section === undefined &&
+			this.shouldDecorate(event)
+		) {
 			try {
 				await this.#pi.sendMessage<PromptBoxDetails>(
 					{

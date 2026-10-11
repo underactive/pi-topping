@@ -1761,6 +1761,20 @@ test("Explanatory style injects prompt guidance and a reminder without a footer 
 	});
 });
 
+test("Explanatory style leaves plain input for before_agent_start", async () => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, outputStyle: "explanatory" });
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		workingDecorator(extension.asAPI());
+
+		const result = await extension.emit("input", { type: "input", text: "plain prompt", source: "interactive" }, ctx);
+
+		assert.equal(result, undefined);
+		assert.equal(extension.sentMessages.length, 0);
+	});
+});
+
 test("print mode applies Explanatory prompt guidance", async () => {
 	await withTempAgentDir(async () => {
 		saveSettings({ ...DEFAULT_SETTINGS, outputStyle: "explanatory" });
