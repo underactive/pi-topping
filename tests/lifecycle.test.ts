@@ -39,7 +39,7 @@ type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: strin
 type UIPromptStartEvent = Extract<ExtensionEvent, { type: "ui_prompt_start" }>;
 type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
 type ProviderStreamEvent = Extract<ExtensionEvent, { type: "provider_stream_event" }>;
-import { ROUTED_MODEL_CHANNEL } from "../src/autorouter-feed.ts";
+import { ROUTED_MODEL_CHANNEL } from "../src/routesense-feed.ts";
 import {
 	RESPONSE_MODEL_FADE_MS,
 	RESPONSE_MODEL_HOLD_MS,
@@ -313,7 +313,7 @@ function stripAnsi(text: string): string {
 
 const VIRTUAL_MODEL = { provider: "routesense", id: "auto", api: "pi-virtual" };
 
-/** A ROUTED_MODEL_CHANNEL announcement as pi-topping-autorouter emits it. */
+/** A ROUTED_MODEL_CHANNEL announcement as pi-topping-routesense emits it. */
 function routedModel(modelId: string, reason = "user", provider = "openai-codex"): Record<string, unknown> {
 	return {
 		version: 1,
@@ -3556,7 +3556,7 @@ test("doneMarkerInputs=false hides the mid-turn input count", async (t) => {
 	});
 });
 
-test("an autorouter announcement during a busy turn shows the routed model before any assistant message", async (t) => {
+test("a routesense announcement during a busy turn shows the routed model before any assistant message", async (t) => {
 	await withTempAgentDir(async () => {
 		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, responseModelFooter: true } });
 		const extension = new MockExtension();
@@ -3672,7 +3672,7 @@ test("under a virtual selection only the failed-route virtual model itself is hi
 	});
 });
 
-test("direct-route autorouter announcements are ignored", async (t) => {
+test("direct-route routesense announcements are ignored", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];
@@ -3692,7 +3692,7 @@ test("direct-route autorouter announcements are ignored", async (t) => {
 	});
 });
 
-test("malformed autorouter announcements are ignored", async (t) => {
+test("malformed routesense announcements are ignored", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];
@@ -3709,7 +3709,7 @@ test("malformed autorouter announcements are ignored", async (t) => {
 	});
 });
 
-test("an autorouter announcement while the loader is idle is ignored", async (t) => {
+test("a routesense announcement while the loader is idle is ignored", async (t) => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		const messages: (string | undefined)[] = [];

@@ -16,7 +16,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { Text, type Component } from "@earendil-works/pi-tui";
 import { ActivityMeter, rateToLevel, TokRateTracker } from "./activity-meter.ts";
-import { ROUTED_MODEL_CHANNEL, routedModelAnnouncement } from "./autorouter-feed.ts";
+import { ROUTED_MODEL_CHANNEL, routedModelAnnouncement } from "./routesense-feed.ts";
 import {
 	dimAttribute,
 	getThinkingLevelColorizer,

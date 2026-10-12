@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ROUTED_MODEL_CHANNEL, routedModelAnnouncement } from "../src/autorouter-feed.ts";
+import { ROUTED_MODEL_CHANNEL, routedModelAnnouncement } from "../src/routesense-feed.ts";
 
 const ANNOUNCEMENT = {
 	version: 1,
@@ -16,8 +16,8 @@ const ANNOUNCEMENT = {
 	ts: 1_790_000_000_000,
 };
 
-test("the routed-model channel name is shared with pi-topping-autorouter", () => {
-	assert.equal(ROUTED_MODEL_CHANNEL, "pi-topping-autorouter:routed-model");
+test("the routed-model channel name is shared with pi-topping-routesense", () => {
+	assert.equal(ROUTED_MODEL_CHANNEL, "pi-topping-routesense:routed-model");
 });
 
 test("routedModelAnnouncement accepts a well-formed announcement", () => {

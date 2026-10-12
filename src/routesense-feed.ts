@@ -1,7 +1,7 @@
 import { isPlainObject, sanitizedText } from "./util.ts";
 
 /**
- * Event-bus channel on which pi-topping-autorouter announces the physical model it routed
+ * Event-bus channel on which pi-topping-routesense announces the physical model it routed
  * a request to, before Pi sends that request (so before `message_start`). Payload:
  *
  * ```json
@@ -21,9 +21,9 @@ import { isPlainObject, sanitizedText } from "./util.ts";
  *
  * `reason` is Pi's route reason: `user`, `continuation`, `retry`, or `direct`. `direct` routes
  * serve compaction summaries and other extensions' side requests, not the chat response.
- * `tier` may be absent. Shared with pi-topping-autorouter.
+ * `tier` may be absent. Shared with pi-topping-routesense.
  */
-export const ROUTED_MODEL_CHANNEL = "pi-topping-autorouter:routed-model";
+export const ROUTED_MODEL_CHANNEL = "pi-topping-routesense:routed-model";
 
 const ROUTE_REASONS = ["user", "continuation", "retry", "direct"] as const;
 export type RouteReason = (typeof ROUTE_REASONS)[number];
