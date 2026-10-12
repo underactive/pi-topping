@@ -311,7 +311,7 @@ function stripAnsi(text: string): string {
 	return text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "");
 }
 
-const VIRTUAL_MODEL = { provider: "litellm-auto", id: "auto", api: "pi-virtual" };
+const VIRTUAL_MODEL = { provider: "routesense", id: "auto", api: "pi-virtual" };
 
 /** A ROUTED_MODEL_CHANNEL announcement as pi-topping-autorouter emits it. */
 function routedModel(modelId: string, reason = "user", provider = "openai-codex"): Record<string, unknown> {
@@ -3236,7 +3236,7 @@ test("a distinct route replaces a strong virtual-selection stream report", async
 			await extension.emit("provider_stream_event", providerStreamEvent({
 				response: { model: "gpt-5.6-sol-2026-09-01" },
 				...(backend ? { provider: backend } : {}),
-			}, "litellm-auto"), ctx);
+			}, "routesense"), ctx);
 			const expected = backend ? "gpt-5.6-sol-2026-09-01 via baseten" : "gpt-5.6-sol-2026-09-01";
 			assert.ok(stripAnsi(messages.at(-1)!).endsWith(` · ${expected}`));
 
@@ -3813,7 +3813,7 @@ test("under a virtual selection the assistant message's model stands in for a mi
 		await extension.emit("message_end", { type: "message_end", message: { ...assistantMessage(0), model: "gpt-5.6-sol" } }, virtualCtx);
 		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/, "message_end falls back to the routed model");
 
-		await extension.emit("message_end", { type: "message_end", message: { ...assistantMessage(0), provider: "litellm-auto", model: "auto" } }, virtualCtx);
+		await extension.emit("message_end", { type: "message_end", message: { ...assistantMessage(0), provider: "routesense", model: "auto" } }, virtualCtx);
 		assert.ok(!stripAnsi(messages.at(-1)!).includes("auto"), "a failed route leaves the virtual model on the message, which is hidden");
 		await extension.emit("agent_settled", agentSettledEvent(), virtualCtx);
 
