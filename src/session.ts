@@ -208,7 +208,7 @@ export class SessionManager {
 	#currentCtx: ExtensionContext | null = null;
 	/** Whether pi-topping-statusline last announced that its status bar hosts the loader; kept across sessions. */
 	#loaderInStatusline = false;
-	/** Whether the old-host warning was shown; once per process. */
+	/** Whether this instance showed the old-host warning. */
 	#warnedOldHost = false;
 	readonly #pi: ExtensionAPI;
 	readonly #hostVersion: string;
@@ -512,7 +512,6 @@ export class SessionManager {
 		return !!ctx.hasUI && ctx.mode !== "print";
 	}
 
-	/** Pi before 1.2.0 skips before_agent_start for the decorated prompt, so output styles do not reach it. */
 	private warnOldHostOnce(ctx: ExtensionContext): void {
 		if (this.#warnedOldHost || !hostBelow(this.#hostVersion, MIN_HOST_VERSION)) return;
 		this.#warnedOldHost = true;
