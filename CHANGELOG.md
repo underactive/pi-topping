@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-12
+
 ### Changed
 - The working loader now subscribes to the `pi-topping-routesense:routed-model` announcement. pi-topping-autorouter was renamed pi-topping-routesense, and its virtual models moved from `litellm-auto/*` to `routesense/*`. Announcements on the old `pi-topping-autorouter:routed-model` channel are no longer read.
 
