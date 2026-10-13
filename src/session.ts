@@ -42,7 +42,7 @@ import {
 } from "./format.ts";
 import { buildLoaderMessage } from "./loader-message.ts";
 import { showMenu } from "./menu.ts";
-import { applyOutputStyle, OUTPUT_STYLES } from "./output-style.ts";
+import { applyOutputStyle, foldedOutputStyleSection, OUTPUT_STYLE_MESSAGE_TYPE, OUTPUT_STYLE_SECTION, OUTPUT_STYLES, outputStyleSectionPatch } from "./output-style.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { registerSetupCommand } from "./setup-command.ts";
 import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type ThinkingLevelColor } from "./settings.ts";
@@ -61,6 +61,7 @@ type MessageEndEvent = Extract<ExtensionEvent, { type: "message_end" }>;
 type ToolExecutionStartEvent = Extract<ExtensionEvent, { type: "tool_execution_start" }>;
 type UIPromptStartEvent = Extract<ExtensionEvent, { type: "ui_prompt_start" }>;
 type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
+type ContextWithSystemEvent = Extract<ExtensionEvent, { type: "context_with_system" }>;
 type ProviderStreamEvent = Extract<ExtensionEvent, { type: "provider_stream_event" }>;
 type UIPromptKind = UIPromptStartEvent["kind"];
 
@@ -229,18 +230,41 @@ export class SessionManager {
 	#onBeforeAgentStart = (event: BeforeAgentStartEvent): BeforeAgentStartEventResult | undefined =>
 		applyOutputStyle(event.systemPromptOptions?.sections, this.#settings.outputStyle);
 
+	/**
+	 * A decorated prompt is a custom message, so Pi does not run before_agent_start for it.
+	 * Put the missing prompt section on the request. A matching transcript section is left alone.
+	 */
+	#onContextWithSystem = (event: ContextWithSystemEvent): { messages: ContextWithSystemEvent["messages"] } | undefined => {
+		const patch = outputStyleSectionPatch(foldedOutputStyleSection(event.messages), this.#settings.outputStyle);
+		if (patch === undefined) return undefined;
+		const messages = event.messages.slice();
+		let index = messages.length;
+		for (let i = messages.length - 1; i >= 0; i--) {
+			const message = messages[i];
+			if (!message) continue;
+			if (message.role === "user" || (message.role === "custom" && message.customType === PROMPT_BOX_TYPE)) {
+				index = i;
+				break;
+			}
+		}
+		messages.splice(index, 0, {
+			role: "system",
+			content: "",
+			sections: { [OUTPUT_STYLE_SECTION]: patch },
+			timestamp: Date.now(),
+		});
+		return { messages };
+	};
+
 	#onInput = async (event: InputEvent, ctx: ExtensionContext): Promise<InputEventResult | void> => {
 		this.#currentCtx = ctx;
 		if (!this.usable(ctx)) return;
 
 		if (!event.streamingBehavior && !this.#state.busy) this.resetTurn(Date.now());
 		else if (event.streamingBehavior && event.source !== "extension") this.#state.midTurnInputs++;
-		if (
-			this.#settings.decorations.decorateUserPrompt &&
-			OUTPUT_STYLES[this.#settings.outputStyle].prompt === undefined &&
-			this.shouldDecorate(event)
-		) {
+		if (this.#settings.decorations.decorateUserPrompt && this.shouldDecorate(event)) {
 			try {
+				const stylePrompt = OUTPUT_STYLES[this.#settings.outputStyle].prompt;
 				await this.#pi.sendMessage<PromptBoxDetails>(
 					{
 						customType: PROMPT_BOX_TYPE,
@@ -260,8 +284,18 @@ export class SessionManager {
 							thinkingLevel: ctx.thinkingLevel,
 						},
 					},
-					{ triggerTurn: true },
+					{ triggerTurn: stylePrompt === undefined },
 				);
+				if (stylePrompt) {
+					await this.#pi.sendMessage(
+						{
+							customType: OUTPUT_STYLE_MESSAGE_TYPE,
+							content: stylePrompt.reminder,
+							display: false,
+						},
+						{ triggerTurn: true },
+					);
+				}
 				return { action: "handled" };
 			} catch {
 				ctx.ui.notify("Failed to submit prompt", "error");
@@ -461,6 +495,7 @@ export class SessionManager {
 	install(): void {
 		this.#pi.on("session_start", this.#onSessionStart);
 		this.#pi.on("before_agent_start", this.#onBeforeAgentStart);
+		this.#pi.on("context_with_system", this.#onContextWithSystem);
 		this.#pi.on("input", this.#onInput);
 		this.#pi.on("agent_start", this.#onAgentStart);
 		this.#pi.on("message_start", this.#onMessageStart);

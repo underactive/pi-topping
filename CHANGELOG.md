@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - The working loader now subscribes to the `pi-topping-routesense:routed-model` announcement. pi-topping-autorouter was renamed pi-topping-routesense, and its virtual models moved from `litellm-auto/*` to `routesense/*`. Announcements on the old `pi-topping-autorouter:routed-model` channel are no longer read.
 
+### Fixed
+- The high-vis prompt box now shows for every output style. A non-default style still adds its hidden reminder, and the prompt section is applied on the model request when the decorated path skips the agent-start hook.
+
 ## [0.11.0] - 2026-10-10
 
 ### Added

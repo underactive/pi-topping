@@ -38,6 +38,7 @@ type MessageEndEvent = { type: "message_end"; message: AssistantMessage };
 type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown };
 type UIPromptStartEvent = Extract<ExtensionEvent, { type: "ui_prompt_start" }>;
 type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
+type ContextWithSystemEvent = Extract<ExtensionEvent, { type: "context_with_system" }>;
 type ProviderStreamEvent = Extract<ExtensionEvent, { type: "provider_stream_event" }>;
 import { ROUTED_MODEL_CHANNEL } from "../src/routesense-feed.ts";
 import {
@@ -49,7 +50,7 @@ import {
 	TOKEN_RATE_FADE_SHADE_COUNT,
 } from "../src/format.ts";
 import { PreviewRenderer } from "../src/preview.ts";
-import { EXPLANATORY_REMINDER, EXPLANATORY_SECTION, OUTPUT_STYLE_MESSAGE_TYPE, OUTPUT_STYLE_SECTION, OUTPUT_STYLES } from "../src/output-style.ts";
+import { EXPLANATORY_REMINDER, EXPLANATORY_SECTION, OUTPUT_STYLE_MESSAGE_TYPE, OUTPUT_STYLE_SECTION, OUTPUT_STYLES, SIMPLIFIED_TECHNICAL_ENGLISH_REMINDER, SIMPLIFIED_TECHNICAL_ENGLISH_SECTION } from "../src/output-style.ts";
 import { PROMPT_BOX_TYPE } from "../src/prompt-decorator.ts";
 import { buildMenuSections, DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/settings.ts";
 import { STATUSLINE_EMBED_CHANNEL } from "../src/statusline-embed.ts";
@@ -70,6 +71,7 @@ type TestedEvents = {
 	tool_execution_start: ToolExecutionStartEvent;
 	ui_prompt_start: UIPromptStartEvent;
 	ui_prompt_end: UIPromptEndEvent;
+	context_with_system: ContextWithSystemEvent;
 	session_shutdown: SessionShutdownEvent;
 };
 type TestedEventName = keyof TestedEvents;
@@ -1761,17 +1763,94 @@ test("Explanatory style injects prompt guidance and a reminder without a footer 
 	});
 });
 
-test("Explanatory style leaves plain input for before_agent_start", async () => {
+test("a non-default output style still decorates the prompt and sends the hidden reminder", async () => {
+	await withTempAgentDir(async () => {
+		for (const [outputStyle, reminder] of [
+			["explanatory", EXPLANATORY_REMINDER],
+			["simplified", SIMPLIFIED_TECHNICAL_ENGLISH_REMINDER],
+		] as const) {
+			saveSettings({ ...DEFAULT_SETTINGS, outputStyle });
+			const extension = new MockExtension();
+			const ctx = createContext([], []);
+			workingDecorator(extension.asAPI());
+
+			const result = await extension.emit("input", { type: "input", text: "plain prompt", source: "interactive" }, ctx);
+
+			assert.deepEqual(result, { action: "handled" });
+			assert.equal(extension.sentMessages.length, 2);
+			const [box, hidden] = extension.sentMessages as {
+				message: { customType: string; content: string; display: boolean };
+				options: { triggerTurn: boolean };
+			}[];
+			assert.equal(box!.message.customType, PROMPT_BOX_TYPE);
+			assert.equal(box!.message.content, "plain prompt");
+			assert.equal(box!.message.display, true);
+			assert.deepEqual(box!.options, { triggerTurn: false });
+			assert.equal(hidden!.message.customType, OUTPUT_STYLE_MESSAGE_TYPE);
+			assert.equal(hidden!.message.content, reminder);
+			assert.equal(hidden!.message.display, false);
+			assert.deepEqual(hidden!.options, { triggerTurn: true });
+		}
+	});
+});
+
+test("a decorated request gains the output-style section when the transcript lacks it", async () => {
 	await withTempAgentDir(async () => {
 		saveSettings({ ...DEFAULT_SETTINGS, outputStyle: "explanatory" });
 		const extension = new MockExtension();
 		const ctx = createContext([], []);
 		workingDecorator(extension.asAPI());
+		const messages = [
+			{ role: "system", content: "base", sections: { preamble: "base" }, timestamp: 1 },
+			{ role: "custom", customType: PROMPT_BOX_TYPE, content: "plain prompt", display: true, timestamp: 2 },
+			{ role: "assistant", content: [], timestamp: 3 },
+		] as ContextWithSystemEvent["messages"];
 
-		const result = await extension.emit("input", { type: "input", text: "plain prompt", source: "interactive" }, ctx);
+		const result = await extension.emit("context_with_system", { type: "context_with_system", messages }, ctx) as {
+			messages: { role: string; sections?: Record<string, string | null> }[];
+		};
+
+		assert.equal(result.messages[1]?.role, "system");
+		assert.equal(result.messages[1]?.sections?.[OUTPUT_STYLE_SECTION], EXPLANATORY_SECTION);
+		assert.equal(result.messages[2]?.role, "custom");
+		assert.equal(result.messages[3]?.role, "assistant");
+		assert.equal(messages.length, 3);
+	});
+});
+
+test("an output-style section already in the transcript is not patched again", async () => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, outputStyle: "simplified" });
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		workingDecorator(extension.asAPI());
+		const messages = [
+			{ role: "system", content: "", sections: { [OUTPUT_STYLE_SECTION]: SIMPLIFIED_TECHNICAL_ENGLISH_SECTION }, timestamp: 1 },
+			{ role: "user", content: "plain prompt", timestamp: 2 },
+		] as ContextWithSystemEvent["messages"];
+
+		const result = await extension.emit("context_with_system", { type: "context_with_system", messages }, ctx);
 
 		assert.equal(result, undefined);
-		assert.equal(extension.sentMessages.length, 0);
+	});
+});
+
+test("Default output style clears an owned section on a decorated request", async () => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const ctx = createContext([], []);
+		workingDecorator(extension.asAPI());
+		const messages = [
+			{ role: "system", content: "", sections: { [OUTPUT_STYLE_SECTION]: EXPLANATORY_SECTION, other: "keep" }, timestamp: 1 },
+			{ role: "custom", customType: PROMPT_BOX_TYPE, content: "plain prompt", display: true, timestamp: 2 },
+		] as ContextWithSystemEvent["messages"];
+
+		const result = await extension.emit("context_with_system", { type: "context_with_system", messages }, ctx) as {
+			messages: { role: string; sections?: Record<string, string | null> }[];
+		};
+
+		assert.equal(result.messages[1]?.sections?.[OUTPUT_STYLE_SECTION], null);
+		assert.equal(result.messages[1]?.sections?.other, undefined);
 	});
 });
 

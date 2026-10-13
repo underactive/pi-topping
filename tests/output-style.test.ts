@@ -12,6 +12,8 @@ import {
 	OUTPUT_STYLE_MESSAGE_TYPE,
 	OUTPUT_STYLE_SECTION,
 	OUTPUT_STYLES,
+	foldedOutputStyleSection,
+	outputStyleSectionPatch,
 	SIMPLIFIED_TECHNICAL_ENGLISH_REMINDER,
 	SIMPLIFIED_TECHNICAL_ENGLISH_SECTION,
 } from "../src/output-style.ts";
@@ -103,4 +105,19 @@ test("Simplified Technical English sets its prompt section and returns a hidden 
 		},
 	});
 	assert.deepEqual(sections, { other: "preserved", [OUTPUT_STYLE_SECTION]: SIMPLIFIED_TECHNICAL_ENGLISH_SECTION });
+});
+
+test("output style section patch matches the transcript fold", () => {
+	assert.equal(outputStyleSectionPatch(undefined, "default"), undefined);
+	assert.equal(outputStyleSectionPatch(EXPLANATORY_SECTION, "explanatory"), undefined);
+	assert.equal(outputStyleSectionPatch(undefined, "simplified"), SIMPLIFIED_TECHNICAL_ENGLISH_SECTION);
+	assert.equal(outputStyleSectionPatch(EXPLANATORY_SECTION, "default"), null);
+	assert.equal(outputStyleSectionPatch("owned by another extension", "default"), undefined);
+
+	const folded = foldedOutputStyleSection([
+		{ role: "system", sections: { [OUTPUT_STYLE_SECTION]: EXPLANATORY_SECTION } },
+		{ role: "user" },
+		{ role: "system", sections: { [OUTPUT_STYLE_SECTION]: null } },
+	]);
+	assert.equal(folded, undefined);
 });
