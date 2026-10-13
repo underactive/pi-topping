@@ -38,7 +38,6 @@ type MessageEndEvent = { type: "message_end"; message: AssistantMessage };
 type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown };
 type UIPromptStartEvent = Extract<ExtensionEvent, { type: "ui_prompt_start" }>;
 type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
-type ContextWithSystemEvent = Extract<ExtensionEvent, { type: "context_with_system" }>;
 type ProviderStreamEvent = Extract<ExtensionEvent, { type: "provider_stream_event" }>;
 import { ROUTED_MODEL_CHANNEL } from "../src/routesense-feed.ts";
 import {
@@ -56,6 +55,7 @@ import { buildMenuSections, DEFAULT_SETTINGS, loadSettings, saveSettings } from 
 import { STATUSLINE_EMBED_CHANNEL } from "../src/statusline-embed.ts";
 import { loadBundledWordPacks } from "../src/word-packs.ts";
 import { WORDS } from "../src/words.ts";
+import { MIN_HOST_VERSION, SessionManager } from "../src/session.ts";
 import workingDecorator from "../index.ts";
 
 type TestedEvents = {
@@ -71,7 +71,6 @@ type TestedEvents = {
 	tool_execution_start: ToolExecutionStartEvent;
 	ui_prompt_start: UIPromptStartEvent;
 	ui_prompt_end: UIPromptEndEvent;
-	context_with_system: ContextWithSystemEvent;
 	session_shutdown: SessionShutdownEvent;
 };
 type TestedEventName = keyof TestedEvents;
@@ -161,23 +160,40 @@ function providerStreamEvent(data: unknown, provider = "openai", api = "openai-r
 	return { type: "provider_stream_event", provider, api, model: "test", data } as ProviderStreamEvent;
 }
 
+function systemPromptOptions(sections: Record<string, string>): BeforeAgentStartEvent["systemPromptOptions"] {
+	return {
+		cwd: process.cwd(),
+		selectedTools: [],
+		hiddenTools: [],
+		toolSnippets: {},
+		toolGuidelines: {},
+		promptGuidelines: [],
+		appendSystemPrompt: "",
+		sections,
+		contextFiles: [],
+		skills: [],
+	};
+}
+
+/** A run that a submitted prompt starts; Pi ≥1.2.0 marks it `messageType: "user"`. */
 function beforeAgentStartEvent(sections: Record<string, string>): BeforeAgentStartEvent {
 	return {
 		type: "before_agent_start",
+		messageType: "user",
 		prompt: "prompt",
 		systemPrompt: "system prompt",
-		systemPromptOptions: {
-			cwd: process.cwd(),
-			selectedTools: [],
-			hiddenTools: [],
-			toolSnippets: {},
-			toolGuidelines: {},
-			promptGuidelines: [],
-			appendSystemPrompt: "",
-			sections,
-			contextFiles: [],
-			skills: [],
-		},
+		systemPromptOptions: systemPromptOptions(sections),
+	};
+}
+
+/** A run that `pi.sendMessage(..., { triggerTurn: true })` starts while idle; Pi ≥1.2.0 fires before_agent_start for it too. */
+function beforeAgentStartCustomEvent(sections: Record<string, string>, customType: string, content: string): BeforeAgentStartEvent {
+	return {
+		type: "before_agent_start",
+		messageType: "custom",
+		message: { role: "custom", customType, content, display: false, timestamp: 1 },
+		systemPrompt: "system prompt",
+		systemPromptOptions: systemPromptOptions(sections),
 	};
 }
 
@@ -1763,11 +1779,11 @@ test("Explanatory style injects prompt guidance and a reminder without a footer 
 	});
 });
 
-test("a non-default output style still decorates the prompt and sends the hidden reminder", async () => {
+test("a non-default output style sends one decorated prompt, and the hook adds the section and reminder to its run", async () => {
 	await withTempAgentDir(async () => {
-		for (const [outputStyle, reminder] of [
-			["explanatory", EXPLANATORY_REMINDER],
-			["simplified", SIMPLIFIED_TECHNICAL_ENGLISH_REMINDER],
+		for (const [outputStyle, section, reminder] of [
+			["explanatory", EXPLANATORY_SECTION, EXPLANATORY_REMINDER],
+			["simplified", SIMPLIFIED_TECHNICAL_ENGLISH_SECTION, SIMPLIFIED_TECHNICAL_ENGLISH_REMINDER],
 		] as const) {
 			saveSettings({ ...DEFAULT_SETTINGS, outputStyle });
 			const extension = new MockExtension();
@@ -1777,80 +1793,73 @@ test("a non-default output style still decorates the prompt and sends the hidden
 			const result = await extension.emit("input", { type: "input", text: "plain prompt", source: "interactive" }, ctx);
 
 			assert.deepEqual(result, { action: "handled" });
-			assert.equal(extension.sentMessages.length, 2);
-			const [box, hidden] = extension.sentMessages as {
+			assert.equal(extension.sentMessages.length, 1);
+			const [box] = extension.sentMessages as {
 				message: { customType: string; content: string; display: boolean };
 				options: { triggerTurn: boolean };
 			}[];
 			assert.equal(box!.message.customType, PROMPT_BOX_TYPE);
 			assert.equal(box!.message.content, "plain prompt");
 			assert.equal(box!.message.display, true);
-			assert.deepEqual(box!.options, { triggerTurn: false });
-			assert.equal(hidden!.message.customType, OUTPUT_STYLE_MESSAGE_TYPE);
-			assert.equal(hidden!.message.content, reminder);
-			assert.equal(hidden!.message.display, false);
-			assert.deepEqual(hidden!.options, { triggerTurn: true });
+			assert.deepEqual(box!.options, { triggerTurn: true });
+
+			// Pi ≥1.2.0 runs before_agent_start for the run that the prompt box starts.
+			const sections = { foo: "x" };
+			const hook = await extension.emit("before_agent_start", beforeAgentStartCustomEvent(sections, PROMPT_BOX_TYPE, "plain prompt"), ctx);
+			assert.deepEqual(sections, { foo: "x", [OUTPUT_STYLE_SECTION]: section });
+			assert.deepEqual(hook, { message: { customType: OUTPUT_STYLE_MESSAGE_TYPE, content: reminder, display: false } });
 		}
 	});
 });
 
-test("a decorated request gains the output-style section when the transcript lacks it", async () => {
-	await withTempAgentDir(async () => {
-		saveSettings({ ...DEFAULT_SETTINGS, outputStyle: "explanatory" });
-		const extension = new MockExtension();
-		const ctx = createContext([], []);
-		workingDecorator(extension.asAPI());
-		const messages = [
-			{ role: "system", content: "base", sections: { preamble: "base" }, timestamp: 1 },
-			{ role: "custom", customType: PROMPT_BOX_TYPE, content: "plain prompt", display: true, timestamp: 2 },
-			{ role: "assistant", content: [], timestamp: 3 },
-		] as ContextWithSystemEvent["messages"];
-
-		const result = await extension.emit("context_with_system", { type: "context_with_system", messages }, ctx) as {
-			messages: { role: string; sections?: Record<string, string | null> }[];
-		};
-
-		assert.equal(result.messages[1]?.role, "system");
-		assert.equal(result.messages[1]?.sections?.[OUTPUT_STYLE_SECTION], EXPLANATORY_SECTION);
-		assert.equal(result.messages[2]?.role, "custom");
-		assert.equal(result.messages[3]?.role, "assistant");
-		assert.equal(messages.length, 3);
-	});
-});
-
-test("an output-style section already in the transcript is not patched again", async () => {
+test("another extension's custom-started run gets the prompt section without a reminder", async () => {
 	await withTempAgentDir(async () => {
 		saveSettings({ ...DEFAULT_SETTINGS, outputStyle: "simplified" });
 		const extension = new MockExtension();
 		const ctx = createContext([], []);
 		workingDecorator(extension.asAPI());
-		const messages = [
-			{ role: "system", content: "", sections: { [OUTPUT_STYLE_SECTION]: SIMPLIFIED_TECHNICAL_ENGLISH_SECTION }, timestamp: 1 },
-			{ role: "user", content: "plain prompt", timestamp: 2 },
-		] as ContextWithSystemEvent["messages"];
 
-		const result = await extension.emit("context_with_system", { type: "context_with_system", messages }, ctx);
+		const sections = { foo: "x" };
+		const result = await extension.emit("before_agent_start", beforeAgentStartCustomEvent(sections, "other-extension", "job"), ctx);
 
 		assert.equal(result, undefined);
+		assert.deepEqual(sections, { foo: "x", [OUTPUT_STYLE_SECTION]: SIMPLIFIED_TECHNICAL_ENGLISH_SECTION });
 	});
 });
 
-test("Default output style clears an owned section on a decorated request", async () => {
+test("a custom-started run under the Default style clears an owned prompt section", async () => {
 	await withTempAgentDir(async () => {
 		const extension = new MockExtension();
 		const ctx = createContext([], []);
 		workingDecorator(extension.asAPI());
-		const messages = [
-			{ role: "system", content: "", sections: { [OUTPUT_STYLE_SECTION]: EXPLANATORY_SECTION, other: "keep" }, timestamp: 1 },
-			{ role: "custom", customType: PROMPT_BOX_TYPE, content: "plain prompt", display: true, timestamp: 2 },
-		] as ContextWithSystemEvent["messages"];
 
-		const result = await extension.emit("context_with_system", { type: "context_with_system", messages }, ctx) as {
-			messages: { role: string; sections?: Record<string, string | null> }[];
-		};
+		// Default style, decorated prompt: the prompt box itself starts the run on Pi ≥1.2.0.
+		const sections = { foo: "x", [OUTPUT_STYLE_SECTION]: EXPLANATORY_SECTION };
+		const result = await extension.emit("before_agent_start", beforeAgentStartCustomEvent(sections, PROMPT_BOX_TYPE, "plain prompt"), ctx);
 
-		assert.equal(result.messages[1]?.sections?.[OUTPUT_STYLE_SECTION], null);
-		assert.equal(result.messages[1]?.sections?.other, undefined);
+		assert.equal(result, undefined);
+		assert.deepEqual(sections, { foo: "x" });
+	});
+});
+
+test("session_start warns once on a host older than the minimum and stays quiet on a supported one", async () => {
+	await withTempAgentDir(async () => {
+		for (const [hostVersion, expectedWarnings] of [["1.1.0", 1], ["1.2.0", 0]] as const) {
+			const extension = new MockExtension();
+			const notifications: { message: string; type?: string }[] = [];
+			const ctx = createContext([], [], undefined, { notifications });
+			new SessionManager(extension.asAPI(), hostVersion).install();
+
+			await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
+			await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
+
+			const warnings = notifications.filter(({ message }) => message.includes(`Pi ${MIN_HOST_VERSION} or later`));
+			assert.equal(warnings.length, expectedWarnings, `host ${hostVersion}`);
+			if (expectedWarnings) {
+				assert.equal(warnings[0]!.type, "warning");
+				assert.match(warnings[0]!.message, /this is Pi 1\.1\.0/);
+			}
+		}
 	});
 });
 

@@ -170,31 +170,3 @@ export function applyOutputStyle(
 		},
 	};
 }
-
-/**
- * Section value to send when the transcript's folded `output_style` text is `current`.
- * `null` removes the section. `undefined` means the transcript already matches `id`.
- */
-export function outputStyleSectionPatch(current: string | undefined, id: OutputStyleId): string | null | undefined {
-	const sections: Record<string, string> = {};
-	if (current !== undefined) sections[OUTPUT_STYLE_SECTION] = current;
-	applyOutputStyle(sections, id);
-	const next = sections[OUTPUT_STYLE_SECTION];
-	if (next === current) return undefined;
-	return next ?? null;
-}
-
-/** Last `output_style` section after replaying system messages. A `null` value clears it. */
-export function foldedOutputStyleSection(
-	messages: readonly { role: string; sections?: Record<string, string | null> }[],
-): string | undefined {
-	let current: string | undefined;
-	for (const message of messages) {
-		if (message.role !== "system") continue;
-		const sections = message.sections;
-		if (!sections || !Object.prototype.hasOwnProperty.call(sections, OUTPUT_STYLE_SECTION)) continue;
-		const value = sections[OUTPUT_STYLE_SECTION];
-		current = value === null ? undefined : value;
-	}
-	return current;
-}

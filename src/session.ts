@@ -14,6 +14,7 @@ import type {
 	SessionStartEvent,
 	Theme,
 } from "@earendil-works/pi-coding-agent";
+import { VERSION } from "@earendil-works/pi-coding-agent";
 import { Text, type Component } from "@earendil-works/pi-tui";
 import { ActivityMeter, rateToLevel, TokRateTracker } from "./activity-meter.ts";
 import { ROUTED_MODEL_CHANNEL, routedModelAnnouncement } from "./routesense-feed.ts";
@@ -42,7 +43,7 @@ import {
 } from "./format.ts";
 import { buildLoaderMessage } from "./loader-message.ts";
 import { showMenu } from "./menu.ts";
-import { applyOutputStyle, foldedOutputStyleSection, OUTPUT_STYLE_MESSAGE_TYPE, OUTPUT_STYLE_SECTION, OUTPUT_STYLES, outputStyleSectionPatch } from "./output-style.ts";
+import { applyOutputStyle, OUTPUT_STYLES } from "./output-style.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { registerSetupCommand } from "./setup-command.ts";
 import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type ThinkingLevelColor } from "./settings.ts";
@@ -50,7 +51,7 @@ import { announcesEmbedded, STATUSLINE_EMBED_CHANNEL } from "./statusline-embed.
 import { announceMissingToppingsOnce, type MissingToppingsEntryData, renderMissingToppingsEntry, SETUP_ENTRY_TYPE } from "./toppings.ts";
 import { PreviewRenderer } from "./preview.ts";
 import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
-import { isPlainObject, modelsResemble, sanitizedText, stripControlChars } from "./util.ts";
+import { hostBelow, isPlainObject, modelsResemble, sanitizedText, stripControlChars } from "./util.ts";
 import { formatServiceTierSummary, recordServiceTierCall, serviceTierCountsOf, serviceTierOf, type ServiceTierCount } from "./service-tier.ts";
 import { servedModelOf } from "./served-model.ts";
 import { loadBundledWordPacks, loadUserWordPacks, pickWorkingTextSelection, type WorkingTextSelection, type WordPack } from "./word-packs.ts";
@@ -61,10 +62,14 @@ type MessageEndEvent = Extract<ExtensionEvent, { type: "message_end" }>;
 type ToolExecutionStartEvent = Extract<ExtensionEvent, { type: "tool_execution_start" }>;
 type UIPromptStartEvent = Extract<ExtensionEvent, { type: "ui_prompt_start" }>;
 type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
-type ContextWithSystemEvent = Extract<ExtensionEvent, { type: "context_with_system" }>;
 type ProviderStreamEvent = Extract<ExtensionEvent, { type: "provider_stream_event" }>;
 type UIPromptKind = UIPromptStartEvent["kind"];
 
+/**
+ * Oldest Pi this extension supports. Pi 1.2.0 runs before_agent_start for the run that a custom
+ * message starts, which is how the output style reaches a decorated prompt.
+ */
+export const MIN_HOST_VERSION = "1.2.0";
 const DONE_ENTRY_TYPE = "pi-topping-done";
 const RESPONSE_MODEL_STATUS_KEY = "pi-topping-response-model";
 /** Pi's `VIRTUAL_MODEL_API` for extension-registered virtual models; Pi does not export it from its public index. */
@@ -203,10 +208,14 @@ export class SessionManager {
 	#currentCtx: ExtensionContext | null = null;
 	/** Whether pi-topping-statusline last announced that its status bar hosts the loader; kept across sessions. */
 	#loaderInStatusline = false;
+	/** Whether the old-host warning was shown; once per process. */
+	#warnedOldHost = false;
 	readonly #pi: ExtensionAPI;
+	readonly #hostVersion: string;
 
-	constructor(pi: ExtensionAPI) {
+	constructor(pi: ExtensionAPI, hostVersion: string = VERSION) {
 		this.#pi = pi;
+		this.#hostVersion = hostVersion;
 	}
 
 	#onSessionStart = async (_e: SessionStartEvent, ctx: ExtensionContext): Promise<void> => {
@@ -223,37 +232,20 @@ export class SessionManager {
 		if (this.usable(ctx)) {
 			this.applyIndicator(ctx);
 			announceMissingToppingsOnce(this.#pi);
+			this.warnOldHostOnce(ctx);
 		}
 	};
 
-	/** Unlike the UI handlers, this runs in every mode: the output style shapes the model's prompt. */
-	#onBeforeAgentStart = (event: BeforeAgentStartEvent): BeforeAgentStartEventResult | undefined =>
-		applyOutputStyle(event.systemPromptOptions?.sections, this.#settings.outputStyle);
-
 	/**
-	 * A decorated prompt is a custom message, so Pi does not run before_agent_start for it.
-	 * Put the missing prompt section on the request. A matching transcript section is left alone.
+	 * Unlike the UI handlers, this runs in every mode: the output style shapes the model's prompt.
+	 * The prompt section applies to every run. The hidden reminder belongs to a user prompt: one Pi
+	 * submitted (`messageType: "user"`), or one that pi-topping re-sent as its prompt box, which
+	 * starts the run as a custom message. A run that another extension's custom message starts gets
+	 * the section only.
 	 */
-	#onContextWithSystem = (event: ContextWithSystemEvent): { messages: ContextWithSystemEvent["messages"] } | undefined => {
-		const patch = outputStyleSectionPatch(foldedOutputStyleSection(event.messages), this.#settings.outputStyle);
-		if (patch === undefined) return undefined;
-		const messages = event.messages.slice();
-		let index = messages.length;
-		for (let i = messages.length - 1; i >= 0; i--) {
-			const message = messages[i];
-			if (!message) continue;
-			if (message.role === "user" || (message.role === "custom" && message.customType === PROMPT_BOX_TYPE)) {
-				index = i;
-				break;
-			}
-		}
-		messages.splice(index, 0, {
-			role: "system",
-			content: "",
-			sections: { [OUTPUT_STYLE_SECTION]: patch },
-			timestamp: Date.now(),
-		});
-		return { messages };
+	#onBeforeAgentStart = (event: BeforeAgentStartEvent): BeforeAgentStartEventResult | undefined => {
+		const result = applyOutputStyle(event.systemPromptOptions?.sections, this.#settings.outputStyle);
+		return event.messageType !== "custom" || event.message.customType === PROMPT_BOX_TYPE ? result : undefined;
 	};
 
 	#onInput = async (event: InputEvent, ctx: ExtensionContext): Promise<InputEventResult | void> => {
@@ -264,7 +256,7 @@ export class SessionManager {
 		else if (event.streamingBehavior && event.source !== "extension") this.#state.midTurnInputs++;
 		if (this.#settings.decorations.decorateUserPrompt && this.shouldDecorate(event)) {
 			try {
-				const stylePrompt = OUTPUT_STYLES[this.#settings.outputStyle].prompt;
+				// The prompt box starts the run; before_agent_start adds the output style's section and reminder to it.
 				await this.#pi.sendMessage<PromptBoxDetails>(
 					{
 						customType: PROMPT_BOX_TYPE,
@@ -284,18 +276,8 @@ export class SessionManager {
 							thinkingLevel: ctx.thinkingLevel,
 						},
 					},
-					{ triggerTurn: stylePrompt === undefined },
+					{ triggerTurn: true },
 				);
-				if (stylePrompt) {
-					await this.#pi.sendMessage(
-						{
-							customType: OUTPUT_STYLE_MESSAGE_TYPE,
-							content: stylePrompt.reminder,
-							display: false,
-						},
-						{ triggerTurn: true },
-					);
-				}
 				return { action: "handled" };
 			} catch {
 				ctx.ui.notify("Failed to submit prompt", "error");
@@ -495,7 +477,6 @@ export class SessionManager {
 	install(): void {
 		this.#pi.on("session_start", this.#onSessionStart);
 		this.#pi.on("before_agent_start", this.#onBeforeAgentStart);
-		this.#pi.on("context_with_system", this.#onContextWithSystem);
 		this.#pi.on("input", this.#onInput);
 		this.#pi.on("agent_start", this.#onAgentStart);
 		this.#pi.on("message_start", this.#onMessageStart);
@@ -529,6 +510,16 @@ export class SessionManager {
 
 	private usable(ctx: ExtensionContext): boolean {
 		return !!ctx.hasUI && ctx.mode !== "print";
+	}
+
+	/** Pi before 1.2.0 skips before_agent_start for the decorated prompt, so output styles do not reach it. */
+	private warnOldHostOnce(ctx: ExtensionContext): void {
+		if (this.#warnedOldHost || !hostBelow(this.#hostVersion, MIN_HOST_VERSION)) return;
+		this.#warnedOldHost = true;
+		ctx.ui.notify(
+			`Pi Topping needs Pi ${MIN_HOST_VERSION} or later; this is Pi ${this.#hostVersion}. Output styles will not apply to decorated prompts.`,
+			"warning",
+		);
 	}
 
 	/**

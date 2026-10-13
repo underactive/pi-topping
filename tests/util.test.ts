@@ -1,7 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { modelsResemble } from "../src/util.ts";
+import { hostBelow, modelsResemble } from "../src/util.ts";
+
+test("hostBelow compares release versions and treats unreadable versions as new enough", () => {
+	for (const { version, minimum, expected } of [
+		{ version: "1.1.0", minimum: "1.2.0", expected: true },
+		{ version: "1.2.0", minimum: "1.2.0", expected: false },
+		{ version: "1.2.1", minimum: "1.2.0", expected: false },
+		{ version: "1.10.0", minimum: "1.2.0", expected: false },
+		{ version: "0.99.1", minimum: "1.2.0", expected: true },
+		{ version: "2.0.0", minimum: "1.2.0", expected: false },
+		{ version: "1.2.0-beta.1", minimum: "1.2.0", expected: false },
+		{ version: "0.0.0", minimum: "1.2.0", expected: true },
+		{ version: "unknown", minimum: "1.2.0", expected: false },
+		{ version: "1.2.0", minimum: "garbage", expected: false },
+	] as const) {
+		assert.equal(hostBelow(version, minimum), expected, `${version} below ${minimum}`);
+	}
+});
 
 test("modelsResemble recognizes decorated forms of the selected model", () => {
 	for (const { selected, response, expected } of [

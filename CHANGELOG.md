@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Pi ≥1.2.0 is now required.** Pi 1.2.0 runs the agent-start hook for the run that a custom message starts, which is how the output style reaches a decorated prompt. On an older host pi-topping shows a one-time warning at session start, and output styles do not reach decorated prompts. The published `peerDependencies` remain `*`, as Pi's packaging guide requires for host packages.
+- Verified compatibility with Pi 1.2.0; development and CI now typecheck and test against it, and the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 1.1.0 to 1.2.0.
+- A decorated prompt is now one custom message that starts the run; the agent-start hook adds the output style's prompt section and hidden reminder to that run, as it does for an undecorated prompt. Previously the prompt box and the reminder were sent as two messages.
+
+### Removed
+- Removed the request-time fallback that patched the output-style section onto decorated prompts on hosts before Pi 1.2.0, together with its `context_with_system` handler and helpers. Pi 1.2.0 records the section in the transcript through the agent-start hook.
+
+### Fixed
+- On Pi 1.2.0 a decorated prompt under a non-default output style no longer receives the hidden style reminder twice. Pi 1.2.0 adds a message that the agent-start hook returns to runs that a custom message starts, and pi-topping's hook returned the reminder for the run its own reminder message had started. The hook now returns the reminder for a user prompt and for the run pi-topping's prompt box starts, and nothing for runs that other extensions' custom messages start.
+
 ## [0.11.1] - 2026-10-12
 
 ### Changed
