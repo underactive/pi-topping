@@ -257,7 +257,7 @@ export class SessionManager {
 		if (this.#settings.decorations.decorateUserPrompt && this.shouldDecorate(event)) {
 			try {
 				// The prompt box starts the run; before_agent_start adds the output style's section and reminder to it.
-				await this.#pi.sendMessage<PromptBoxDetails>(
+				this.#pi.sendMessage<PromptBoxDetails>(
 					{
 						customType: PROMPT_BOX_TYPE,
 						content: event.text,
