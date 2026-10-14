@@ -50,7 +50,16 @@ import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type Th
 import { announcesEmbedded, STATUSLINE_EMBED_CHANNEL } from "./statusline-embed.ts";
 import { announceMissingToppingsOnce, type MissingToppingsEntryData, renderMissingToppingsEntry, SETUP_ENTRY_TYPE } from "./toppings.ts";
 import { PreviewRenderer } from "./preview.ts";
-import { buildCompletionMarkerContent, buildCompletionMarkerLine, PROMPT_BOX_TYPE, promptBoxRenderer, type PromptBoxDetails } from "./prompt-decorator.ts";
+import {
+	buildCompletionMarkerContent,
+	buildCompletionMarkerLine,
+	PROMPT_BOX_ENTRY_TYPE,
+	PROMPT_BOX_TYPE,
+	promptBoxEntryRenderer,
+	promptBoxRenderer,
+	type PromptBoxDetails,
+	type PromptBoxEntryData,
+} from "./prompt-decorator.ts";
 import { hostBelow, isPlainObject, modelsResemble, sanitizedText, stripControlChars } from "./util.ts";
 import { formatServiceTierSummary, recordServiceTierCall, serviceTierCountsOf, serviceTierOf, type ServiceTierCount } from "./service-tier.ts";
 import { servedModelOf } from "./served-model.ts";
@@ -254,6 +263,12 @@ export class SessionManager {
 
 		if (!event.streamingBehavior && !this.#state.busy) this.resetTurn(Date.now());
 		else if (event.streamingBehavior && event.source !== "extension") this.#state.midTurnInputs++;
+		if (this.#settings.decorations.decorateUserPrompt && this.shouldDecorateSkill(event)) {
+			this.#pi.appendEntry<PromptBoxEntryData>(PROMPT_BOX_ENTRY_TYPE, {
+				content: event.text,
+				details: this.promptBoxDetails(ctx),
+			});
+		}
 		if (this.#settings.decorations.decorateUserPrompt && this.shouldDecorate(event)) {
 			try {
 				// The prompt box starts the run; before_agent_start adds the output style's section and reminder to it.
@@ -262,19 +277,7 @@ export class SessionManager {
 						customType: PROMPT_BOX_TYPE,
 						content: event.text,
 						display: true,
-						details: {
-							submittedAt: Date.now(),
-							showIcon: this.#settings.decorations.promptIcon,
-							showTimestamp: this.#settings.decorations.promptTimestamp,
-							showProvider: this.#settings.decorations.promptProvider,
-							showModel: this.#settings.decorations.promptModel,
-							icon: this.#settings.decorations.useNerdFont ? "" : "π",
-							provider: ctx.model?.provider,
-							model: ctx.model?.id,
-							borderColor: this.#settings.decorations.borderColor,
-							borderStyle: this.#settings.decorations.borderStyle,
-							thinkingLevel: ctx.thinkingLevel,
-						},
+						details: this.promptBoxDetails(ctx),
 					},
 					{ triggerTurn: true },
 				);
@@ -500,6 +503,7 @@ export class SessionManager {
 		});
 		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) => this.#renderDoneEntry(entry, theme));
 		this.#pi.registerEntryRenderer<MissingToppingsEntryData>(SETUP_ENTRY_TYPE, (entry, _o, theme) => renderMissingToppingsEntry(entry, theme));
+		this.#pi.registerEntryRenderer<PromptBoxEntryData>(PROMPT_BOX_ENTRY_TYPE, promptBoxEntryRenderer);
 		this.#pi.registerMessageRenderer<PromptBoxDetails>(PROMPT_BOX_TYPE, promptBoxRenderer);
 		this.#pi.registerCommand("topping-settings", {
 			description: "Configure the prompt box, working loader, completion marker, word packs, and output style.",
@@ -526,6 +530,35 @@ export class SessionManager {
 	 * sendMessage(deliverAs) bypasses Pi's queue state, so the "Steering:"/"Follow-up:" rows
 	 * below the editor never render (issue #2).
 	 */
+	private promptBoxDetails(ctx: ExtensionContext): PromptBoxDetails {
+		return {
+			submittedAt: Date.now(),
+			showIcon: this.#settings.decorations.promptIcon,
+			showTimestamp: this.#settings.decorations.promptTimestamp,
+			showProvider: this.#settings.decorations.promptProvider,
+			showModel: this.#settings.decorations.promptModel,
+			icon: this.#settings.decorations.useNerdFont ? "" : "π",
+			provider: ctx.model?.provider,
+			model: ctx.model?.id,
+			borderColor: this.#settings.decorations.borderColor,
+			borderStyle: this.#settings.decorations.borderStyle,
+			thinkingLevel: ctx.thinkingLevel,
+		};
+	}
+
+	private shouldDecorateSkill(event: InputEvent): boolean {
+		if (
+			event.streamingBehavior ||
+			event.source === "extension" ||
+			!event.text.trim() ||
+			event.images?.length ||
+			!event.text.startsWith("/")
+		) return false;
+
+		const commandName = event.text.slice(1).split(" ", 1)[0]!;
+		return this.#pi.getCommands().some((command) => command.source === "skill" && command.name === commandName);
+	}
+
 	private shouldDecorate(event: InputEvent): boolean {
 		return (
 			!event.streamingBehavior &&

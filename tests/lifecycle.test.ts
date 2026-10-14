@@ -50,7 +50,7 @@ import {
 } from "../src/format.ts";
 import { PreviewRenderer } from "../src/preview.ts";
 import { EXPLANATORY_REMINDER, EXPLANATORY_SECTION, OUTPUT_STYLE_MESSAGE_TYPE, OUTPUT_STYLE_SECTION, OUTPUT_STYLES, SIMPLIFIED_TECHNICAL_ENGLISH_REMINDER, SIMPLIFIED_TECHNICAL_ENGLISH_SECTION } from "../src/output-style.ts";
-import { PROMPT_BOX_TYPE } from "../src/prompt-decorator.ts";
+import { PROMPT_BOX_ENTRY_TYPE, PROMPT_BOX_TYPE, type PromptBoxEntryData } from "../src/prompt-decorator.ts";
 import { buildMenuSections, DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/settings.ts";
 import { STATUSLINE_EMBED_CHANNEL } from "../src/statusline-embed.ts";
 import { loadBundledWordPacks } from "../src/word-packs.ts";
@@ -77,7 +77,7 @@ type TestedEventName = keyof TestedEvents;
 type Handler<K extends TestedEventName> = (event: TestedEvents[K], ctx: ExtensionContext) => Promise<unknown> | unknown;
 type CommandHandler = (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 type RegisteredCommandLike = { description?: string; handler: CommandHandler };
-type RuntimeCommand = { name: string; source: "extension"; sourceInfo: { path: string } };
+type RuntimeCommand = { name: string; source: "extension" | "prompt" | "skill"; sourceInfo: { path: string } };
 type MockExtensionOptions = { getCommands?: () => RuntimeCommand[] };
 
 const DEFAULT_RUNTIME_COMMANDS: RuntimeCommand[] = [
@@ -2496,6 +2496,67 @@ test("normal interactive input is re-sent as a decorated custom message", async 
 		assert.equal(sent.message.details.showModel, true);
 		assert.equal(sent.message.details.thinkingLevel, "high");
 		assert.deepEqual(sent.options, { triggerTurn: true });
+	});
+});
+
+test("known skill prompts get a display-only box while Pi handles the native invocation", async () => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, outputStyle: "explanatory" });
+		const extension = new MockExtension({
+			getCommands: () => [
+				...DEFAULT_RUNTIME_COMMANDS,
+				{ name: "skill:git-commit", source: "skill", sourceInfo: { path: "/skills/git-commit/SKILL.md" } },
+			],
+		});
+		const ctx = createContext([], []);
+		workingDecorator(extension.asAPI());
+		const prompt = "/skill:git-commit Keep the commit focused";
+
+		const result = await extension.emit("input", { type: "input", text: prompt, source: "interactive" }, ctx);
+
+		assert.equal(result, undefined);
+		assert.equal(extension.sentMessages.length, 0);
+		assert.equal(extension.appendedEntries.length, 1);
+		const entry = extension.appendedEntries[0]!;
+		assert.equal(entry.customType, PROMPT_BOX_ENTRY_TYPE);
+		const data = entry.data as PromptBoxEntryData;
+		assert.equal(data.content, prompt);
+		assert.equal(data.details.showIcon, true);
+
+		const sections = { foo: "x" };
+		const hook = await extension.emit("before_agent_start", beforeAgentStartEvent(sections), ctx);
+		assert.deepEqual(sections, { foo: "x", [OUTPUT_STYLE_SECTION]: EXPLANATORY_SECTION });
+		assert.deepEqual(hook, {
+			message: { customType: OUTPUT_STYLE_MESSAGE_TYPE, content: EXPLANATORY_REMINDER, display: false },
+		});
+
+		const renderer = extension.entryRenderers[PROMPT_BOX_ENTRY_TYPE]!;
+		const component = renderer(
+			{ type: "custom", customType: PROMPT_BOX_ENTRY_TYPE, data },
+			{ expanded: false },
+			ctx.ui.theme,
+		) as { render(width: number): string[] };
+		assert.match(component.render(80).map(stripAnsi).join("\n"), /\/skill:git-commit Keep the commit focused/);
+	});
+});
+
+test("only known skill commands get a skill prompt box", async () => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension({
+			getCommands: () => [
+				{ name: "skill:git-commit", source: "skill", sourceInfo: { path: "/skills/git-commit/SKILL.md" } },
+			],
+		});
+		const ctx = createContext([], []);
+		workingDecorator(extension.asAPI());
+
+		for (const text of ["/skill:missing", "/skill:git-commit-extra", "/model"]) {
+			const result = await extension.emit("input", { type: "input", text, source: "interactive" }, ctx);
+			assert.equal(result, undefined, text);
+		}
+
+		assert.equal(extension.appendedEntries.length, 0);
+		assert.equal(extension.sentMessages.length, 0);
 	});
 });
 

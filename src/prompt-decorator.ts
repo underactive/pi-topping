@@ -1,10 +1,11 @@
-import type { MessageRenderer, ThemeColor } from "@earendil-works/pi-coding-agent";
-import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import type { EntryRenderer, MessageRenderer, Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
+import { truncateToWidth, visibleWidth, wrapTextWithAnsi, type Component } from "@earendil-works/pi-tui";
 import { getThinkingLevelColorizer, isThinkingLevel, type ThinkingLevel } from "./format.ts";
 import { DEFAULT_SETTINGS, isBorderStyle, isPromptBorderColor, type BorderStyle, type DoneMarkerBorderColor, type DoneMarkerBorderStyle, type DoneMarkerStyle, type PromptBorderColor } from "./settings.ts";
 import { stripControlChars } from "./util.ts";
 
 export const PROMPT_BOX_TYPE = "pi-topping-prompt";
+export const PROMPT_BOX_ENTRY_TYPE = "pi-topping-prompt-entry";
 
 const BORDER_GLYPHS: Record<BorderStyle, { tl: string; tr: string; bl: string; br: string; h: string; v: string }> = {
 	double: { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║" },
@@ -32,6 +33,11 @@ export interface PromptBoxDetails {
 	borderColor?: PromptBorderColor;
 	borderStyle?: BorderStyle;
 	thinkingLevel?: ThinkingLevel;
+}
+
+export interface PromptBoxEntryData {
+	content: string;
+	details: PromptBoxDetails;
 }
 
 type PromptTheme = {
@@ -150,16 +156,15 @@ export function buildPromptBoxLines(
 	return lines;
 }
 
-export const promptBoxRenderer: MessageRenderer<PromptBoxDetails> = (message, _options, theme) => {
-	const content = typeof message.content === "string" ? message.content.replace(/(?![\n\t])[\p{Cc}\p{Cf}]/gu, "") : "";
-	const details = (message.details ?? {}) as PromptBoxDetails;
+function createPromptBoxComponent(content: string, details: PromptBoxDetails, theme: Theme): Component {
+	const safeContent = content.replace(/(?![\n\t])[\p{Cc}\p{Cf}]/gu, "");
 	let cachedWidth: number | undefined;
 	let cachedLines: string[] | undefined;
 	return {
 		render(width: number): string[] {
 			if (cachedWidth !== width) {
 				cachedWidth = width;
-				cachedLines = buildPromptBoxLines(content, details.submittedAt, width, theme, details);
+				cachedLines = buildPromptBoxLines(safeContent, details.submittedAt, width, theme, details);
 			}
 			return cachedLines!;
 		},
@@ -168,4 +173,16 @@ export const promptBoxRenderer: MessageRenderer<PromptBoxDetails> = (message, _o
 			cachedLines = undefined;
 		},
 	};
+}
+
+export const promptBoxRenderer: MessageRenderer<PromptBoxDetails> = (message, _options, theme) => {
+	const content = typeof message.content === "string" ? message.content : "";
+	const details = (message.details ?? {}) as PromptBoxDetails;
+	return createPromptBoxComponent(content, details, theme);
+};
+
+export const promptBoxEntryRenderer: EntryRenderer<PromptBoxEntryData> = (entry, _options, theme) => {
+	const data = entry.data;
+	if (!data || typeof data.content !== "string") return undefined;
+	return createPromptBoxComponent(data.content, data.details ?? {}, theme);
 };
