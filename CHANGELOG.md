@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - On Pi 1.2.0 a decorated prompt under a non-default output style no longer receives the hidden style reminder twice. Pi 1.2.0 adds a message that the agent-start hook returns to runs that a custom message starts, and pi-topping's hook returned the reminder for the run its own reminder message had started. The hook now returns the reminder for a user prompt and for the run pi-topping's prompt box starts, and nothing for runs that other extensions' custom messages start.
+- A response model that only respells the selected model is now hidden like other restatements: the model's id, or its display name with or without trailing parenthesized notes, written with other case and separators. For example, a model with the id `qwen38-flash-next-iq2xs_local_256k` and the name `Qwen3.8 Flash Next IQ2_XS (Local)` no longer shows `qwen3.8-flash-next-iq2_xs`. The comparison keeps every digit and allows no other difference. The loader, completion marker, and response-model footer share it.
 
 ## [0.11.1] - 2026-10-12
 

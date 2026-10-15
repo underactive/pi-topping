@@ -60,7 +60,7 @@ import {
 	type PromptBoxDetails,
 	type PromptBoxEntryData,
 } from "./prompt-decorator.ts";
-import { hostBelow, isPlainObject, modelsResemble, sanitizedText, stripControlChars } from "./util.ts";
+import { hostBelow, isPlainObject, modelsResemble, modelsSpelledAlike, sanitizedText, stripControlChars } from "./util.ts";
 import { formatServiceTierSummary, recordServiceTierCall, serviceTierCountsOf, serviceTierOf, type ServiceTierCount } from "./service-tier.ts";
 import { servedModelOf } from "./served-model.ts";
 import { loadBundledWordPacks, loadUserWordPacks, pickWorkingTextSelection, type WorkingTextSelection, type WordPack } from "./word-packs.ts";
@@ -623,7 +623,8 @@ export class SessionManager {
 	}
 
 	/**
-	 * Whether a response model merely restates the selected model. Under a virtual selection
+	 * Whether a response model merely restates the selected model: a decorated form of its id,
+	 * or its id or display name written with other case and separators. Under a virtual selection
 	 * the routed model is always another model, so only a failed route, which leaves the
 	 * virtual model itself on the message, is hidden; a resemblance check would also hide a
 	 * routed model whose id contains the virtual id, such as openrouter's `auto`.
@@ -632,7 +633,7 @@ export class SessionManager {
 		const selected = this.#currentCtx?.model;
 		if (!selected) return false;
 		if (selected.api === VIRTUAL_MODEL_API) return report.provider === selected.provider && responseModel === selected.id;
-		return modelsResemble(selected.id, responseModel);
+		return modelsResemble(selected.id, responseModel) || modelsSpelledAlike(selected, responseModel);
 	}
 
 	private updateResponseModel(report: ResponseModelReport | undefined): void {

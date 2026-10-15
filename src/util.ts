@@ -39,3 +39,24 @@ export function modelsResemble(selectedModel?: string, responseModel?: string): 
 	const normalizedResponse = responseModel.toLowerCase();
 	return selectedTokens.length > 0 && selectedTokens.every((token) => normalizedResponse.includes(token));
 }
+
+/** Lowercase letters and digits only, so names that differ just in case and separators compare equal. */
+function spelling(text: string): string {
+	return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+/**
+ * True when a reported response model is the selected model's id, or its display name with or
+ * without trailing parenthesized notes, written with other case and separators: a model named
+ * `Qwen3.8 Flash (Local)` matches `qwen3.8-flash`. Every digit counts, so `qwen3-flash` does not,
+ * and nothing else may differ, so an id with a suffix such as `256k` does not match a response without it.
+ */
+export function modelsSpelledAlike(selected: { id: string; name?: string }, responseModel?: string): boolean {
+	if (!responseModel) return false;
+	const lastSegment = (model: string): string => model.split(/[\\/]/).at(-1) ?? "";
+	const response = spelling(lastSegment(responseModel));
+	if (!response) return false;
+	const name = selected.name ?? "";
+	const candidates = [lastSegment(selected.id), name, name.replace(/(?:\s*\([^()]*\))+\s*$/, "")];
+	return candidates.some((candidate) => spelling(candidate) === response);
+}

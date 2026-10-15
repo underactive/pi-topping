@@ -232,7 +232,7 @@ function createContext(
 		statuses?: { key: string; text: string | undefined }[];
 		selectedModel?: string;
 		/** Full selected model, for selections whose `api` matters; takes precedence over selectedModel. */
-		model?: { provider: string; id: string; api: string };
+		model?: { provider: string; id: string; api: string; name?: string };
 		thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 		onCustomComponent?: (component: { render(width: number): string[]; handleInput?(data: string): void; dispose?(): void }) => void;
 	},
@@ -1136,6 +1136,37 @@ test("resembling response models are suppressed during streaming and settlement"
 		await extension.emit("message_end", { type: "message_end", message: partial }, ctx);
 		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.ok(statuses.every(({ text }) => text === undefined), "suppressed models must not start a response-model fade");
+		assert.equal((extension.appendedEntries[0]!.data as { model?: string }).model, undefined);
+	});
+});
+
+test("response models respelling the selected display name are suppressed", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, {
+			model: { provider: "local", id: "qwen38-flash-next-iq2xs_local_256k", name: "Qwen3.8 Flash Next IQ2_XS (Local)", api: "openai-completions" },
+		});
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+		const report = async (responseModel: string): Promise<void> => {
+			const partial = assistantMessage(0, responseModel);
+			await extension.emit("message_update", {
+				type: "message_update",
+				message: partial,
+				assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "text", partial },
+			}, ctx);
+		};
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		await report("qwen3.8-flash-next-iq3_xs");
+		assert.match(stripAnsi(messages.at(-1)!), / · qwen3\.8-flash-next-iq3_xs$/, "a different quantization shows");
+
+		await report("qwen3.8-flash-next-iq2_xs");
+		assert.ok(!stripAnsi(messages.at(-1)!).includes("qwen3.8"), "the display name respelled is hidden");
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "qwen3.8-flash-next-iq2_xs") }, ctx);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 		assert.equal((extension.appendedEntries[0]!.data as { model?: string }).model, undefined);
 	});
 });

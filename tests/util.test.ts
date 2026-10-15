@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { hostBelow, modelsResemble } from "../src/util.ts";
+import { hostBelow, modelsResemble, modelsSpelledAlike } from "../src/util.ts";
 
 test("hostBelow compares release versions and treats unreadable versions as new enough", () => {
 	for (const { version, minimum, expected } of [
@@ -36,5 +36,24 @@ test("modelsResemble recognizes decorated forms of the selected model", () => {
 		{ selected: "model", response: undefined, expected: false },
 	] as const) {
 		assert.equal(modelsResemble(selected, response), expected, `${selected} versus ${response}`);
+	}
+});
+
+test("modelsSpelledAlike matches the selected id or display name written with other case and separators", () => {
+	const local = { id: "qwen38-flash-next-iq2xs_local_256k", name: "Qwen3.8 Flash Next IQ2_XS (Local)" };
+	const llama = { id: "llama-local", name: "Llama 3.1 (8B)" };
+	for (const { selected, response, expected } of [
+		{ selected: local, response: "qwen3.8-flash-next-iq2_xs", expected: true },
+		{ selected: local, response: "host/Qwen3.8-Flash-Next-IQ2_XS", expected: true },
+		{ selected: local, response: "qwen3-flash-next-iq2_xs", expected: false },
+		{ selected: local, response: "qwen3.8-flash-next-iq3_xs", expected: false },
+		{ selected: { id: local.id }, response: "qwen3.8-flash-next-iq2_xs", expected: false },
+		{ selected: { id: "qwen38-flash" }, response: "Qwen3.8_Flash", expected: true },
+		{ selected: llama, response: "llama-3.1-8b", expected: true },
+		{ selected: llama, response: "llama-3.1-70b", expected: false },
+		{ selected: { id: "---", name: "(?)" }, response: "---", expected: false },
+		{ selected: local, response: undefined, expected: false },
+	]) {
+		assert.equal(modelsSpelledAlike(selected, response), expected, `${selected.id} versus ${response}`);
 	}
 });
