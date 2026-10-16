@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Explicit `/skill:name` invocations now get a display-only prompt box while Pi expands the skill natively; Pi's `[skill]` entry remains visible beside it.
 
 ### Changed
+- Verified compatibility with Pi 1.3.0; development and CI now typecheck and test against it, and the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 1.2.0 to 1.3.0. No runtime behavior changed, the published `peerDependencies` remain `*`, and the minimum supported host remains Pi ≥1.2.0.
 - **Pi ≥1.2.0 is now required.** Pi 1.2.0 runs the agent-start hook for the run that a custom message starts, which is how the output style reaches a decorated prompt. On an older host pi-topping shows a one-time warning at session start, and output styles do not reach decorated prompts. The published `peerDependencies` remain `*`, as Pi's packaging guide requires for host packages.
 - Verified compatibility with Pi 1.2.0; development and CI now typecheck and test against it, and the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 1.1.0 to 1.2.0.
 - A decorated prompt is now one custom message that starts the run; the agent-start hook adds the output style's prompt section and hidden reminder to that run, as it does for an undecorated prompt. Previously the prompt box and the reminder were sent as two messages.
