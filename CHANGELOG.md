@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-16
+
 ### Added
 - Explicit `/skill:name` invocations now get a display-only prompt box while Pi expands the skill natively; Pi's `[skill]` entry remains visible beside it.
 
