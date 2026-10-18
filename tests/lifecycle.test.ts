@@ -39,12 +39,11 @@ type ToolExecutionStartEvent = { type: "tool_execution_start"; toolCallId: strin
 type UIPromptStartEvent = Extract<ExtensionEvent, { type: "ui_prompt_start" }>;
 type UIPromptEndEvent = Extract<ExtensionEvent, { type: "ui_prompt_end" }>;
 type ProviderStreamEvent = Extract<ExtensionEvent, { type: "provider_stream_event" }>;
-import { ROUTED_MODEL_CHANNEL } from "../src/routesense-feed.ts";
+import { CHANNELS, WORKING_STATUS_SLIDE_MS } from "@underactive/pi-topping-primitives/contracts";
 import {
 	RESPONSE_MODEL_FADE_MS,
 	RESPONSE_MODEL_HOLD_MS,
 	RESPONSE_MODEL_SLIDE_FRAME_MS,
-	RESPONSE_MODEL_SLIDE_MS,
 	SPINNER_FRAMES,
 	TOKEN_RATE_FADE_SHADE_COUNT,
 } from "../src/format.ts";
@@ -52,7 +51,6 @@ import { PreviewRenderer } from "../src/preview.ts";
 import { EXPLANATORY_REMINDER, EXPLANATORY_SECTION, OUTPUT_STYLE_MESSAGE_TYPE, OUTPUT_STYLE_SECTION, OUTPUT_STYLES, SIMPLIFIED_TECHNICAL_ENGLISH_REMINDER, SIMPLIFIED_TECHNICAL_ENGLISH_SECTION } from "../src/output-style.ts";
 import { PROMPT_BOX_ENTRY_TYPE, PROMPT_BOX_TYPE, type PromptBoxEntryData } from "../src/prompt-decorator.ts";
 import { buildMenuSections, DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/settings.ts";
-import { STATUSLINE_EMBED_CHANNEL } from "../src/statusline-embed.ts";
 import { loadBundledWordPacks } from "../src/word-packs.ts";
 import { WORDS } from "../src/words.ts";
 import { MIN_HOST_VERSION, SessionManager } from "../src/session.ts";
@@ -331,7 +329,7 @@ function stripAnsi(text: string): string {
 
 const VIRTUAL_MODEL = { provider: "routesense", id: "auto", api: "pi-virtual" };
 
-/** A ROUTED_MODEL_CHANNEL announcement as pi-topping-routesense emits it. */
+/** A CHANNELS.routedModel announcement as pi-topping-routesense emits it. */
 function routedModel(modelId: string, reason = "user", provider = "openai-codex"): Record<string, unknown> {
 	return {
 		version: 1,
@@ -1257,7 +1255,7 @@ test("a newly reported response model slides out of the loader tail first", asyn
 
 		workingDecorator(extension.asAPI());
 		// Statusline can announce before this extension's session_start handler runs.
-		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
+		extension.events.emit(CHANNELS.workingStatusEmbedded, { embedded: true });
 		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
@@ -1265,12 +1263,12 @@ test("a newly reported response model slides out of the loader tail first", asyn
 		assert.ok(slide, "an appearing response model repaints on its own slide timer");
 		assert.match(stripAnsi(messages.at(-1)!), /↓ 0 tokens$/, "neither the model nor its separator shows before its first cell");
 
-		now += RESPONSE_MODEL_SLIDE_MS / 2;
+		now += WORKING_STATUS_SLIDE_MS / 2;
 		slide.tick();
 		assert.match(stripAnsi(messages.at(-1)!), /↓ 0 tokens · model$/, "halfway through, the model's tail half has emerged");
 		assert.ok(!cleared.has(slide.id));
 
-		now += RESPONSE_MODEL_SLIDE_MS / 2;
+		now += WORKING_STATUS_SLIDE_MS / 2;
 		slide.tick();
 		assert.match(stripAnsi(messages.at(-1)!), /↓ 0 tokens · test-model$/);
 		assert.ok(cleared.has(slide.id), "the slide timer stops once the model is fully out");
@@ -1295,11 +1293,11 @@ test("a replacement response model swaps in place, but one shown again after bei
 		};
 
 		workingDecorator(extension.asAPI());
-		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
+		extension.events.emit(CHANNELS.workingStatusEmbedded, { embedded: true });
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		await report("first-model");
 		const firstSlide = slideTimer(timers);
-		now += RESPONSE_MODEL_SLIDE_MS;
+		now += WORKING_STATUS_SLIDE_MS;
 		firstSlide!.tick();
 
 		await report("second-model");
@@ -1322,7 +1320,7 @@ test("settling or shutting down mid-slide stops the response model's slide timer
 		const { timers, cleared } = recordTimers(t);
 
 		workingDecorator(extension.asAPI());
-		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
+		extension.events.emit(CHANNELS.workingStatusEmbedded, { embedded: true });
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
 		const settled = slideTimer(timers);
@@ -1348,7 +1346,7 @@ test("a response model hidden from the loader starts no slide", async (t) => {
 		const { timers } = recordTimers(t);
 
 		workingDecorator(extension.asAPI());
-		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
+		extension.events.emit(CHANNELS.workingStatusEmbedded, { embedded: true });
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		await extension.emit("message_end", { type: "message_end", message: assistantMessage(0, "test-model") }, ctx);
 		assert.equal(slideTimer(timers), undefined);
@@ -1373,8 +1371,8 @@ test("a response model shows whole at once unless pi-topping-statusline embeds t
 		assert.equal(slideTimer(timers), undefined);
 		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
-		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
-		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: false });
+		extension.events.emit(CHANNELS.workingStatusEmbedded, { embedded: true });
+		extension.events.emit(CHANNELS.workingStatusEmbedded, { embedded: false });
 		await run();
 		assert.match(stripAnsi(messages.at(-1)!), /↓ 0 tokens · test-model$/, "nor once statusline stops embedding the loader");
 		assert.equal(slideTimer(timers), undefined);
@@ -3277,7 +3275,7 @@ test("a backend flip swaps in place without starting another loader slide", asyn
 		t.mock.method(Date, "now", () => now);
 		const { timers, cleared } = recordTimers(t);
 		workingDecorator(extension.asAPI());
-		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
+		extension.events.emit(CHANNELS.workingStatusEmbedded, { embedded: true });
 		await startTurn(extension, ctx);
 		await extension.emit("provider_stream_event", providerStreamEvent({
 			type: "response.created",
@@ -3411,7 +3409,7 @@ test("a distinct route replaces a strong virtual-selection stream report", async
 			const ctx = createContext(messages, [], undefined, { model: VIRTUAL_MODEL });
 			workingDecorator(extension.asAPI());
 			await startTurn(extension, ctx);
-			extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("early-route"));
+			extension.events.emit(CHANNELS.routedModel, routedModel("early-route"));
 			assert.ok(stripAnsi(messages.at(-1)!).endsWith(" · early-route"));
 			await extension.emit("provider_stream_event", providerStreamEvent({
 				response: { model: "gpt-5.6-sol-2026-09-01" },
@@ -3421,7 +3419,7 @@ test("a distinct route replaces a strong virtual-selection stream report", async
 			assert.ok(stripAnsi(messages.at(-1)!).endsWith(` · ${expected}`));
 
 			const paints = messages.length;
-			extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol", "continuation"));
+			extension.events.emit(CHANNELS.routedModel, routedModel("gpt-5.6-sol", "continuation"));
 			assert.equal(messages.length, paints + 1);
 			assert.ok(stripAnsi(messages.at(-1)!).endsWith(" · gpt-5.6-sol"));
 		}
@@ -3750,7 +3748,7 @@ test("a routesense announcement during a busy turn shows the routed model before
 		await extension.emit("input", { type: "input", text: "prompt", source: "interactive" }, ctx);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		assert.ok(!stripAnsi(messages.at(-1)!).includes("gpt-5.6-sol"));
-		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-5.6-sol"));
 		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/, "the announced model shows before message_start");
 
 		await extension.emit("agent_settled", agentSettledEvent(), ctx);
@@ -3778,7 +3776,7 @@ test("a bare routed id preserves only the matching provider-reported route", asy
 
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
-		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-5.6-sol"));
 		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/);
 		await extension.emit("message_start", { type: "message_start", message: routed() }, ctx);
 		await update(routed("gpt-5.6-sol-2026-09-01"));
@@ -3787,7 +3785,7 @@ test("a bare routed id preserves only the matching provider-reported route", asy
 
 		await extension.emit("tool_execution_start", { type: "tool_execution_start", toolCallId: "1", toolName: "read", args: {} }, ctx);
 		const painted = messages.length;
-		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol", "continuation"));
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-5.6-sol", "continuation"));
 		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol-2026-09-01$/, "the continuation announcement keeps the dated form");
 		await extension.emit("message_start", { type: "message_start", message: routed() }, ctx);
 		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol-2026-09-01$/, "the message's bare model keeps the dated form");
@@ -3795,7 +3793,7 @@ test("a bare routed id preserves only the matching provider-reported route", asy
 		await update(routed("gpt-5.6-sol-2026-09-01"));
 		assert.equal(messages.length, painted, "the dated form reported again does not repaint either");
 
-		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol-2026"));
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-5.6-sol-2026"));
 		assert.ok(stripAnsi(messages.at(-1)!).endsWith(" · gpt-5.6-sol-2026"), "a distinct but similar route replaces the decorated form");
 	});
 });
@@ -3810,14 +3808,14 @@ test("a bare routed id that does not resemble the shown model still swaps in pla
 
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
-		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-5.6-sol"));
 		await extension.emit("message_end", {
 			type: "message_end",
 			message: { ...assistantMessage(0, "gpt-5.6-sol-2026-09-01"), provider: "openai-codex", model: "gpt-5.6-sol" },
 		}, ctx);
 		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol-2026-09-01$/);
 
-		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("claude-opus-5-5", "retry", "anthropic"));
+		extension.events.emit(CHANNELS.routedModel, routedModel("claude-opus-5-5", "retry", "anthropic"));
 		assert.match(stripAnsi(messages.at(-1)!), / · claude-opus-5-5$/, "a retry's fallback model replaces the dated form");
 		await extension.emit("message_start", {
 			type: "message_start",
@@ -3842,7 +3840,7 @@ test("under a virtual selection only the failed-route virtual model itself is hi
 
 		await extension.emit("message_end", { type: "message_end", message: { ...assistantMessage(0), provider: "openai-codex", model: "gpt-5.6-sol" } }, ctx);
 		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/);
-		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("auto", "continuation", "openrouter"));
+		extension.events.emit(CHANNELS.routedModel, routedModel("auto", "continuation", "openrouter"));
 		assert.match(stripAnsi(messages.at(-1)!), / · auto$/, "an announcement of such a model shows");
 
 		await extension.emit("message_end", { type: "message_end", message: { ...assistantMessage(0), provider: "openai-codex", model: "gpt-5.6-sol" } }, ctx);
@@ -3863,11 +3861,11 @@ test("direct-route routesense announcements are ignored", async (t) => {
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		const before = messages.length;
-		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol", "direct"));
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-5.6-sol", "direct"));
 		assert.equal(messages.length, before);
 		assert.ok(!stripAnsi(messages.at(-1)!).includes("gpt-5.6-sol"));
 
-		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol", "retry"));
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-5.6-sol", "retry"));
 		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/, "other route reasons still show");
 	});
 });
@@ -3883,7 +3881,7 @@ test("malformed routesense announcements are ignored", async (t) => {
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		const before = messages.length;
-		extension.events.emit(ROUTED_MODEL_CHANNEL, { ...routedModel("gpt-5.6-sol"), version: 2 });
+		extension.events.emit(CHANNELS.routedModel, { ...routedModel("gpt-5.6-sol"), version: 2 });
 		assert.equal(messages.length, before);
 		assert.ok(!stripAnsi(messages.at(-1)!).includes("gpt-5.6-sol"));
 	});
@@ -3899,14 +3897,14 @@ test("a routesense announcement while the loader is idle is ignored", async (t) 
 
 		workingDecorator(extension.asAPI());
 		await extension.emit("session_start", { type: "session_start", reason: "startup" }, ctx);
-		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-5.6-sol"));
 		assert.equal(messages.length, 0);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		assert.ok(!stripAnsi(messages.at(-1)!).includes("gpt-5.6-sol"), "a background route leaves no stale model for the next turn");
 		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		const settled = messages.length;
-		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-5.6-sol"));
 		assert.equal(messages.length, settled);
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		assert.ok(!stripAnsi(messages.at(-1)!).includes("gpt-5.6-sol"));
@@ -3930,7 +3928,7 @@ test("assistant messages without a responseModel keep the announced model, and a
 
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
-		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-5.6-sol"));
 		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/);
 
 		await extension.emit("message_start", { type: "message_start", message: { role: "assistant" } }, ctx);
@@ -3955,16 +3953,16 @@ test("a continuation announcement naming a different model swaps in place", asyn
 		const { timers } = recordTimers(t);
 
 		workingDecorator(extension.asAPI());
-		extension.events.emit(STATUSLINE_EMBED_CHANNEL, { embedded: true });
+		extension.events.emit(CHANNELS.workingStatusEmbedded, { embedded: true });
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
-		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("gpt-5.6-sol"));
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-5.6-sol"));
 		const firstSlide = slideTimer(timers);
 		assert.ok(firstSlide, "an announced model slides out like a reported one");
-		now += RESPONSE_MODEL_SLIDE_MS;
+		now += WORKING_STATUS_SLIDE_MS;
 		firstSlide.tick();
 		assert.match(stripAnsi(messages.at(-1)!), / · gpt-5\.6-sol$/);
 
-		extension.events.emit(ROUTED_MODEL_CHANNEL, routedModel("claude-opus-5-5", "continuation"));
+		extension.events.emit(CHANNELS.routedModel, routedModel("claude-opus-5-5", "continuation"));
 		assert.match(stripAnsi(messages.at(-1)!), / · claude-opus-5-5$/, "the continuation's model shows whole at once");
 		assert.equal(slideTimer(timers), firstSlide, "without starting another slide");
 	});

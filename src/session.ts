@@ -15,9 +15,9 @@ import type {
 	Theme,
 } from "@earendil-works/pi-coding-agent";
 import { VERSION } from "@earendil-works/pi-coding-agent";
+import { CHANNELS, PI_VIRTUAL_MODEL_API, WORKING_STATUS_SLIDE_MS, subscribe } from "@underactive/pi-topping-primitives/contracts";
 import { Text, type Component } from "@earendil-works/pi-tui";
 import { ActivityMeter, rateToLevel, TokRateTracker } from "./activity-meter.ts";
-import { ROUTED_MODEL_CHANNEL, routedModelAnnouncement } from "./routesense-feed.ts";
 import {
 	dimAttribute,
 	getThinkingLevelColorizer,
@@ -32,7 +32,6 @@ import {
 	RESPONSE_MODEL_FADE_MS,
 	RESPONSE_MODEL_HOLD_MS,
 	RESPONSE_MODEL_SLIDE_FRAME_MS,
-	RESPONSE_MODEL_SLIDE_MS,
 	SHIMMER_INTERVAL_MS,
 	slideOutTail,
 	SPINNER_FRAME_MS,
@@ -47,7 +46,6 @@ import { applyOutputStyle, OUTPUT_STYLES } from "./output-style.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { registerSetupCommand } from "./setup-command.ts";
 import { applyMenuResult, buildMenuSections, loadSettings, saveSettings, type ThinkingLevelColor } from "./settings.ts";
-import { announcesEmbedded, STATUSLINE_EMBED_CHANNEL } from "./statusline-embed.ts";
 import { announceMissingToppingsOnce, type MissingToppingsEntryData, renderMissingToppingsEntry, SETUP_ENTRY_TYPE } from "./toppings.ts";
 import { PreviewRenderer } from "./preview.ts";
 import {
@@ -81,8 +79,6 @@ type UIPromptKind = UIPromptStartEvent["kind"];
 export const MIN_HOST_VERSION = "1.2.0";
 const DONE_ENTRY_TYPE = "pi-topping-done";
 const RESPONSE_MODEL_STATUS_KEY = "pi-topping-response-model";
-/** Pi's `VIRTUAL_MODEL_API` for extension-registered virtual models; Pi does not export it from its public index. */
-const VIRTUAL_MODEL_API = "pi-virtual";
 const WAITING_LABELS: Record<UIPromptKind, string> = {
 	select: "Waiting for selection",
 	confirm: "Waiting for confirmation",
@@ -491,14 +487,13 @@ export class SessionManager {
 		this.#pi.on("ui_prompt_start", this.#onUIPromptStart);
 		this.#pi.on("ui_prompt_end", this.#onUIPromptEnd);
 		this.#pi.on("session_shutdown", this.#onSessionShutdown);
-		this.#pi.events.on(STATUSLINE_EMBED_CHANNEL, (data) => {
-			this.#loaderInStatusline = announcesEmbedded(data);
+		subscribe(this.#pi.events, CHANNELS.workingStatusEmbedded, ({ embedded }) => {
+			this.#loaderInStatusline = embedded;
 		});
-		this.#pi.events.on(ROUTED_MODEL_CHANNEL, (data) => {
+		subscribe(this.#pi.events, CHANNELS.routedModel, (announcement) => {
 			// Direct routes serve compaction and other extensions' side requests; a route while idle
 			// is such a background request too, and must not leave a stale model for the next turn.
-			const announcement = routedModelAnnouncement(data);
-			if (!announcement || announcement.reason === "direct" || !this.#state.busy) return;
+			if (announcement.reason === "direct" || !this.#state.busy) return;
 			this.updateResponseModel({ raw: announcement.modelId, weak: true, provider: announcement.provider, routedId: announcement.modelId });
 		});
 		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) => this.#renderDoneEntry(entry, theme));
@@ -618,7 +613,7 @@ export class SessionManager {
 		if (message.responseModel !== undefined) {
 			return { raw: message.responseModel, weak: false, routedId: sanitizedText(message.model) || undefined };
 		}
-		if (this.#currentCtx?.model?.api !== VIRTUAL_MODEL_API) return undefined;
+		if (this.#currentCtx?.model?.api !== PI_VIRTUAL_MODEL_API) return undefined;
 		return { raw: message.model, weak: true, provider: typeof message.provider === "string" ? message.provider : undefined };
 	}
 
@@ -632,7 +627,7 @@ export class SessionManager {
 	private restatesSelection(report: ResponseModelReport, responseModel: string): boolean {
 		const selected = this.#currentCtx?.model;
 		if (!selected) return false;
-		if (selected.api === VIRTUAL_MODEL_API) return report.provider === selected.provider && responseModel === selected.id;
+		if (selected.api === PI_VIRTUAL_MODEL_API) return report.provider === selected.provider && responseModel === selected.id;
 		return modelsResemble(selected.id, responseModel) || modelsSpelledAlike(selected, responseModel);
 	}
 
@@ -684,7 +679,7 @@ export class SessionManager {
 		state.responseModelShownAt = Date.now();
 		state.responseModelSlideTimer = setInterval(() => {
 			this.tick();
-			if (Date.now() - state.responseModelShownAt >= RESPONSE_MODEL_SLIDE_MS) this.stopResponseModelSlide();
+			if (Date.now() - state.responseModelShownAt >= WORKING_STATUS_SLIDE_MS) this.stopResponseModelSlide();
 		}, RESPONSE_MODEL_SLIDE_FRAME_MS);
 	}
 
