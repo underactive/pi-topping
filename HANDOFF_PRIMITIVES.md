@@ -581,4 +581,76 @@ Every drop reconciles to tests that moved into the package. The same counts held
 5. Phase 6: `./color` will have a broader `ansiToRgb`. It must not silently replace `./activity-tui`'s truecolor-only one.
 6. pi-topping still defines `ThinkingLevel`, `THINKING_LEVEL_VALUES` and `isThinkingLevel` locally; Phase 5 owns them.
 
-**Next: Phase 4.**
+**Next: Phase 4** (outcome recorded in §14).
+
+## 14. Phase 4 outcome (2026-10-19)
+
+Status: **complete.** `@underactive/pi-topping-primitives@0.4.0` (`./menu`) was published to npm by the owner on 2026-10-19 and is `latest`. Its registry artifact (sha1 `70eb2c7e…`, sha256 `9acb099a…`) is byte-identical to the tarball every consumer was first verified against. Tag `v0.4.0` is local, on primitives `787ab11`. The five lineage-A consumers are committed locally on `primitives-menu` against `^0.4.0` from the registry; nothing is pushed. moa-fusion and persona-audit (lineage B) and pi-switchyard were not touched, per the scope decision.
+
+### What shipped
+
+- **primitives** (`e52a31b` feat, `787ab11` release): `./menu` exports `MenuComponent`, `showMenu`, the pure model helpers (`flattenSections`, `buildInitialValues`, `resolveCycleValueLabel`, `firstEnabledIndex`, `moveCursor`, `rebuildMenu`), the frozen `chrome` frame helpers, `DEFAULT_MENU_KEYBINDINGS`, `menuKeybindings`, and the types (`MenuItem` union of `toggle`/`cycle`/`number`/`text`/`action`/`pick`/`reorder`, `MenuConfig`, `MenuButton`, `MenuRebuild`, `MenuHandlerResult`, `PreviewSlot`, `MenuResult`, `MenuSnapshot`, `MenuTheme`, `MenuTui`). Routesense's `src/ui/menu.ts` is the base; pi-topping's number editor, reorder rows and OSC 8 closure, bash-gate's preset wrap, statusline's re-opened selected background, and splash's button bar, `clearValue`, pick rows and `initialCursor` are merged in. The `pi-topping.menu.*` ids are declared on pi-tui's `Keybindings` and the component matches keys only through its own `KeybindingsManager`, seeded with the host's user bindings. Runtime pi-tui imports: `KeybindingsManager`, `Key`, `decodeKittyPrintable`, `truncateToWidth`, `visibleWidth`, `wrapTextWithAnsi`.
+- **Consumers**, each one commit titled `feat(menu): Adopt @underactive/pi-topping-primitives 0.4.0 settings menu`: bash-gate `64d3c3e`, pi-topping `09fdfa0`, statusline `0754903`, splash `31f5343d`, routesense `ddf3da2`. Every vendored menu and its unit-test file is deleted; each host keeps one smoke test that mounts the shared menu and resolves on apply and on cancel (splash keeps its command suite, re-anchored). Each CHANGELOG lists the user-visible changes.
+
+### Test counts (Stage 0 baseline to now)
+
+| Repo | Baseline | Now | Where the difference went |
+| --- | --- | --- | --- |
+| primitives | 46 + 161 + 28 + 12 + 38 | 46 + 262 + 33 + 12 + 38 | +100 in eleven `menu-*.test.ts` suites, +1 `./menu` row in the source entries test; +3 `./menu` rows in the compiled entries test, +2 in `exports/menu.test.ts` |
+| bash-gate | 116 | 107 | -10 `test/menu.test.ts`, +1 host smoke |
+| pi-topping | 280 | 243 | -37 `tests/menu.test.ts` |
+| statusline | 204 | 198 | -8 `src/tests/menu.test.ts`, +2 host smoke (`settings-menu.test.ts`) |
+| splash | 498 | 498 | no menu unit file existed; the pick flows now assert on the same mounted menu |
+| routesense | 494 (1 skipped) | 451 (1 skipped) | -44 `test/menu.test.ts`, +1 host smoke; the skip is the live Jev test |
+
+Every drop maps to a package test (the mapping tables are in the migration reports and in the routesense CHANGELOG commit). The same counts held against the packed tarball, against the registry package, and in fresh clones of the committed branches (`npm ci`, then the gates). Routesense's gates must run with `PI_SUBAGENT_CHILD` unset: two lease tests read it and report the owner as `subagent`.
+
+### Loader gate
+
+`scripts/probe-pi-loader.sh` takes `SUBPATH=menu`, which constructs a `MenuComponent` through pi's loader, renders it and presses Enter. In both loader branches (bundled chunk and unbundled SDK), with pi peers present and absent, on pi 1.3.0 and Node 24.18, all four rows returned `{"top":true,"rows":7,"result":{"applied":true,"values":{"on":true}}}` with zero errors, against the packed candidate and again against the registry tarball (same shasum). All five consumers loaded through both branches with zero errors and their commands and handlers registered (bash-gate 2/2, pi-topping 2/13, statusline 1/13, splash 2/4, routesense 1/7).
+
+### Smoke evidence
+
+Each extension ran in a barebones pi (`-ne -e ./index.ts`, `openai-codex/gpt-6-luna`) in a 120x40 tmux pane, against the tarball install. Settings files were backed up with `cp -p` first.
+
+- pi-topping: the settings menu rendered its 59 rows with the preview; PgDn moved one visible screenful (16 rows); a typed `250` committed, presets stepped 250 → 300 → 200 → 150; an invalid `5` showed `✗ Enter a whole number from 10 to 1000 tps` in the hint block and Escape discarded it; grabbing an Elements Order row showed `↑ ↓` and Down moved it below “Working” text; at 46 columns every frame line kept its right border and long labels wrapped; Escape closed without saving; `/topping-setup` reported every topping already active (the `-ne` fallback). Exit 0.
+- bash-gate: Right stepped the threshold 70 → 80; Escape closed without saving. Exit 0.
+- statusline: `+ add feed` grew the menu from 55 to 60 rows; Escape closed without saving. Exit 0.
+- splash: Enter on Summary model opened the two-pane picker **over the still-mounted menu** (both frames visible in one capture); Escape returned to the same menu with the cursor still on that row (`[ 7/7 ]`); Escape closed without saving. Exit 0. This is the one behaviour unit tests could not prove.
+- routesense: Tab moved focus to the bar (`[ Save ]` focused, its hint and the bar hints shown); Escape closed; Save was never pressed. Exit 0.
+- Before and after, every settings file and `~/.pi/agent/crashes.json` had identical shasums, and no `pi-tui-crash.log` existed.
+- tmux note: keys sent as tmux key names through the terminal tool during a resize were dropped; raw escape sequences, or `tmux send-keys` with a one-second pause between keys, were delivered reliably. The pane had to be forced to 120x40 (`window-size manual`); at the tool's default 24 rows the 75%/85% height budget left the body with only its scroll-status row below the preview, which is the same arithmetic the vendored menus had.
+
+### Behaviour changes
+
+- Number rows publish numbers (`MenuValue` is `boolean | string | number`); pi-topping and bash-gate used decimal strings. pi-topping's `applyMenuResult` accepts either.
+- Every menu uses one button bar, right-aligned between two rules (splash's look). `MenuButton.applies` validates then closes applied; `closeOnAction` closes with the draft; a plain button runs `onAction` and stays open.
+- Up/Down stop at the ends (statusline and splash wrapped); cycle rows always wrap (routesense stopped); PgUp/PgDn move one visible screenful (routesense moved ten rows); the pi-topping left-arrow defect below the lowest preset is fixed by wrapping.
+- Enter on a toggle or cycle row applies only under `enterApplies` (default: no buttons; routesense passes `true`). Enter on a number or text row opens the editor and on a reorder row grabs or releases it, so pi-topping and bash-gate users apply from another row.
+- Escape and Ctrl+C close with `applied: false` and the current draft (every copy returned the initial values; every caller reads values only on apply).
+- The overlay defaults to 90% wide and 85% high: pi-topping and bash-gate were 86% wide; statusline and splash were 100% high; splash was fixed at 76 columns; pi-topping keeps `maxHeight: "75%"`.
+- The marker is `❯` (statusline used `>`); ungated cycle, number and pick rows carry no checkbox; labels wrap instead of truncating (statusline's 16-cell label cap and tail-scrolling caret are gone).
+- Previews are a `PreviewSlot` given the full inner width with no margin; pi-topping, bash-gate and statusline add their old one-space indent themselves.
+- A failing `onAction` or `onPick` shows `✗ <message>` in the hint block and is never re-thrown (routesense re-threw). The hint block renders for any message, so a validation error shows in a menu without hints, and the number editor's error moved there from the hints row.
+- `onPick` keeps the menu mounted and ignores keys until the picker settles (splash closed and reopened its menu).
+- Content rows truncate with pi-tui's default `...` ellipsis, as every copy did.
+
+### Deviations from §3b and the plan
+
+- Numeric values; no `CycleItem.wrap`, `layout.marker`, `layout.previewTitle`, `NumberItem.integer` or `config.keys`; `MenuButton.applies`; the structural `MenuTheme` (and a structural `MenuTui`); in-menu failures; `MenuHandlerResult` as the one `void`-carrying return alias; `snapshot()` adds `rowCount`, `focus` and `busy`.
+- `menuKeybindings` tolerates a host without `getUserBindings` (splash's and statusline's test fakes pass `{}`).
+- **`rebuildMenu` re-seeds reorder groups instead of keeping them by key.** The plan's Stage 2 text says `rebuildMenu` "keeps reorder group values". The shipped `model.ts` deliberately does not: a rebuild lays the rows out in the rebuilt sections' order, and if the previous group value were kept by key the published order and the rows on screen would disagree. Re-seeding keeps them consistent (`menu-model.test.ts` "reorder groups survive a rebuild with the rebuilt sections' order", `menu-reorder.test.ts` "a rebuild resets the grab and restores the sections' order"). This is the one place the plan's literal wording was not followed, it was chosen before the publish, and 0.4.0 shipped with it; restoring the literal behaviour would need a 0.4.1 release and a consumer bump, so it is recorded here instead. No consumer rebuilds while a reorder group is on screen.
+- The first foundation worker (Codex) died on a provider usage limit after writing `types.ts`, `keys.ts`, `model.ts` and `chrome.ts`; the implementer finished the package. statusline, splash and routesense were migrated by three delegated workers on `claude-fable-5-1`; every diff was read and every gate re-run (against the final tarball, the registry and a fresh clone) before anything was committed.
+- The publish was run by the owner rather than from this session; the registry artifact was then verified against the candidate tarball. `npm install --prefer-online` resolved `^0.4.0` first time.
+- **Test-only files outside the plan's file lists.** The migrations needed small edits the plan's Files to Modify lists did not name, all confined to tests: bash-gate `test/helpers.ts` (the fake theme gains `getBgAnsi`, which the shared component calls) and `test/extension.test.ts` (one key sequence, since Enter on the threshold row now opens the editor); pi-topping `tests/setup.test.ts` (`getBgAnsi` on its fake theme); statusline `src/tests/cache-hit.test.ts` (narrows a row to `kind === "cycle"`) and the new host smoke `src/tests/settings-menu.test.ts`; routesense `test/helpers.ts` (`getBgAnsi`) and `test/transfer.test.ts` (it imported the vendored component). No source file outside the lists changed, and nothing outside the six repos was touched.
+
+### Remaining
+
+1. Pushes (the primitives branch and `v0.4.0` tag, then each consumer) need separate owner approval.
+2. pi-switchyard still carries its own lineage-A menu and an older primitives pin; its bump and migration wait.
+3. routesense's tier-weight editor may adopt the exported `chrome` helpers; nothing does yet.
+4. The lineage-B menus in moa-fusion and persona-audit stay local; an adapter was rejected in planning.
+5. The menu's hint strings are the caller's and do not change when a user remaps `pi-topping.menu.*`.
+6. `@underactive/pi-topping-test-utils` moved to 0.4.0 in lockstep and stays unpublished.
+
+**Next: Phase 5.**
