@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Reads routed-model and embedded-status announcements through the shared contracts from `@underactive/pi-topping-primitives` 0.1.0.
+- A malformed embedded-status announcement is now ignored; previously it was read as `embedded: false`.
+- Added `@underactive/pi-topping-primitives` as a runtime dependency.
+
 ## [0.12.0] - 2026-10-16
 
 ### Added

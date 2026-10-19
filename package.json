@@ -22,7 +22,7 @@
   },
   "files": ["index.ts", "src/**/*.ts", "wordpacks/*.json", "README.md", "LICENSE"],
   "scripts": {
-    "test": "node --test tests/*.test.ts",
+    "test": "node -C compiled --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
@@ -38,5 +38,8 @@
   "pi": {
     "extensions": ["./index.ts"],
     "image": "https://raw.githubusercontent.com/underactive/pi-topping/main/media/working.png"
+  },
+  "dependencies": {
+    "@underactive/pi-topping-primitives": "^0.1.0"
   }
 }

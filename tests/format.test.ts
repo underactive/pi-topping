@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildWorkingMessage, fadeThemeColorString, formatElapsed, formatTokenRate, formatTokens, RESPONSE_MODEL_SLIDE_MS, shimmerString, slideOutTail, StreamingWordCounter, TOKEN_RATE_FADE_SHADE_COUNT, TOKEN_RATE_PLACEHOLDER } from "../src/format.ts";
+import { WORKING_STATUS_SLIDE_MS } from "@underactive/pi-topping-primitives/contracts";
+import { buildWorkingMessage, fadeThemeColorString, formatElapsed, formatTokenRate, formatTokens, shimmerString, slideOutTail, StreamingWordCounter, TOKEN_RATE_FADE_SHADE_COUNT, TOKEN_RATE_PLACEHOLDER } from "../src/format.ts";
 
 test("formatTokens uses readable thresholds", () => {
 	assert.equal(formatTokens(999), "999");
@@ -197,10 +198,10 @@ test("shimmer speed scales the sweep without stretching the pause between sweeps
 
 test("slideOutTail reveals the tail first and shows the whole model once the slide is over", () => {
 	assert.equal(slideOutTail("test-model", 0), "");
-	assert.equal(slideOutTail("test-model", RESPONSE_MODEL_SLIDE_MS / 2), "model");
-	assert.equal(slideOutTail("test-model", RESPONSE_MODEL_SLIDE_MS), "test-model");
+	assert.equal(slideOutTail("test-model", WORKING_STATUS_SLIDE_MS / 2), "model");
+	assert.equal(slideOutTail("test-model", WORKING_STATUS_SLIDE_MS), "test-model");
 	let previous = "";
-	for (let elapsed = 0; elapsed <= RESPONSE_MODEL_SLIDE_MS; elapsed += 10) {
+	for (let elapsed = 0; elapsed <= WORKING_STATUS_SLIDE_MS; elapsed += 10) {
 		const shown = slideOutTail("test-model", elapsed);
 		assert.ok("test-model".endsWith(shown) && shown.length >= previous.length, `${elapsed}ms shows ${JSON.stringify(shown)}`);
 		previous = shown;

@@ -1,4 +1,5 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
+import { WORKING_STATUS_SLIDE_MS } from "@underactive/pi-topping-primitives/contracts";
 import type { ThinkingLevelColor } from "./settings.ts";
 
 /** Pi's default working-indicator frames (same braille spinner as pi-tui's Loader). */
@@ -105,21 +106,18 @@ export const RESPONSE_MODEL_HOLD_MS = 3_000;
 /** Milliseconds over which a settled response model fades through the theme shades. */
 export const RESPONSE_MODEL_FADE_MS = 500;
 
-/** Milliseconds over which a newly shown response model slides out of the working loader. */
-export const RESPONSE_MODEL_SLIDE_MS = 300;
-
 /** Milliseconds between working-loader repaints while the response model slides out. */
 export const RESPONSE_MODEL_SLIDE_FRAME_MS = 30;
 
 /**
  * The part of a sliding response model visible `elapsedMs` after it appeared. It emerges
  * tail first from behind the separator before it, as pi-topping-statusline slides an
- * embedded status out, and shows whole once RESPONSE_MODEL_SLIDE_MS has passed.
+ * embedded status out, and shows whole once WORKING_STATUS_SLIDE_MS has passed.
  */
 export function slideOutTail(text: string, elapsedMs: number): string {
-	if (elapsedMs >= RESPONSE_MODEL_SLIDE_MS) return text;
+	if (elapsedMs >= WORKING_STATUS_SLIDE_MS) return text;
 	const chars = [...text];
-	const progress = Math.max(0, elapsedMs) / RESPONSE_MODEL_SLIDE_MS;
+	const progress = Math.max(0, elapsedMs) / WORKING_STATUS_SLIDE_MS;
 	const shown = Math.round(chars.length * 0.5 * (1 - Math.cos(Math.PI * progress)));
 	return chars.slice(chars.length - shown).join("");
 }
