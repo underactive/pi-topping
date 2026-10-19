@@ -1,5 +1,5 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { DEFAULT_PREVIEW_WIDTH, type PreviewResult } from "./menu.ts";
+import type { MenuValue, PreviewSlot } from "@underactive/pi-topping-primitives/menu";
 import { ActivityMeter, METER_UPPER_BOUND_TPS_MAX, METER_UPPER_BOUND_TPS_MIN, rateToLevel } from "@underactive/pi-topping-primitives/activity";
 import { dimAttribute, renderMeter, thinkingLevelColorizer } from "@underactive/pi-topping-primitives/activity-tui";
 import { DEFAULT_WORKING_WORD, ELAPSED_INTERVAL_MS, formatTokenRate, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, SPINNER_FRAME_MS } from "./format.ts";
@@ -13,12 +13,24 @@ import { isWordPackEnabled, selectWorkingTextSelection, WORD_PACK_MENU_PREFIX, w
 // Simulated load for the menu preview: a 2.4s cosine wave peaking at 46 tps for the meter,
 // flat 28 tps for the token readouts.
 const METER_PERIOD_MS = 2400, METER_PEAK_RATE = 46, TOKEN_RATE_PER_SEC = 28;
+/** Width the preview assumes when rendered outside a menu (tests and probes). */
+export const DEFAULT_PREVIEW_WIDTH = 76;
+type Values = Record<string, MenuValue>;
+type PreviewState = { elapsedMs: number; activeItemId: string | undefined; width: number };
+export interface PreviewResult {
+	lines: string[];
+	nextRefreshInMs?: number;
+}
+/** The shared menu adds no margin; the preview indents every line by one space itself. */
+function indented(result: PreviewResult): PreviewResult {
+	return { ...result, lines: result.lines.map(line => ` ${line}`) };
+}
 const PROMPT_IDS = new Set(MENU_ENTRIES.filter(entry => entry.section === "User Prompt").map(entry => entry.id));
 const MARKER_IDS = new Set(MENU_ENTRIES.filter(entry => entry.section === "Completion Marker").map(entry => entry.id));
 function meterRate(elapsedMs: number): number { return ((1 - Math.cos((2 * Math.PI * elapsedMs) / METER_PERIOD_MS)) / 2) * METER_PEAK_RATE; }
 
 /** Stateful, per-menu preview renderer that follows the active settings section. */
-export class PreviewRenderer {
+export class PreviewRenderer implements PreviewSlot<Values> {
 	// Preserve constructor-time randomness so rendering never changes the preview phrase.
 	readonly #poolFraction = Math.random();
 	readonly #packs: readonly WordPack[];
@@ -31,7 +43,11 @@ export class PreviewRenderer {
 		this.#ctx = ctx;
 		this.#packs = packs;
 	}
-	render(values: Record<string, boolean | string>, elapsedMs: number, activeItemId?: string, width: number = DEFAULT_PREVIEW_WIDTH): PreviewResult {
+	render(values: Values, state: PreviewState = { elapsedMs: 0, activeItemId: undefined, width: DEFAULT_PREVIEW_WIDTH }): PreviewResult {
+		return indented(this.renderContent(values, state.elapsedMs, state.activeItemId, Math.max(0, state.width - 1)));
+	}
+	/** The lines before the one-space indent; `width` is the budget those lines may fill. */
+	private renderContent(values: Values, elapsedMs: number, activeItemId: string | undefined, width: number): PreviewResult {
 		if (PROMPT_IDS.has(activeItemId ?? "")) return this.promptPreview(values, width);
 		if (MARKER_IDS.has(activeItemId ?? "")) return this.markerPreview(values, width);
 		if (activeItemId === "useNerdFont") return { lines: ["", `Icon preview: ${values.useNerdFont ? "" : "π"}`, ""] };
@@ -61,7 +77,7 @@ export class PreviewRenderer {
 			: "";
 		return { lines: ["", this.loaderPreview(values, elapsedMs), help], nextRefreshInMs };
 	}
-	private loaderPreview(values: Record<string, boolean | string>, elapsedMs: number): string {
+	private loaderPreview(values: Values, elapsedMs: number): string {
 		this.#meter.setDirection(fromCycleDirection(values.meterDirection));
 		if (elapsedMs - this.#lastMeterUpdate >= METER_INTERVAL_MS) {
 			this.#meter.push(rateToLevel(meterRate(elapsedMs), fromCycleMeterUpperBound(values.meterUpperBoundTps)));
@@ -105,7 +121,7 @@ export class PreviewRenderer {
 			responseModel: features.responseModel ? "test-model" : undefined,
 		});
 	}
-	private packValues(values: Record<string, boolean | string>): Record<string, boolean> {
+	private packValues(values: Values): Record<string, boolean> {
 		const enabled: Record<string, boolean> = {};
 		for (const pack of this.#packs) {
 			const value = values[`${WORD_PACK_MENU_PREFIX}${pack.id}`];
@@ -113,14 +129,14 @@ export class PreviewRenderer {
 		}
 		return enabled;
 	}
-	private packPreview(id: string, values: Record<string, boolean | string>): PreviewResult {
+	private packPreview(id: string, values: Values): PreviewResult {
 		const pack = this.#packs.find((candidate) => candidate.id === id);
 		if (!pack) return { lines: ["This word pack is unavailable."] };
 		const enabled = isWordPackEnabled(id, this.packValues(values));
 		const source = pack.bundled ? "Shipped example" : `Custom: ${wordPacksPath()}`;
 		return { lines: [`${pack.name}: ${enabled ? "enabled" : "disabled"}`, `${pack.words.length} phrases · ${source}`, ...(pack.description ? [pack.description] : [])] };
 	}
-	private promptPreview(values: Record<string, boolean | string>, width: number): PreviewResult {
+	private promptPreview(values: Values, width: number): PreviewResult {
 		if (values.decorateUserPrompt !== true) return { lines: ["User prompt decoration is disabled."] };
 
 		const borderColor = values.borderColor;
@@ -142,7 +158,7 @@ export class PreviewRenderer {
 			? { lines }
 			: { lines, nextRefreshInMs: 1_000 - (timestamp % 1_000) };
 	}
-	private markerPreview(values: Record<string, boolean | string>, width: number): PreviewResult {
+	private markerPreview(values: Values, width: number): PreviewResult {
 		if (values.doneMarker !== true) return { lines: ["Completion marker is disabled."] };
 		const theme = this.#ctx.ui.theme;
 		const icon = values.doneMarkerIcon === true ? theme.fg("text", values.useNerdFont === true ? "" : "π") : "";

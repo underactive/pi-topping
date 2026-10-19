@@ -29,6 +29,22 @@ import {
 } from "../src/settings.ts";
 import { OUTPUT_STYLE_IDS } from "../src/output-style.ts";
 import { loadBundledWordPacks } from "../src/word-packs.ts";
+import type { CycleItem, MenuItem, NumberItem } from "@underactive/pi-topping-primitives/menu";
+
+function cycleRow(item: MenuItem | undefined): CycleItem {
+	assert.ok(item?.kind === "cycle", `expected a cycle row: ${JSON.stringify(item)}`);
+	return item;
+}
+
+function numberRow(item: MenuItem | undefined): NumberItem {
+	assert.ok(item?.kind === "number", `expected a number row: ${JSON.stringify(item)}`);
+	return item;
+}
+
+/** The published value of a value-bearing row; action and reorder rows have none. */
+function valueOf(item: MenuItem | undefined): boolean | string | number | undefined {
+	return item !== undefined && "value" in item ? item.value : undefined;
+}
 
 function withTempAgentDir<T>(fn: (dir: string) => T): T {
 	const dir = mkdtempSync(join(tmpdir(), "pi-topping-test-"));
@@ -57,79 +73,78 @@ test("buildMenuSections preserves menu IDs, labels, section order, and values", 
 	const itemIds = sections.flatMap(section => section.items).map(item => item.id);
 	assert.equal(new Set(itemIds).size, itemIds.length, "menu ids share one value namespace and must be unique");
 	assert.deepEqual(itemIds, ["decorateUserPrompt", "borderStyle", "borderColor", "promptIcon", "promptTimestamp", "promptProvider", "promptModel", "animatedSpinner", "spinnerColor", "substituteDefaultMessage", "shimmer", "shimmerInverted", "shimmerDirection", "shimmerSpeed", "tokenActivityMonitor", "meterColor", "meterDirection", "meterDimmed", "meterUpperBoundTps", "elapsedTime", "outputTokens", "showTokenRate", "tokenRateColor", "tokenRateDimmed", "showResponseModel", "responseModelColor", "responseModelDimmed", "spinner", "text", "meter", "tokenRate", "elapsed", "tokens", "responseModel", "doneMarker", "doneMarkerStyle", "doneMarkerBorderStyle", "doneMarkerBorderColor", "doneMarkerIcon", "randomizeDoneMarker", "doneMarkerTokens", "doneMarkerInputs", "doneMarkerServiceTier", "doneMarkerModel", "doneMarkerModelColor", "doneMarkerModelDimmed", "pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars", "includeDefaultWorkingText", "outputStyle", "useNerdFont", "showResponseModelFooter"]);
-	assert.equal(sections[1]!.items[0]!.value, false);
-	assert.equal(sections[4]!.items.find(item => item.id === "pack:simcity")!.value, false);
-	assert.equal(sections[4]!.items.find(item => item.id === "pack:star-trek")!.value, false);
-	assert.equal(sections[4]!.items.find(item => item.id === "pack:star-wars")!.value, false);
-	assert.equal(sections[4]!.items.find(item => item.id === "pack:doctor-who")!.value, false);
-	assert.equal(sections[4]!.items.find(item => item.id === "pack:matrix")!.value, false);
-	assert.equal(sections[4]!.items.find(item => item.id === "pack:lord-of-the-rings")!.value, false);
-	assert.equal(sections[4]!.items.find(item => item.id === "pack:firefly")!.value, false);
-	assert.equal(sections[4]!.items.find(item => item.id === "pack:hitchhikers-guide")!.value, false);
-	assert.equal(sections[4]!.items.find(item => item.id === "pack:portal")!.value, false);
-	assert.equal(sections[1]!.items.find(item => item.id === "showTokenRate")!.value, true);
-	assert.deepEqual(sections[3]!.items.find(item => item.id === "doneMarkerBorderStyle")!.cycleValues, DONE_MARKER_BORDER_STYLE_VALUES);
-	const spinnerColorSetting = sections[1]!.items.find(item => item.id === "spinnerColor")!;
+	assert.equal(valueOf(sections[1]!.items[0]), false);
+	assert.equal(sections[1]!.items[0]!.kind, "toggle");
+	for (const pack of ["simcity", "star-trek", "star-wars", "doctor-who", "matrix", "lord-of-the-rings", "firefly", "hitchhikers-guide", "portal"]) {
+		const row = sections[4]!.items.find(item => item.id === `pack:${pack}`);
+		assert.equal(row?.kind, "toggle", pack);
+		assert.equal(valueOf(row), false, pack);
+	}
+	assert.equal(valueOf(sections[1]!.items.find(item => item.id === "showTokenRate")), true);
+	assert.deepEqual(cycleRow(sections[3]!.items.find(item => item.id === "doneMarkerBorderStyle")).values, DONE_MARKER_BORDER_STYLE_VALUES);
+	const spinnerColorSetting = cycleRow(sections[1]!.items.find(item => item.id === "spinnerColor"));
 	assert.equal(spinnerColorSetting.value, "thinking-level");
-	assert.equal(spinnerColorSetting.cycleValueLabels?.["thinking-level"], "thinkingLevel");
-	const doneMarkerBorderColorSetting = sections[3]!.items.find(item => item.id === "doneMarkerBorderColor")!;
+	assert.equal(spinnerColorSetting.labels?.["thinking-level"], "thinkingLevel");
+	assert.deepEqual(spinnerColorSetting.gate, { id: "spinnerColorEnabled", enabled: true, disabledValue: "thinking-level" });
+	const doneMarkerBorderColorSetting = cycleRow(sections[3]!.items.find(item => item.id === "doneMarkerBorderColor"));
 	assert.equal(doneMarkerBorderColorSetting.value, "thinking-level");
-	assert.equal(doneMarkerBorderColorSetting.cycleValueLabels?.["thinking-level"], "thinkingLevel");
-	assert.deepEqual(doneMarkerBorderColorSetting.cycleValues, DONE_MARKER_BORDER_COLOR_VALUES);
-	const promptBorderColorSetting = sections[0]!.items.find(item => item.id === "borderColor")!;
+	assert.equal(doneMarkerBorderColorSetting.labels?.["thinking-level"], "thinkingLevel");
+	assert.deepEqual(doneMarkerBorderColorSetting.values, DONE_MARKER_BORDER_COLOR_VALUES);
+	assert.equal(doneMarkerBorderColorSetting.gate, undefined);
+	const promptBorderColorSetting = cycleRow(sections[0]!.items.find(item => item.id === "borderColor"));
 	assert.equal(promptBorderColorSetting.value, "thinking-level");
-	assert.equal(promptBorderColorSetting.cycleValueLabels?.["thinking-level"], "thinkingLevel");
-	const meterColor = sections[1]!.items.find(item => item.id === "meterColor")!;
+	assert.equal(promptBorderColorSetting.labels?.["thinking-level"], "thinkingLevel");
+	const meterColor = cycleRow(sections[1]!.items.find(item => item.id === "meterColor"));
 	assert.equal(meterColor.value, "accent");
-	assert.deepEqual(meterColor.cycleValues, THINKING_LEVEL_COLOR_VALUES);
-	assert.equal(meterColor.cycleValueLabels?.["thinking-level"], "thinkingLevel");
-	const tokenRateColor = sections[1]!.items.find(item => item.id === "tokenRateColor")!;
+	assert.deepEqual(meterColor.values, THINKING_LEVEL_COLOR_VALUES);
+	assert.equal(meterColor.labels?.["thinking-level"], "thinkingLevel");
+	const tokenRateColor = cycleRow(sections[1]!.items.find(item => item.id === "tokenRateColor"));
 	assert.equal(tokenRateColor.value, "warning");
-	assert.deepEqual(tokenRateColor.cycleValues, THINKING_LEVEL_COLOR_VALUES);
-	assert.equal(tokenRateColor.cycleValueLabels?.["thinking-level"], "thinkingLevel");
-	const responseModelColor = sections[1]!.items.find(item => item.id === "responseModelColor")!;
+	assert.deepEqual(tokenRateColor.values, THINKING_LEVEL_COLOR_VALUES);
+	assert.equal(tokenRateColor.labels?.["thinking-level"], "thinkingLevel");
+	const responseModelColor = cycleRow(sections[1]!.items.find(item => item.id === "responseModelColor"));
 	assert.equal(responseModelColor.value, "accent");
-	assert.deepEqual(responseModelColor.cycleValues, THINKING_LEVEL_COLOR_VALUES);
-	assert.equal(responseModelColor.cycleValueLabels?.["thinking-level"], "thinkingLevel");
-	const doneMarkerModelColor = sections[3]!.items.find(item => item.id === "doneMarkerModelColor")!;
+	assert.deepEqual(responseModelColor.values, THINKING_LEVEL_COLOR_VALUES);
+	assert.equal(responseModelColor.labels?.["thinking-level"], "thinkingLevel");
+	const doneMarkerModelColor = cycleRow(sections[3]!.items.find(item => item.id === "doneMarkerModelColor"));
 	assert.equal(doneMarkerModelColor.value, "muted");
-	assert.deepEqual(doneMarkerModelColor.cycleValues, THINKING_LEVEL_COLOR_VALUES);
-	assert.equal(doneMarkerModelColor.cycleValueLabels?.["thinking-level"], "thinkingLevel");
-	assert.deepEqual(sections.flatMap(section => section.items).find(item => item.id === "borderColor")!.cycleValues, PROMPT_BORDER_COLOR_VALUES);
-	assert.deepEqual(sections.flatMap(section => section.items).find(item => item.id === "spinnerColor")!.cycleValues, SPINNER_COLOR_VALUES);
-	assert.equal(sections[3]!.items[0]!.value, false);
-	assert.equal(sections[4]!.items.find(item => item.id === "includeDefaultWorkingText")!.value, true);
+	assert.deepEqual(doneMarkerModelColor.values, THINKING_LEVEL_COLOR_VALUES);
+	assert.equal(doneMarkerModelColor.labels?.["thinking-level"], "thinkingLevel");
+	assert.deepEqual(cycleRow(sections.flatMap(section => section.items).find(item => item.id === "borderColor")).values, PROMPT_BORDER_COLOR_VALUES);
+	assert.deepEqual(cycleRow(sections.flatMap(section => section.items).find(item => item.id === "spinnerColor")).values, SPINNER_COLOR_VALUES);
+	assert.equal(valueOf(sections[3]!.items[0]), false);
+	assert.equal(valueOf(sections[4]!.items.find(item => item.id === "includeDefaultWorkingText")), true);
 	assert.equal(sections[4]!.items.find(item => item.id === "includeDefaultWorkingText")!.spacerBefore, true);
 	assert.deepEqual(sections[4]!.items.find(item => item.id === "includeDefaultWorkingText")!.disabledUnlessAnyOf, [
 		"pack:doctor-who", "pack:firefly", "pack:hitchhikers-guide", "pack:lord-of-the-rings", "pack:matrix", "pack:portal", "pack:simcity", "pack:star-trek", "pack:star-wars",
 	]);
-	const outputStyle = sections[5]!.items[0]!;
+	const outputStyle = cycleRow(sections[5]!.items[0]);
 	assert.equal(outputStyle.id, OUTPUT_STYLE_ID);
 	assert.equal(outputStyle.label, "Style");
 	assert.equal(outputStyle.value, "default");
-	assert.deepEqual(outputStyle.cycleValues, OUTPUT_STYLE_IDS);
-	assert.deepEqual(outputStyle.cycleValueLabels, { default: "Default", explanatory: "Explanatory", simplified: "Simplified Technical English" });
-	assert.equal(outputStyle.cycleEnabledBy, undefined);
-	assert.equal(sections[6]!.items.find(item => item.id === "showResponseModelFooter")!.value, false);
-	const meterUpperBound = sections[1]!.items.find(item => item.id === "meterUpperBoundTps")!;
+	assert.deepEqual(outputStyle.values, OUTPUT_STYLE_IDS);
+	assert.deepEqual(outputStyle.labels, { default: "Default", explanatory: "Explanatory", simplified: "Simplified Technical English" });
+	assert.equal(outputStyle.gate, undefined);
+	assert.equal(valueOf(sections[6]!.items.find(item => item.id === "showResponseModelFooter")), false);
+	const meterUpperBound = numberRow(sections[1]!.items.find(item => item.id === "meterUpperBoundTps"));
 	assert.equal(meterUpperBound.label, "Token activity monitor upper bound");
-	assert.equal(meterUpperBound.value, "80");
-	assert.deepEqual(meterUpperBound.cycleValues, METER_UPPER_BOUND_TPS_PRESETS);
-	assert.deepEqual(meterUpperBound.numberEntry, { min: 10, max: 1000, unit: "tps" });
-	assert.equal(meterUpperBound.cycleEnabledBy, undefined);
+	assert.strictEqual(meterUpperBound.value, 80);
+	assert.deepEqual(meterUpperBound.presets, METER_UPPER_BOUND_TPS_PRESETS);
+	assert.deepEqual([meterUpperBound.min, meterUpperBound.max, meterUpperBound.unit], [10, 1000, "tps"]);
 });
 
-test("meter upper bound defaults to 80 tps and publishes custom values as strings", () => {
+test("meter upper bound defaults to 80 tps and publishes custom values as numbers", () => {
 	assert.equal(DEFAULT_SETTINGS.decorations.meterUpperBoundTps, 80);
+	assert.ok(METER_UPPER_BOUND_TPS_PRESETS.every(preset => typeof preset === "number"));
 	const sections = buildMenuSections({ ...DEFAULT_SETTINGS, decorations: { ...DEFAULT_SETTINGS.decorations, meterUpperBoundTps: 73 } }, []);
-	assert.equal(sections.flatMap(section => section.items).find(item => item.id === "meterUpperBoundTps")!.value, "73");
+	assert.strictEqual(valueOf(sections.flatMap(section => section.items).find(item => item.id === "meterUpperBoundTps")), 73);
 });
 
 test("buildMenuSections appends tokenRate to legacy five-element orders", () => {
 	const sections = buildMenuSections({ ...DEFAULT_SETTINGS, loaderOrder: ["text", "tokens", "spinner", "meter", "elapsed"] }, loadBundledWordPacks());
 	const reorderSection = sections.find(section => section.title === "Elements Order")!;
 	assert.deepEqual(reorderSection.items.map(item => item.id), ["text", "tokens", "spinner", "meter", "elapsed", "tokenRate", "responseModel"]);
-	assert.ok(reorderSection.items.every(item => item.reorderGroup === LOADER_ORDER_ID && item.value === false));
+	assert.ok(reorderSection.items.every(item => item.kind === "reorder" && item.group === LOADER_ORDER_ID));
 });
 
 test("parseLoaderOrder drops junk and duplicates, then appends the missing elements", () => {
@@ -172,12 +187,12 @@ test("cycle values validate stored values and invalid preview inputs", () => {
 	assert.equal(fromCycleMeterUpperBound("80.5"), 80);
 });
 
-test("applyMenuResult accepts whole-number meter upper bounds and keeps the previous value otherwise", () => {
-	for (const value of ["10", "80", "1000", "250"]) {
+test("applyMenuResult accepts whole-number meter upper bounds, as numbers or strings, and keeps the previous value otherwise", () => {
+	for (const value of [10, 80, 1000, 250, "10", "80", "1000", "250"]) {
 		assert.equal(applyMenuResult(DEFAULT_SETTINGS, { meterUpperBoundTps: value }).decorations.meterUpperBoundTps, Number(value));
 	}
-	const current = applyMenuResult(DEFAULT_SETTINGS, { meterUpperBoundTps: "150" });
-	for (const value of ["9", "1001", "80.5", "abc", "", true]) {
+	const current = applyMenuResult(DEFAULT_SETTINGS, { meterUpperBoundTps: 150 });
+	for (const value of [9, 1001, 80.5, "9", "1001", "80.5", "abc", "", true]) {
 		assert.equal(applyMenuResult(current, { meterUpperBoundTps: value }).decorations.meterUpperBoundTps, 150, JSON.stringify(value));
 	}
 });

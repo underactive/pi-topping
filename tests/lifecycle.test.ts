@@ -241,6 +241,7 @@ function createContext(
 		fg,
 		bg: (_color: string, text: string) => text,
 		bold: (text: string) => text,
+		getBgAnsi: () => "",
 		getFgAnsi: (color: string) => color === "dim" ? "\x1b[38;2;96;96;96m" : "\x1b[38;2;224;224;224m",
 		getThinkingBorderColor: (level: "off" | "minimal" | "low" | "medium" | "high" | "xhigh") => (text: string) => fg(`thinking-${level}`, text),
 	};
@@ -1076,7 +1077,7 @@ test("thinking-level response model color follows the active thinking level", as
 
 test("response model preview follows the active thinking level", () => {
 	const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`, { thinkingLevel: "high" });
-	const preview = new PreviewRenderer(ctx).render({ responseModelColor: "thinking-level" }, 0);
+	const preview = new PreviewRenderer(ctx).render({ responseModelColor: "thinking-level" });
 
 	assert.ok(preview.lines.some((line) => line.includes("<thinking-high>test-model</thinking-high>")));
 });
@@ -1084,7 +1085,7 @@ test("response model preview follows the active thinking level", () => {
 test("Switchyard response model preview overrides the selected color with NVIDIA green", () => {
 	const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`);
 	ctx.model = { provider: "switchyard", id: "selected-model" } as NonNullable<ExtensionContext["model"]>;
-	const preview = new PreviewRenderer(ctx).render({ responseModelColor: "error" }, 0);
+	const preview = new PreviewRenderer(ctx).render({ responseModelColor: "error" });
 
 	assert.ok(preview.lines.some((line) => line.includes("\x1b[38;2;132;197;26mtest-model\x1b[39m")));
 	assert.ok(preview.lines.every((line) => !line.includes("<error>test-model</error>")));
@@ -1093,21 +1094,22 @@ test("Switchyard response model preview overrides the selected color with NVIDIA
 test("completion marker model preview follows its toggle and thinking-level color", () => {
 	const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`, { thinkingLevel: "high" });
 	const renderer = new PreviewRenderer(ctx);
-	const shown = renderer.render({ doneMarker: true, doneMarkerModel: true, doneMarkerModelColor: "thinking-level" }, 0, "doneMarkerModel", 300);
+	const at = (activeItemId: string) => ({ elapsedMs: 0, activeItemId, width: 300 });
+	const shown = renderer.render({ doneMarker: true, doneMarkerModel: true, doneMarkerModelColor: "thinking-level" }, at("doneMarkerModel"));
 	assert.ok(shown.lines.some((line) => line.includes("<thinking-high>test-model</thinking-high>")));
 
-	const tierShown = renderer.render({ doneMarker: true, doneMarkerServiceTier: true }, 0, "doneMarkerServiceTier", 300);
+	const tierShown = renderer.render({ doneMarker: true, doneMarkerServiceTier: true }, at("doneMarkerServiceTier"));
 	assert.ok(tierShown.lines.some((line) => line.includes("flex tier ×3")));
-	const tierHidden = renderer.render({ doneMarker: true, doneMarkerServiceTier: false }, 0, "doneMarkerServiceTier", 300);
+	const tierHidden = renderer.render({ doneMarker: true, doneMarkerServiceTier: false }, at("doneMarkerServiceTier"));
 	assert.ok(tierHidden.lines.every((line) => !line.includes("flex tier")));
 
-	const hidden = renderer.render({ doneMarker: true, doneMarkerModel: false }, 0, "doneMarkerModel", 300);
+	const hidden = renderer.render({ doneMarker: true, doneMarkerModel: false }, at("doneMarkerModel"));
 	assert.ok(hidden.lines.every((line) => !line.includes("test-model")));
 });
 
 test("preview without word packs selects from the shared base-word pool", (t) => {
 	t.mock.method(Math, "random", () => 0);
-	const preview = new PreviewRenderer(createContext([], [])).render({ shimmer: false }, 0);
+	const preview = new PreviewRenderer(createContext([], [])).render({ shimmer: false });
 
 	assert.ok(preview.lines.some((line) => line.includes(WORDS[0]!.present_tense)));
 });
@@ -2043,6 +2045,8 @@ test("upper bound row is discoverable and validates typed input", async (t) => {
 		capturedComponent!.handleInput!("\r");
 		assert.match(capturedComponent!.render(72).map(stripAnsi).join("\n"), /Enter a whole number from 10 to 1000 tps/);
 		capturedComponent!.handleInput!("\x1b");
+		// Enter on the number row opens its editor, so apply from the row above.
+		capturedComponent!.handleInput!("\x1b[A");
 		capturedComponent!.handleInput!("\r");
 		await handlerPromise;
 
@@ -2071,6 +2075,7 @@ test("a changed upper bound applies to subsequent meter updates", async (t) => {
 		capturedComponent!.handleInput!(" ");
 		for (const digit of "10") capturedComponent!.handleInput!(digit);
 		capturedComponent!.handleInput!("\r");
+		capturedComponent!.handleInput!("\x1b[A"); // Enter on the number row would reopen its editor
 		capturedComponent!.handleInput!("\r");
 		await handlerPromise;
 
@@ -2294,8 +2299,8 @@ test("/topping-settings persists every menu control flipped in one pass", async 
 		const rows = buildMenuSections(DEFAULT_SETTINGS, loadBundledWordPacks()).flatMap((section) => section.items);
 		for (const [index, row] of rows.entries()) {
 			if (index > 0) capturedComponent!.handleInput!("\x1b[B");
-			if (row.reorderGroup) continue;
-			if (row.cycleValues && !row.cycleEnabledBy) {
+			if (row.kind === "reorder") continue;
+			if ((row.kind === "cycle" && !row.gate) || row.kind === "number") {
 				capturedComponent!.handleInput!("\x1b[C");
 			} else {
 				capturedComponent!.handleInput!(" ");
@@ -2384,7 +2389,7 @@ test("grabbing an Elements Order row reorders the preview and persists the new o
 		assert.ok(capturedComponent, "expected the menu component to be captured");
 
 		const rows = buildMenuSections(DEFAULT_SETTINGS, loadBundledWordPacks()).flatMap((section) => section.items);
-		const firstReorderRow = rows.findIndex((row) => row.reorderGroup);
+		const firstReorderRow = rows.findIndex((row) => row.kind === "reorder");
 		for (let i = 0; i < firstReorderRow; i++) capturedComponent!.handleInput!("\x1b[B");
 
 		function previewLine(): string {
@@ -2399,6 +2404,10 @@ test("grabbing an Elements Order row reorders the preview and persists the new o
 		const after = previewLine();
 		assert.ok(after.indexOf("\u280b") > after.indexOf("Accomplishing"), `expected the spinner to follow the word: ${JSON.stringify(after)}`);
 
+		// Enter on a reorder row releases it rather than applying, so release and apply from the row above the group.
+		capturedComponent!.handleInput!(" ");
+		capturedComponent!.handleInput!("\x1b[A");
+		capturedComponent!.handleInput!("\x1b[A");
 		capturedComponent!.handleInput!("\r");
 		await handlerPromise;
 
@@ -3495,9 +3504,10 @@ test("dimmed completion marker response model wraps the colored suffix", async (
 test("completion marker model preview applies dimming independently of the loader toggle", () => {
 	const ctx = createContext([], [], (color, text) => `<${color}>${text}</${color}>`, { thinkingLevel: "high" });
 	const renderer = new PreviewRenderer(ctx);
-	const dimmed = renderer.render({ doneMarker: true, doneMarkerModel: true, doneMarkerModelDimmed: true }, 0, "doneMarkerModelDimmed", 300);
+	const state = { elapsedMs: 0, activeItemId: "doneMarkerModelDimmed", width: 300 };
+	const dimmed = renderer.render({ doneMarker: true, doneMarkerModel: true, doneMarkerModelDimmed: true }, state);
 	assert.ok(dimmed.lines.some((line) => line.includes("\x1b[2m") && line.includes("test-model")));
-	const plain = renderer.render({ doneMarker: true, doneMarkerModel: true, doneMarkerModelDimmed: false }, 0, "doneMarkerModelDimmed", 300);
+	const plain = renderer.render({ doneMarker: true, doneMarkerModel: true, doneMarkerModelDimmed: false }, state);
 	assert.ok(plain.lines.some((line) => line.includes("test-model") && !line.includes("\x1b[2m")));
 });
 

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- The `/topping-settings` and `/topping-setup` menus are the shared `@underactive/pi-topping-primitives` 0.4.0 menu (`./menu`) instead of a local copy, and the meter upper bound is handled as a number end to end. Visible changes: the overlay is 90% wide (it was 86%); stepping left from a typed upper bound below the lowest preset now wraps to the highest preset (it used to stall); long labels wrap instead of truncating; Enter on the upper-bound row opens the number editor and Enter on an Elements Order row grabs it, so apply with Enter from any other row (Escape still cancels from anywhere); ungated cycle rows and the upper-bound row no longer draw a checkbox; a typing error shows in a "What this does" block instead of the hints row; the menu's keys can be remapped through pi's keybindings (`pi-topping.menu.*`).
 - Settings are read and written by the shared `@underactive/pi-topping-primitives` 0.2.0 settings store. The file path, format and `schemaVersion`-first key order are unchanged; the file is now created 0600 (its directory 0700 when new) and temp files get unique names. `saveSettings` returns a result instead of throwing, and the menu still reports `Failed to save Pi Topping settings` on failure.
 - Reads routed-model and embedded-status announcements through the shared contracts from `@underactive/pi-topping-primitives` 0.1.0.
 - A malformed embedded-status announcement is now ignored; previously it was read as `embedded: false`.

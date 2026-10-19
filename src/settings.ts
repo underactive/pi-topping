@@ -5,7 +5,7 @@ import { createSettingsStore, type SettingsWriteResult } from "@underactive/pi-t
 import { DEFAULT_METER_UPPER_BOUND_TPS, METER_UPPER_BOUND_TPS_MAX, METER_UPPER_BOUND_TPS_MIN } from "@underactive/pi-topping-primitives/activity";
 import { DEFAULT_LOADER_ORDER, type LoaderElement } from "./format.ts";
 import { fromLegacyOutputStyle, isOutputStyleId, OUTPUT_STYLE_IDS, OUTPUT_STYLES, type OutputStyleId } from "./output-style.ts";
-import type { MenuNumberEntry, MenuSection } from "./menu.ts";
+import type { MenuItem, MenuSection, MenuValue } from "@underactive/pi-topping-primitives/menu";
 import { isWordPackEnabled, isWordPackId, WORD_PACK_MENU_PREFIX, type WordPack } from "./word-packs.ts";
 import { isPlainObject } from "./util.ts";
 
@@ -32,7 +32,7 @@ export const DONE_MARKER_BORDER_STYLE_VALUES = [...BORDER_STYLE_VALUES, "none"] 
 export type DoneMarkerBorderStyle = (typeof DONE_MARKER_BORDER_STYLE_VALUES)[number];
 export const DONE_MARKER_STYLE_VALUES = ["elite", "bookend"] as const;
 export type DoneMarkerStyle = (typeof DONE_MARKER_STYLE_VALUES)[number];
-export const METER_UPPER_BOUND_TPS_PRESETS = ["10", "20", "30", "40", "50", "60", "80", "100", "150", "200", "300", "500", "1000"] as const;
+export const METER_UPPER_BOUND_TPS_PRESETS = [10, 20, 30, 40, 50, 60, 80, 100, 150, 200, 300, 500, 1000] as const;
 
 export function isBorderStyle(value: unknown): value is BorderStyle {
 	return typeof value === "string" && BORDER_STYLE_VALUES.some(style => style === value);
@@ -207,8 +207,9 @@ type DecorationSettings = DecoratorSettings["decorations"];
 type FeatureSettings = DecoratorSettings["features"];
 type DecorationBooleanKey = { [Key in keyof DecorationSettings]: DecorationSettings[Key] extends boolean ? Key : never }[keyof DecorationSettings];
 type MenuEntryBase = { id: string; label: string; section: MenuSectionName };
-type DecorationMenuEntry = MenuEntryBase & { group: "decorations"; key: keyof DecorationSettings; cycleValues?: readonly string[]; cycleValueLabels?: Readonly<Record<string, string>>; cycleEnabledBy?: DecorationBooleanKey; cycleDisabledValue?: string; numberEntry?: MenuNumberEntry };
-type FeatureMenuEntry = MenuEntryBase & { group: "features"; key: keyof FeatureSettings; cycleValues?: never; cycleValueLabels?: never; cycleEnabledBy?: never; cycleDisabledValue?: never; numberEntry?: never };
+type NumberMenuEntry = { min: number; max: number; unit?: string; presets: readonly number[] };
+type DecorationMenuEntry = MenuEntryBase & { group: "decorations"; key: keyof DecorationSettings; cycleValues?: readonly string[]; cycleValueLabels?: Readonly<Record<string, string>>; cycleEnabledBy?: DecorationBooleanKey; cycleDisabledValue?: string; number?: NumberMenuEntry };
+type FeatureMenuEntry = MenuEntryBase & { group: "features"; key: keyof FeatureSettings; cycleValues?: never; cycleValueLabels?: never; cycleEnabledBy?: never; cycleDisabledValue?: never; number?: never };
 type MenuEntry = DecorationMenuEntry | FeatureMenuEntry;
 const THINKING_LEVEL_CYCLE_LABELS = { "thinking-level": "thinkingLevel" } as const;
 const DIRECTION_CYCLE_LABELS = { ltr: "Left to Right", rtl: "Right to Left" } as const;
@@ -232,7 +233,7 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "meterColor", label: "Token activity monitor color", section: "“Working” Loader", group: "decorations", key: "meterColor", cycleValues: THINKING_LEVEL_COLOR_VALUES, cycleValueLabels: THINKING_LEVEL_CYCLE_LABELS, cycleEnabledBy: "meterColorEnabled", cycleDisabledValue: "accent" },
 	{ id: "meterDirection", label: "Token activity monitor direction", section: "“Working” Loader", group: "decorations", key: "meterDirection", cycleValues: ["ltr", "rtl"], cycleValueLabels: DIRECTION_CYCLE_LABELS, cycleEnabledBy: "meterDirectionEnabled", cycleDisabledValue: "rtl" },
 	{ id: "meterDimmed", label: "Token activity monitor dimmed", section: "“Working” Loader", group: "decorations", key: "meterDimmed" },
-	{ id: "meterUpperBoundTps", label: "Token activity monitor upper bound", section: "“Working” Loader", group: "decorations", key: "meterUpperBoundTps", cycleValues: METER_UPPER_BOUND_TPS_PRESETS, numberEntry: { min: METER_UPPER_BOUND_TPS_MIN, max: METER_UPPER_BOUND_TPS_MAX, unit: "tps" } },
+	{ id: "meterUpperBoundTps", label: "Token activity monitor upper bound", section: "“Working” Loader", group: "decorations", key: "meterUpperBoundTps", number: { min: METER_UPPER_BOUND_TPS_MIN, max: METER_UPPER_BOUND_TPS_MAX, unit: "tps", presets: METER_UPPER_BOUND_TPS_PRESETS } },
 	{ id: "elapsedTime", label: "Elapsed time since prompt", section: "“Working” Loader", group: "features", key: "elapsedTime" },
 	{ id: "outputTokens", label: "Show output tokens", section: "“Working” Loader", group: "features", key: "outputTokens" },
 	// id differs from key: the Elements Order row already owns "tokenRate" in the menu's shared value namespace.
@@ -260,12 +261,26 @@ export const MENU_ENTRIES: readonly MenuEntry[] = [
 	{ id: "includeDefaultWorkingText", label: "Include default/random “Working” text", section: "Word Packs", group: "features", key: "includeDefaultWorkingText" },
 ];
 
-function menuItem(entry: MenuEntry, settings: DecoratorSettings): MenuSection["items"][number] {
+function menuItem(entry: MenuEntry, settings: DecoratorSettings): MenuItem {
 	const value = entry.group === "decorations" ? settings.decorations[entry.key] : settings.features[entry.key];
-	const cycleEnabled = entry.group === "decorations" && entry.cycleEnabledBy
-		? settings.decorations[entry.cycleEnabledBy]
-		: undefined;
-	return { id: entry.id, label: entry.label, cycleValues: entry.cycleValues, cycleValueLabels: entry.cycleValueLabels, cycleEnabledBy: entry.cycleEnabledBy, cycleDisabledValue: entry.cycleDisabledValue, cycleEnabled, numberEntry: entry.numberEntry, value: typeof value === "number" ? String(value) : value };
+	if (entry.group === "decorations" && entry.number) {
+		return { kind: "number", id: entry.id, label: entry.label, value: typeof value === "number" ? value : DEFAULT_METER_UPPER_BOUND_TPS, ...entry.number };
+	}
+	if (entry.group === "decorations" && entry.cycleValues) {
+		const gate = entry.cycleEnabledBy
+			? { id: entry.cycleEnabledBy, enabled: settings.decorations[entry.cycleEnabledBy], ...(entry.cycleDisabledValue === undefined ? {} : { disabledValue: entry.cycleDisabledValue }) }
+			: undefined;
+		return {
+			kind: "cycle",
+			id: entry.id,
+			label: entry.label,
+			value: String(value),
+			values: entry.cycleValues,
+			...(entry.cycleValueLabels ? { labels: entry.cycleValueLabels } : {}),
+			...(gate ? { gate } : {}),
+		};
+	}
+	return { kind: "toggle", id: entry.id, label: entry.label, value: value === true };
 }
 
 function isDecorationBooleanKey(key: keyof DecorationSettings): key is DecorationBooleanKey {
@@ -318,12 +333,12 @@ function buildSection(title: MenuSectionName, settings: DecoratorSettings): Menu
 
 export function buildMenuSections(settings: DecoratorSettings, bundledPacks: readonly WordPack[], userPacks: readonly WordPack[] = []): MenuSection[] {
 	const packs = [...bundledPacks, ...userPacks];
-	const packItems = packs.map((pack) => ({ id: `${WORD_PACK_MENU_PREFIX}${pack.id}`, label: pack.name, value: isWordPackEnabled(pack.id, settings.wordPacks) }));
+	const packItems: MenuItem[] = packs.map((pack) => ({ kind: "toggle", id: `${WORD_PACK_MENU_PREFIX}${pack.id}`, label: pack.name, value: isWordPackEnabled(pack.id, settings.wordPacks) }));
 	const packIds = packItems.map(item => item.id);
 	return [
 		buildSection("User Prompt", settings),
 		buildSection("“Working” Loader", settings),
-		{ title: "Elements Order", items: parseLoaderOrder(settings.loaderOrder).map(id => ({ id, label: LOADER_ELEMENT_LABELS[id], value: false, reorderGroup: LOADER_ORDER_ID })) },
+		{ title: "Elements Order", items: parseLoaderOrder(settings.loaderOrder).map(id => ({ kind: "reorder" as const, id, label: LOADER_ELEMENT_LABELS[id], group: LOADER_ORDER_ID })) },
 		buildSection("Completion Marker", settings),
 		{
 			title: "Word Packs",
@@ -334,18 +349,21 @@ export function buildMenuSections(settings: DecoratorSettings, bundledPacks: rea
 		},
 		{
 			title: "Output Style",
-			items: [{ id: OUTPUT_STYLE_ID, label: "Style", value: settings.outputStyle, cycleValues: OUTPUT_STYLE_IDS, cycleValueLabels: Object.fromEntries(OUTPUT_STYLE_IDS.map(id => [id, OUTPUT_STYLES[id].label])) }],
+			items: [{ kind: "cycle", id: OUTPUT_STYLE_ID, label: "Style", value: settings.outputStyle, values: OUTPUT_STYLE_IDS, labels: Object.fromEntries(OUTPUT_STYLE_IDS.map(id => [id, OUTPUT_STYLES[id].label])) }],
 		},
 		buildSection("Options", settings),
 	];
 }
 
-export function applyMenuResult(settings: DecoratorSettings, values: Record<string, boolean | string>): DecoratorSettings {
+export function applyMenuResult(settings: DecoratorSettings, values: Record<string, MenuValue>): DecoratorSettings {
 	const next = structuredClone(settings);
 	for (const entry of MENU_ENTRIES) {
 		const value = values[entry.id];
 		if (value === undefined) continue;
-		if (entry.group === "decorations" && entry.cycleValues && typeof value === "string" && (entry.cycleValues.includes(value) || entry.numberEntry !== undefined)) {
+		if (entry.group === "decorations" && entry.number && (typeof value === "number" || typeof value === "string")) {
+			// The shared menu publishes a number; a decimal string from an older caller still parses.
+			setDecorationCycleValue(next.decorations, entry.key, String(value));
+		} else if (entry.group === "decorations" && entry.cycleValues && typeof value === "string" && entry.cycleValues.includes(value)) {
 			setDecorationCycleValue(next.decorations, entry.key, value);
 			if (entry.cycleEnabledBy) next.decorations[entry.cycleEnabledBy] = values[entry.cycleEnabledBy] !== false;
 		} else if (entry.group === "decorations" && typeof value === "boolean" && isDecorationBooleanKey(entry.key)) {

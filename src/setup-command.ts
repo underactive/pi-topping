@@ -1,6 +1,6 @@
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { hyperlink } from "@earendil-works/pi-tui";
-import { type MenuValue, showMenu } from "./menu.ts";
+import { type MenuSection, type MenuValue, showMenu } from "@underactive/pi-topping-primitives/menu";
 import { type PiInstallResult, spawnPiInstall, spawnPiRemove } from "./pi-installer.ts";
 import { setSetupCheckDisabled } from "./setup-check.ts";
 import { detectToppings, type ToppingStatus } from "./toppings.ts";
@@ -132,11 +132,12 @@ export function registerSetupCommand(
 			const rows = new Map<string, SetupRow>();
 			for (const status of missing) rows.set(`install:${status.topping.pkg}`, { status, action: "install" });
 			for (const status of removable) rows.set(`remove:${status.topping.pkg}`, { status, action: "remove" });
-			const sections = [];
+			const sections: MenuSection[] = [];
 			if (missing.length > 0) {
 				sections.push({
 					title: "Missing Toppings",
 					items: missing.map(({ topping, onDisk }) => ({
+						kind: "toggle" as const,
 						id: `install:${topping.pkg}`,
 						label: `${topping.pkg}${onDisk ? " (on disk, not active)" : ""}`,
 						value: true,
@@ -147,6 +148,7 @@ export function registerSetupCommand(
 				sections.push({
 					title: "Installed Toppings",
 					items: removable.map(({ topping, active }) => ({
+						kind: "toggle" as const,
 						id: `remove:${topping.pkg}`,
 						label: `${topping.pkg}${active ? " (active)" : " (installed, not active)"}`,
 						value: false,
@@ -158,8 +160,11 @@ export function registerSetupCommand(
 				title: "Pi Topping: Setup",
 				sections,
 				hints: ["↑↓ move", "PgUp/PgDn page", "␣ toggle", "⏎ apply", "esc cancel"],
-				previewTitle: "Description",
-				preview: (values, _elapsedMs, activeItemId) => ({ lines: renderDescription(rows, activeItemId, values) }),
+				preview: {
+					title: "Description",
+					// The shared menu adds no margin; keep the one-space indent the local menu drew.
+					render: (values, { activeItemId }) => ({ lines: renderDescription(rows, activeItemId, values).map((line) => ` ${line}`) }),
+				},
 			});
 			if (!result.applied) {
 				ctx.ui.notify("Pi Topping setup cancelled.", "info");

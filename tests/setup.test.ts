@@ -94,6 +94,7 @@ function createContext(
 		fg: options?.fg ?? ((_color: string, text: string) => text),
 		bg: (_color: string, text: string) => text,
 		bold: (text: string) => text,
+		getBgAnsi: () => "",
 		getThinkingBorderColor: (_level: string) => (text: string) => text,
 	};
 	const tui = { requestRender: () => {} };

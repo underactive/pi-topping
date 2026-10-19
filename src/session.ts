@@ -48,7 +48,7 @@ import {
 	type ThinkingLevel,
 } from "./format.ts";
 import { buildLoaderMessage } from "./loader-message.ts";
-import { showMenu } from "./menu.ts";
+import { showMenu } from "@underactive/pi-topping-primitives/menu";
 import { applyOutputStyle, OUTPUT_STYLES } from "./output-style.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { registerSetupCommand } from "./setup-command.ts";
@@ -838,12 +838,12 @@ export class SessionManager {
 		const before = this.indicatorFingerprint();
 		const styleBefore = this.#settings.outputStyle;
 		const preview = new PreviewRenderer(ctx, this.#allPacks);
-		const result = await showMenu<Record<string, boolean | string>>(ctx, {
+		const result = await showMenu(ctx, {
 			title: "Pi Topping: Settings",
-			maxHeight: "75%",
+			layout: { maxHeight: "75%" },
 			sections: buildMenuSections(this.#settings, this.#bundledPacks, this.#userPacks),
 			hints: ["↑↓ move", "PgUp/PgDn page", "←→ select", "␣ toggle", "⏎ apply", "esc cancel"],
-			preview: preview.render.bind(preview),
+			preview,
 		});
 		if (!result.applied) return;
 

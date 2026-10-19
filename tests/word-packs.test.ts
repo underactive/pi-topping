@@ -157,7 +157,7 @@ test("excluding default Working text selects enabled pack words and falls back t
 test("menu includes custom packs and settings retain unavailable pack preferences", () => withTempAgentDir(() => {
 	const custom = { id: "cooking", name: "Cooking", words: [{ present_tense: "Making", past_tense: "Made" }], bundled: false };
 	const wordPackSection = buildMenuSections(DEFAULT_SETTINGS, [custom]).find((section) => section.title === "Word Packs");
-	assert.deepEqual(wordPackSection?.items.map((item) => [item.id, item.value]), [["pack:cooking", false], ["includeDefaultWorkingText", true]]);
+	assert.deepEqual(wordPackSection?.items.map((item) => [item.id, "value" in item ? item.value : undefined]), [["pack:cooking", false], ["includeDefaultWorkingText", true]]);
 	const updated = applyMenuResult(DEFAULT_SETTINGS, { "pack:cooking": false, "pack:restored": true, "pack:__proto__": true });
 	assert.deepEqual(updated.wordPacks, { cooking: false, restored: true });
 	saveSettings(updated);
