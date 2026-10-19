@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Settings are read and written by the shared `@underactive/pi-topping-primitives` 0.2.0 settings store. The file path, format and `schemaVersion`-first key order are unchanged; the file is now created 0600 (its directory 0700 when new) and temp files get unique names. `saveSettings` returns a result instead of throwing, and the menu still reports `Failed to save Pi Topping settings` on failure.
 - Reads routed-model and embedded-status announcements through the shared contracts from `@underactive/pi-topping-primitives` 0.1.0.
 - A malformed embedded-status announcement is now ignored; previously it was read as `embedded: false`.
 - Added `@underactive/pi-topping-primitives` as a runtime dependency.

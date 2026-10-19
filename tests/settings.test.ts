@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -490,6 +490,22 @@ test("saveSettings leaves no leftover .tmp file after a successful write", () =>
 		assert.equal(existsSync(`${path}.tmp`), false);
 		const entries = readdirSync(dirname(path));
 		assert.deepEqual(entries, ["settings.json"]);
+	});
+});
+
+test("saveSettings writes the file 0600 and reports success", () => {
+	withTempAgentDir(() => {
+		const result = saveSettings(DEFAULT_SETTINGS);
+		assert.equal(result.ok, true);
+		assert.equal(statSync(settingsPath()).mode & 0o777, 0o600);
+	});
+});
+
+test("saveSettings reports ok:false when the agent directory cannot be written", () => {
+	withTempAgentDir((dir) => {
+		writeFileSync(join(dir, "pi-topping"), "a file where the directory should be");
+		const result = saveSettings(DEFAULT_SETTINGS);
+		assert.equal(result.ok, false);
 	});
 });
 

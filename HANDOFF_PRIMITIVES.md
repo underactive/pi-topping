@@ -468,4 +468,53 @@ Other gates passed: `node scripts/check-release.ts packages/primitives`, all nin
 - **C26:** The ignored, untracked moa-fusion `package-lock.json` was removed. `test/rename-verification.test.mjs` validates its package metadata when a local lockfile exists, but no longer requires that ignored file in a clean checkout.
 - **Follow-up gates:** Routesense `npm run typecheck && npm test` passed (501 passed, 1 skipped). Moa-fusion `npm run check && npm test` passed (122 tests); `package-lock.json` remains absent.
 
-**Next: Phase 2.**
+**Next: Phase 2** (outcome recorded in §12).
+
+## 12. Phase 2 outcome (2026-10-19)
+
+Status: **complete.** `@underactive/pi-topping-primitives@0.2.0` was published to npm on 2026-10-19 (`latest`), the eight consumers take `^0.2.0` from the registry and are committed locally on `primitives-settings`; nothing is pushed.
+
+### What shipped
+
+- `@underactive/pi-topping-primitives@0.2.0` (pi-topping-primitives branch `primitives-settings`, commits `8f74e7a`, `61a079d` and the hardening commit after it; local tag `v0.2.0`, not pushed): `./settings` with `createSettingsStore`, `memorySettingsStore`, `atomicWriteFile`, `fileStamp`, `sanitize`, `toppingSettingsPath`, and the directory lock (`acquireDirLock`, `releaseDirLock`, `dirLockStale`, `isProcessAlive`). test-utils moves to 0.2.0 in lockstep and stays unpublished.
+- Eight consumers migrated on branch `primitives-settings`, validated first against a packed tarball and then re-run against the published registry package (all gates green, `npm ls` shows 0.2.0, no `file:`/`link:` specs in any lockfile): moa-fusion, bash-gate, pi-topping, statusline, splash, persona-audit, routesense, web-tools. On-disk paths and save-failure wording are unchanged.
+
+### Test counts (Stage 0 baseline to now)
+
+| Repo | Baseline | Now | Note |
+| --- | --- | --- | --- |
+| primitives | 46 + 59 + 15 + 12 + 38 (check suites) | 46 + 66 + 15 + 12 + 38 | settings suites added after the 0.1.0 shape |
+| moa-fusion | 122 | 122 | extra assertions in `moa-settings.test.mjs` |
+| bash-gate | 116 | 116 | |
+| pi-topping | 300 | 302 | +mode 0600, +unwritable dir |
+| statusline | 201 | 205 | new `settings.test.ts` |
+| splash | not recorded | 498 | |
+| persona-audit | 636 | 639 | new `modelConfigStore.test.ts` |
+| routesense | 502 | 494 | file-lock and generic refusal/busy/write-failure cases moved to the package; one stamp test added |
+| web-tools | 243 | 244 | empty-env case |
+
+### Loader gate
+
+`scripts/probe-pi-loader.sh` takes `PRIM_TGZ` and `SUBPATH`. The real seven-module `./settings` layout, loaded from the tarball in `node_modules`, reads defaults and writes under both loader branches (bundled chunk and unbundled SDK), each with pi packages present and absent, on pi 1.3.0. No collapse to a single file was needed. All eight consumers also load with zero errors through both branches (web-tools through its three manifest entries).
+
+### Smoke evidence
+
+Menu-driven live smokes were not run. In their place each extension was loaded through pi's real loader in a temp `PI_CODING_AGENT_DIR`, so no real settings file was touched; the settings menus (save and reopen) were not exercised by hand.
+
+### Deviations from the plan
+
+- Sensei is deferred (the handoff allows last or not at all). It would need a `readFallbackPaths` option for its legacy path, `onDiagnostic` wired to its warning strings, a decision between delete-on-undefined and `preserveUnknownKeys`, and vitest's `compiled` condition.
+- web-tools keeps its own async `.lock` file lock for the grant store; only `writeStore` uses `atomicWriteFile`.
+- bash-gate keeps its pi 0.99.1 pin; raising it is a separate cleanup item.
+- Routesense backup rule: a stored version below 2 is backed up (previously any version other than 2), and `write()` now takes the one-time backup too, via an exclusive copy.
+- splash and bash-gate keep their boolean write results.
+- persona-audit's renderer at `index.ts:517` is not moved to `cached()`; recorded follow-up.
+- `read()` is guarded against a throwing `path()` and diagnostic sink, but a codec whose `sanitize(undefined)` throws still escapes; that is the codec contract.
+
+### Remaining
+
+1. Pushes (primitives branch and `v0.2.0` tag, then each consumer) need separate owner approval. Routesense and bash-gate have no remote.
+2. bash-gate's lockfile diff is larger than a one-line range bump: adding its first runtime dependency makes npm stop marking the pi packages `dev`, because primitives peers on them, and refreshes the lock's stale peer ranges.
+3. moa-fusion keeps no tracked lockfile; its ignored local lock was removed.
+
+**Next: Phase 3.**

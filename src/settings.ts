@@ -1,6 +1,7 @@
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
-import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { createSettingsStore, type SettingsWriteResult } from "@underactive/pi-topping-primitives/settings";
 import { DEFAULT_METER_UPPER_BOUND_TPS, METER_UPPER_BOUND_TPS_MAX, METER_UPPER_BOUND_TPS_MIN } from "./activity-meter.ts";
 import { DEFAULT_LOADER_ORDER, type LoaderElement } from "./format.ts";
 import { fromLegacyOutputStyle, isOutputStyleId, OUTPUT_STYLE_IDS, OUTPUT_STYLES, type OutputStyleId } from "./output-style.ts";
@@ -377,65 +378,61 @@ export function applyMenuResult(settings: DecoratorSettings, values: Record<stri
  * `simcity` pack when no explicit preference is stored. A missing or invalid `outputStyle`
  * falls back to `pi-topping-insights/settings.json`'s `style`, then to `default`, without a schema-version gate.
  */
-export function loadSettings(): DecoratorSettings {
-	try {
-		const parsed = JSON.parse(readFileSync(settingsPath(), "utf8"));
-		if (!isPlainObject(parsed)) return defaultSettings();
-		const wordPacks: Record<string, boolean> = { ...DEFAULT_SETTINGS.wordPacks };
-		if (isPlainObject(parsed.wordPacks)) {
-			for (const [id, enabled] of Object.entries(parsed.wordPacks)) {
-				if (isWordPackId(id) && typeof enabled === "boolean") wordPacks[id] = enabled;
-			}
+function sanitizeSettings(parsed: unknown): DecoratorSettings {
+	if (!isPlainObject(parsed)) return defaultSettings();
+	const wordPacks: Record<string, boolean> = { ...DEFAULT_SETTINGS.wordPacks };
+	if (isPlainObject(parsed.wordPacks)) {
+		for (const [id, enabled] of Object.entries(parsed.wordPacks)) {
+			if (isWordPackId(id) && typeof enabled === "boolean") wordPacks[id] = enabled;
 		}
-		if (isPlainObject(parsed.features) && parsed.features.simCityWorkingText === true && !("simcity" in wordPacks)) {
-			wordPacks.simcity = true;
-		}
-		const storedOutputStyle = parsed.outputStyle;
-		const outputStyle = isOutputStyleId(storedOutputStyle) ? storedOutputStyle : legacyOutputStyle();
-		const settings = { decorations: mergeGroup(DEFAULT_SETTINGS.decorations, parsed.decorations), features: mergeGroup(DEFAULT_SETTINGS.features, parsed.features), loaderOrder: parseLoaderOrder(parsed.loaderOrder), wordPacks, outputStyle };
-		if (isPlainObject(parsed.decorations)) {
-			for (const [key, value] of Object.entries(parsed.decorations)) {
-				if (!Object.hasOwn(DEFAULT_SETTINGS.decorations, key) || typeof value !== "string") continue;
-				const k = key as keyof DecorationSettings;
-				if (isDecorationBooleanKey(k)) continue;
-				setDecorationCycleValue(settings.decorations, k,
-					value === "default" && (k === "spinnerColor" || k === "doneMarkerBorderColor") ? "thinking-level" : value);
-			}
-			const bound = parseMeterUpperBoundTps(parsed.decorations.meterUpperBoundTps);
-			if (bound !== undefined) settings.decorations.meterUpperBoundTps = bound;
-		}
-		const schemaVersion = typeof parsed.schemaVersion === "number" ? parsed.schemaVersion : 1;
-		if (schemaVersion < THINKING_LEVEL_COLOR_MIGRATION_VERSION) {
-			settings.decorations.spinnerColor = "thinking-level";
-			if (settings.decorations.borderColor === "borderAccent") settings.decorations.borderColor = "thinking-level";
-		}
-		if (schemaVersion < DONE_MARKER_BORDER_COLOR_MIGRATION_VERSION) {
-			settings.decorations.doneMarkerBorderColor = "thinking-level";
-		}
-		if (schemaVersion < RESPONSE_MODEL_FOOTER_MIGRATION_VERSION) {
-			settings.features.responseModelFooter = settings.features.responseModel;
-		}
-		for (const entry of MENU_ENTRIES) {
-			if (entry.group === "decorations" && entry.cycleEnabledBy && entry.cycleDisabledValue !== undefined && !settings.decorations[entry.cycleEnabledBy]) {
-				setDecorationCycleValue(settings.decorations, entry.key, entry.cycleDisabledValue);
-			}
-		}
-		return settings;
-	} catch { return defaultSettings(); }
-}
-
-export function atomicWriteFile(path: string, contents: string): void {
-	mkdirSync(dirname(path), { recursive: true });
-	const tmpPath = `${path}.${process.pid}.${Date.now()}.tmp`;
-	try {
-		writeFileSync(tmpPath, contents, { flag: "wx" });
-		renameSync(tmpPath, path);
-	} catch (err) {
-		try { unlinkSync(tmpPath); } catch { /* tmp file was never created */ }
-		throw err;
 	}
+	if (isPlainObject(parsed.features) && parsed.features.simCityWorkingText === true && !("simcity" in wordPacks)) {
+		wordPacks.simcity = true;
+	}
+	const storedOutputStyle = parsed.outputStyle;
+	const outputStyle = isOutputStyleId(storedOutputStyle) ? storedOutputStyle : legacyOutputStyle();
+	const settings = { decorations: mergeGroup(DEFAULT_SETTINGS.decorations, parsed.decorations), features: mergeGroup(DEFAULT_SETTINGS.features, parsed.features), loaderOrder: parseLoaderOrder(parsed.loaderOrder), wordPacks, outputStyle };
+	if (isPlainObject(parsed.decorations)) {
+		for (const [key, value] of Object.entries(parsed.decorations)) {
+			if (!Object.hasOwn(DEFAULT_SETTINGS.decorations, key) || typeof value !== "string") continue;
+			const k = key as keyof DecorationSettings;
+			if (isDecorationBooleanKey(k)) continue;
+			setDecorationCycleValue(settings.decorations, k,
+				value === "default" && (k === "spinnerColor" || k === "doneMarkerBorderColor") ? "thinking-level" : value);
+		}
+		const bound = parseMeterUpperBoundTps(parsed.decorations.meterUpperBoundTps);
+		if (bound !== undefined) settings.decorations.meterUpperBoundTps = bound;
+	}
+	const schemaVersion = typeof parsed.schemaVersion === "number" ? parsed.schemaVersion : 1;
+	if (schemaVersion < THINKING_LEVEL_COLOR_MIGRATION_VERSION) {
+		settings.decorations.spinnerColor = "thinking-level";
+		if (settings.decorations.borderColor === "borderAccent") settings.decorations.borderColor = "thinking-level";
+	}
+	if (schemaVersion < DONE_MARKER_BORDER_COLOR_MIGRATION_VERSION) {
+		settings.decorations.doneMarkerBorderColor = "thinking-level";
+	}
+	if (schemaVersion < RESPONSE_MODEL_FOOTER_MIGRATION_VERSION) {
+		settings.features.responseModelFooter = settings.features.responseModel;
+	}
+	for (const entry of MENU_ENTRIES) {
+		if (entry.group === "decorations" && entry.cycleEnabledBy && entry.cycleDisabledValue !== undefined && !settings.decorations[entry.cycleEnabledBy]) {
+			setDecorationCycleValue(settings.decorations, entry.key, entry.cycleDisabledValue);
+		}
+	}
+	return settings;
 }
 
-export function saveSettings(settings: DecoratorSettings): void {
-	atomicWriteFile(settingsPath(), `${JSON.stringify({ schemaVersion: SETTINGS_SCHEMA_VERSION, ...settings }, null, 2)}\n`);
+const settingsStore = createSettingsStore<DecoratorSettings>({
+	path: settingsPath,
+	codec: { sanitize: sanitizeSettings, version: { key: "schemaVersion", current: SETTINGS_SCHEMA_VERSION } },
+});
+
+/** A missing, unreadable or malformed file reads as the defaults. Never throws. */
+export function loadSettings(): DecoratorSettings {
+	return settingsStore.read();
+}
+
+/** Atomic write with `schemaVersion` first. Returns the store result so callers can report a failure. */
+export function saveSettings(settings: DecoratorSettings): SettingsWriteResult<DecoratorSettings> {
+	return settingsStore.write(settings);
 }

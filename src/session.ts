@@ -871,9 +871,7 @@ export class SessionManager {
 		if (!result.applied) return;
 
 		const updatedSettings = applyMenuResult(this.#settings, result.values);
-		try {
-			saveSettings(updatedSettings);
-		} catch {
+		if (!saveSettings(updatedSettings).ok) {
 			ctx.ui.notify("Failed to save Pi Topping settings", "error");
 			return;
 		}

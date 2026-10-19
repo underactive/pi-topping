@@ -40,6 +40,6 @@
     "image": "https://raw.githubusercontent.com/underactive/pi-topping/main/media/working.png"
   },
   "dependencies": {
-    "@underactive/pi-topping-primitives": "^0.1.0"
+    "@underactive/pi-topping-primitives": "^0.2.0"
   }
 }
