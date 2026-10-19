@@ -517,4 +517,68 @@ Menu-driven live smokes were not run. In their place each extension was loaded t
 2. bash-gate's lockfile diff is larger than a one-line range bump: adding its first runtime dependency makes npm stop marking the pi packages `dev`, because primitives peers on them, and refreshes the lock's stale peer ranges.
 3. moa-fusion keeps no tracked lockfile; its ignored local lock was removed.
 
-**Next: Phase 3.**
+**Next: Phase 3** (outcome recorded in §13).
+
+## 13. Phase 3 outcome (2026-10-19)
+
+Status: **complete.** The request called this "phase 5.3"; the document's phase is Phase 3 (§5), and that is what was implemented. `@underactive/pi-topping-primitives@0.3.0` (`./activity` and `./activity-tui`) was published to npm on 2026-10-19 at 19:10:49 UTC and is `latest`. Its registry shasum (`1e5725c3…`) is byte-identical to the tarball every consumer was first verified against. Tag `v0.3.0` is local, on primitives `1f2cb6a`. The five consumers are committed locally on `primitives-activity` against `^0.3.0` from the registry; nothing is pushed.
+
+### What shipped
+
+- **primitives** (`af0f9e5`, `1f2cb6a`, docs `3d4818d`): `./activity` is pure maths (`ActivityMeter`, `rateToLevel`, `TokRateTracker`, `RateHoldFade`, `StreamingWordCounter`, `OutputTokenAccount`, `RunClock` with `nested`, `bindUIPromptWaits`, `easeFade`, `fadeShade`, `slideOutTail`, `formatElapsedUnits`, `formatElapsedClock`, the meter constants). `./activity-tui` renders it (`renderMeter`, `renderIdleMeter`, `colorizeMeterCell`, `dimAttribute`, `thinkingLevelThemeColor`, `thinkingLevelColorizer`, `shimmerString`, `fadeThemeColorString`, `ansiToRgb`, `formatToolActivity`, `highlightActivity`). The first subpath with a runtime pi-tui import (`stripTerminalSequences`).
+- **Consumers**, each one commit titled `feat(activity): Adopt @underactive/pi-topping-primitives 0.3.0 activity primitives`: pi-topping `0303977`, statusline `8ee65cf`, persona-audit `2577a4a`, moa-fusion `50ceb39`, sensei `72a303d` (in the worktree `pi-topping-sensei-activity`, so the owner's uncommitted sensei edits stayed untouched).
+- Vendored copies and their mirror tests are deleted in every consumer; each host keeps a smoke assertion.
+
+### Test counts (Stage 0 baseline to now)
+
+| Repo | Baseline | Now | Where the difference went |
+| --- | --- | --- | --- |
+| primitives | 46 + 66 + 15 + 12 + 38 | 46 + 161 + 28 + 12 + 38 | +95 source, +13 compiled-export |
+| pi-topping | 302 | 280 | -9 `activity-meter.test.ts`, -13 moved `format.test.ts` cases |
+| moa-fusion | 122 | 117 | -5: `activity-meter.test.mjs` (1, a script file) and `shimmer.test.mjs` (4 subtests) |
+| persona-audit | 639 | 613 | -26: activityMeter 5, shimmer 4, toolActivity 4, runClock 9, subprocess 4 |
+| statusline | 205 | 204 | -1 `easeFade` |
+| sensei | 703 | 701 | -2 `reveal.test.ts` |
+
+Every drop reconciles to tests that moved into the package. The same counts held in the working trees against the tarball, against the registry package, and in fresh clones of the committed branches (`npm ci`, then the gate). The parity oracles passed with their bodies unchanged: pi-topping `tests/lifecycle.test.ts` (the token-rate hold and fade timeline, the eight dim cells, the upper bound), statusline `token-rate-monitor.test.ts` and `token-rate.test.ts`, sensei `test/upstream/sensei/activity.test.ts` and `render.test.ts`, persona-audit `auditProgress.test.ts` and moa-fusion `moa-progress-widget.test.mjs`.
+
+### Loader gate
+
+`scripts/probe-pi-loader.sh` now takes `SUBPATH=settings|activity|activity-tui`. With `SUBPATH=activity` and `SUBPATH=activity-tui`, in both loader branches (bundled chunk and unbundled SDK), with pi peers present and absent, on pi 1.3.0 and Node 24.18: all eight rows loaded with zero errors and returned the expected values. The `activity-tui` rows stripped an escape sequence through pi-tui, which shows the runtime pi-tui import resolves in every configuration. The rows were run against the packed candidate and again against the tarball downloaded from the registry (same shasum). All five consumers also loaded through pi's real loader in both branches (ten rows, zero errors, handlers and commands registered); hiding the dependency from pi-topping produced `Cannot find module '@underactive/pi-topping-primitives/contracts'`, so the clean rows were not vacuous.
+
+### Smoke evidence
+
+- pi-topping in a barebones pi (`-ne -e ./index.ts`, `openai-codex/gpt-6-luna`): on a real stream the meter went from idle `--- tps` to a scrolling trace with a live 66, 97 then 83 tps readout, reaching the full glyph at 83 tps, and the done marker read `Whirred for 8s (↓ 639 tokens · default tier)`. Exit 0.
+- statusline, with `segments.tokenRate` temporarily set to `true` (it is `false` in the real settings, so the segment was off): idle `--- tok/s`, then 59, 78, 96, 84, 73, 75, 74 tok/s while streaming, back to `--- tok/s` about two seconds after the turn ended (1.5 s hold, 0.5 s fade). Exit 0. The real settings file was restored with `cp -p` from a backup.
+- Before and after, `~/.pi/agent/crashes.json` and both settings files had identical shasums, and no `pi-tui-crash.log` was written.
+- **Skipped:** a live sensei consult. It sends repo context to external advisor models, there is no sensei settings directory under `~/.pi/agent`, and its upstream activity and render suites already pass unchanged.
+- No settings menu was opened.
+
+### Behaviour changes
+
+- The MoA and audit progress tables' meters saturate at an inclusive 80 tokens/s instead of 40. `LEGACY_METER_UPPER_BOUND_TPS` restores the old scale for a host that wants it.
+- `ansiToRgb` is unanchored, so the shimmer reads a colour carried in a compound SGR (moa-fusion and persona-audit required one bare escape).
+- `formatToolActivity` strips terminal sequences and stray control characters before it truncates. persona-audit did not sanitise at all, and moa-fusion stripped after cutting, which could leave half an escape sequence.
+- `OutputTokenAccount` ignores negative, NaN and infinite usage and falls back to its word-count estimate; persona-audit's copy counted any number.
+- pi-topping: with the meter on and Token rate off, the rate is now held in the background, so enabling Token rate mid-turn shows an already-held rate at once.
+
+### Deviations from the plan
+
+- **moa-fusion keeps its inline depth-counted clock.** The package ships `RunClock({ nested: true })` with tests, but moa-fusion's widget did not adopt it (owner decision).
+- **statusline adopted only the word counter, the EMA and the hold/fade.** Its confirmed/live accounting and its unchecked use of `usage.output` are unchanged.
+- **sensei keeps a constructor-only `SenseiActivityMeter extends ActivityMeter`.** `test/upstream/sensei/activity.test.ts` runs `new ActivityMeter()` and expects the newest cell on the right, and neither that file nor `test/contract/` may change (`CONTRIBUTING.md`).
+- **pi-topping's `lifecycle.test.ts` takes one import swap**, `FADE_SHADE_COUNT as TOKEN_RATE_FADE_SHADE_COUNT`, so the test body is untouched.
+- **The consumers other than pi-topping were migrated by four delegated workers.** Each diff was read and every gate re-run by the implementer before anything was committed. The harness marked all four runs `acceptance: rejected`; the edits and gates were sound.
+- **The first `npm publish` ran at the repo root without `-w`** and failed on the root's missing version before publishing anything; the workspace-scoped run published.
+- **`npm install` returned `ETARGET` for `^0.3.0` about 45 seconds after the publish**, from stale package metadata. `npm install --prefer-online` resolved it.
+
+### Remaining
+
+1. Pushes (the primitives branch and `v0.3.0` tag, then each consumer) need separate owner approval.
+2. statusline's `usage.output` is still read unchecked, so a non-finite value would poison its token total. Recorded, not fixed.
+3. sensei's `primitives-activity` branch edits `CHANGELOG.md` and `test/sensei/consulting-line.test.ts`, which the owner also has uncommitted in the main checkout; expect a textual conflict when the two meet.
+4. moa-fusion's pre-existing uncommitted `test/rename-verification.test.mjs` edit is still uncommitted, and the committed version of that test requires `package-lock.json`, which the repo does not track.
+5. Phase 6: `./color` will have a broader `ansiToRgb`. It must not silently replace `./activity-tui`'s truecolor-only one.
+6. pi-topping still defines `ThinkingLevel`, `THINKING_LEVEL_VALUES` and `isThinkingLevel` locally; Phase 5 owns them.
+
+**Next: Phase 4.**
