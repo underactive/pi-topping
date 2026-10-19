@@ -45,8 +45,8 @@ import {
 	RESPONSE_MODEL_HOLD_MS,
 	RESPONSE_MODEL_SLIDE_FRAME_MS,
 	SPINNER_FRAMES,
-	TOKEN_RATE_FADE_SHADE_COUNT,
 } from "../src/format.ts";
+import { FADE_SHADE_COUNT as TOKEN_RATE_FADE_SHADE_COUNT } from "@underactive/pi-topping-primitives/activity";
 import { PreviewRenderer } from "../src/preview.ts";
 import { EXPLANATORY_REMINDER, EXPLANATORY_SECTION, OUTPUT_STYLE_MESSAGE_TYPE, OUTPUT_STYLE_SECTION, OUTPUT_STYLES, SIMPLIFIED_TECHNICAL_ENGLISH_REMINDER, SIMPLIFIED_TECHNICAL_ENGLISH_SECTION } from "../src/output-style.ts";
 import { PROMPT_BOX_ENTRY_TYPE, PROMPT_BOX_TYPE, type PromptBoxEntryData } from "../src/prompt-decorator.ts";

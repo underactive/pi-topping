@@ -1,5 +1,7 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
-import { buildWorkingMessage, DEFAULT_WORKING_WORD, dimAttribute, fadeThemeColorString, formatElapsed, formatTokens, getThinkingLevelColorizer, isFullyDefaultAppearance, shimmerString, SPINNER_FRAME_MS, SPINNER_FRAMES, TOKEN_RATE_PLACEHOLDER, type LoaderElement, type ThinkingLevel } from "./format.ts";
+import { formatElapsedUnits } from "@underactive/pi-topping-primitives/activity";
+import { dimAttribute, fadeThemeColorString, shimmerString, thinkingLevelColorizer } from "@underactive/pi-topping-primitives/activity-tui";
+import { buildWorkingMessage, DEFAULT_WORKING_WORD, formatTokens, isFullyDefaultAppearance, SPINNER_FRAME_MS, SPINNER_FRAMES, TOKEN_RATE_PLACEHOLDER, type LoaderElement, type ThinkingLevel } from "./format.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import type { DecoratorSettings } from "./settings.ts";
 
@@ -27,7 +29,7 @@ export function buildLoaderMessage(
 	loaderOrder: readonly LoaderElement[],
 	parts: LoaderParts,
 ): string {
-	const spinner = parts.spinnerAtMs === undefined ? "" : getThinkingLevelColorizer(theme, decorations.spinnerColor, thinkingLevel)(SPINNER_FRAMES[Math.floor(parts.spinnerAtMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!);
+	const spinner = parts.spinnerAtMs === undefined ? "" : thinkingLevelColorizer(theme, decorations.spinnerColor, thinkingLevel)(SPINNER_FRAMES[Math.floor(parts.spinnerAtMs / SPINNER_FRAME_MS) % SPINNER_FRAMES.length]!);
 	const responseModelColored = parts.responseModel ? getResponseModelColorizer(theme, decorations.responseModelColor, thinkingLevel, provider)(parts.responseModel) : "";
 	const responseModel = responseModelColored && decorations.responseModelDimmed ? dimAttribute(responseModelColored) : responseModelColored;
 	if (isFullyDefaultAppearance(features, decorations)) {
@@ -38,20 +40,20 @@ export function buildLoaderMessage(
 		? shimmerString(word, parts.shimmerAtMs, theme, decorations.shimmerDirection, decorations.shimmerSpeed, decorations.shimmerInverted)
 		: theme.fg("text", word);
 	const meter = decorations.tokenActivityMonitor && parts.renderMeter
-		? parts.renderMeter(getThinkingLevelColorizer(theme, decorations.meterColor, thinkingLevel), decorations.meterDimmed)
+		? parts.renderMeter(thinkingLevelColorizer(theme, decorations.meterColor, thinkingLevel), decorations.meterDimmed)
 		: "";
 	let tokenRate = "";
 	if (features.tokenRate) {
 		if (!parts.tokenRateText) tokenRate = theme.fg("dim", TOKEN_RATE_PLACEHOLDER);
 		else {
-			const colorizer = getThinkingLevelColorizer(theme, decorations.tokenRateColor, thinkingLevel);
+			const colorizer = thinkingLevelColorizer(theme, decorations.tokenRateColor, thinkingLevel);
 			tokenRate = parts.tokenRateShade === undefined ? colorizer(parts.tokenRateText) : fadeThemeColorString(parts.tokenRateText, parts.tokenRateShade, theme, colorizer);
 		}
 		if (tokenRate && decorations.tokenRateDimmed) tokenRate = dimAttribute(tokenRate);
 	}
 	return buildWorkingMessage(theme, {
 		spinner, text, meter,
-		elapsed: features.elapsedTime && parts.elapsedMs !== undefined ? formatElapsed(parts.elapsedMs) : "",
+		elapsed: features.elapsedTime && parts.elapsedMs !== undefined ? formatElapsedUnits(parts.elapsedMs) : "",
 		tokens: features.outputTokens && parts.outputTokens !== undefined ? `↓ ${formatTokens(parts.outputTokens)} tokens` : "",
 		tokenRate, responseModel,
 	}, loaderOrder);

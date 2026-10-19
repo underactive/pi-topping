@@ -2,7 +2,7 @@ import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createSettingsStore, type SettingsWriteResult } from "@underactive/pi-topping-primitives/settings";
-import { DEFAULT_METER_UPPER_BOUND_TPS, METER_UPPER_BOUND_TPS_MAX, METER_UPPER_BOUND_TPS_MIN } from "./activity-meter.ts";
+import { DEFAULT_METER_UPPER_BOUND_TPS, METER_UPPER_BOUND_TPS_MAX, METER_UPPER_BOUND_TPS_MIN } from "@underactive/pi-topping-primitives/activity";
 import { DEFAULT_LOADER_ORDER, type LoaderElement } from "./format.ts";
 import { fromLegacyOutputStyle, isOutputStyleId, OUTPUT_STYLE_IDS, OUTPUT_STYLES, type OutputStyleId } from "./output-style.ts";
 import type { MenuNumberEntry, MenuSection } from "./menu.ts";

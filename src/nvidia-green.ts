@@ -1,5 +1,6 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
-import { getThinkingLevelColorizer, type ThinkingLevel } from "./format.ts";
+import { thinkingLevelColorizer } from "@underactive/pi-topping-primitives/activity-tui";
+import type { ThinkingLevel } from "./format.ts";
 import type { ThinkingLevelColor } from "./settings.ts";
 
 /** Provider id whose working-loader response model uses NVIDIA green. */
@@ -33,5 +34,5 @@ export function getResponseModelColorizer(
 ): (text: string) => string {
 	return isSwitchyardProvider(provider)
 		? colorizeNvidiaGreen
-		: getThinkingLevelColorizer(theme, color, thinkingLevel);
+		: thinkingLevelColorizer(theme, color, thinkingLevel);
 }

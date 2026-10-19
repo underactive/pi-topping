@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reads routed-model and embedded-status announcements through the shared contracts from `@underactive/pi-topping-primitives` 0.1.0.
 - A malformed embedded-status announcement is now ignored; previously it was read as `embedded: false`.
 - Added `@underactive/pi-topping-primitives` as a runtime dependency.
+- The activity meter, the token-rate hold and fade, the streaming word counter, the shimmer, the colour fades, elapsed-time formatting and the thinking-level colorizer now come from `@underactive/pi-topping-primitives` 0.3.0 (`./activity` and `./activity-tui`) instead of local copies. Rendered output is unchanged. One edge case: with the activity meter on and Token rate off, the rate is now held in the background, so switching Token rate on mid-turn shows an already-held rate at once instead of waiting for the next sample with new output.
 
 ## [0.12.0] - 2026-10-16
 

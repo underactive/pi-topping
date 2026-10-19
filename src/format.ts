@@ -1,6 +1,4 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
-import { WORKING_STATUS_SLIDE_MS } from "@underactive/pi-topping-primitives/contracts";
-import type { ThinkingLevelColor } from "./settings.ts";
 
 /** Pi's default working-indicator frames (same braille spinner as pi-tui's Loader). */
 export const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -17,17 +15,6 @@ export const THINKING_LEVEL_VALUES = ["off", "minimal", "low", "medium", "high",
 
 export function isThinkingLevel(value: unknown): value is ThinkingLevel {
 	return typeof value === "string" && THINKING_LEVEL_VALUES.some(level => level === value);
-}
-
-/** Build a colorizer for a configured color, including Pi's active thinking-level color. */
-export function getThinkingLevelColorizer(
-	theme: Pick<Theme, "fg" | "getThinkingBorderColor">,
-	color: ThinkingLevelColor,
-	thinkingLevel: ThinkingLevel | undefined,
-): (text: string) => string {
-	return color === "thinking-level"
-		? theme.getThinkingBorderColor(thinkingLevel ?? "off")
-		: (text: string) => theme.fg(color, text);
 }
 
 /** Milliseconds between activity meter sample pushes. */
@@ -86,20 +73,6 @@ export function formatTokenRate(rate: number): string {
 	return rounded === 0 ? "" : `${rounded.toString().padStart(TOKEN_RATE_DIGITS)} tps`;
 }
 
-/**
- * Wrap text in ANSI dim (SGR 2 / reset 22).
- *
- * theme.fg("dim", ...) sets a gray color instead of the ANSI dim attribute, so it
- * would overwrite an already-applied accent color rather than darkening it; the raw
- * SGR codes are needed to dim on top of an existing color.
- */
-export function dimAttribute(text: string): string {
-	return `\x1b[2m${text}\x1b[22m`;
-}
-
-/** Number of discrete, eased shades used by the token-rate and response-model fades. */
-export const TOKEN_RATE_FADE_SHADE_COUNT = 5;
-
 /** Milliseconds a settled response model remains fully visible before fading. */
 export const RESPONSE_MODEL_HOLD_MS = 3_000;
 
@@ -108,57 +81,6 @@ export const RESPONSE_MODEL_FADE_MS = 500;
 
 /** Milliseconds between working-loader repaints while the response model slides out. */
 export const RESPONSE_MODEL_SLIDE_FRAME_MS = 30;
-
-/**
- * The part of a sliding response model visible `elapsedMs` after it appeared. It emerges
- * tail first from behind the separator before it, as pi-topping-statusline slides an
- * embedded status out, and shows whole once WORKING_STATUS_SLIDE_MS has passed.
- */
-export function slideOutTail(text: string, elapsedMs: number): string {
-	if (elapsedMs >= WORKING_STATUS_SLIDE_MS) return text;
-	const chars = [...text];
-	const progress = Math.max(0, elapsedMs) / WORKING_STATUS_SLIDE_MS;
-	const shown = Math.round(chars.length * 0.5 * (1 - Math.cos(Math.PI * progress)));
-	return chars.slice(chars.length - shown).join("");
-}
-
-/** Render one fade shade by blending the colorizer's color toward the active theme's dim color. */
-export function fadeThemeColorString(
-	text: string,
-	shade: number,
-	theme: Pick<Theme, "getFgAnsi">,
-	colorizer: (text: string) => string,
-): string {
-	if (!text) return "";
-	const source = ansiToRgb(colorizer("x"));
-	const dim = ansiToRgb(theme.getFgAnsi("dim"));
-	if (!source || !dim) return colorizer(text);
-	const clampedShade = Math.max(0, Math.min(TOKEN_RATE_FADE_SHADE_COUNT - 1, Math.floor(shade)));
-	const progress = (clampedShade + 1) / TOKEN_RATE_FADE_SHADE_COUNT;
-	const eased = 0.5 * (1 - Math.cos(Math.PI * progress));
-	const blended = source.map((channel, index) => Math.round(channel * (1 - eased) + dim[index]! * eased));
-	return `\x1b[38;2;${blended[0]};${blended[1]};${blended[2]}m${text}\x1b[0m`;
-}
-
-/** Format elapsed milliseconds as a compact human-readable duration, skipping leading zero units. */
-export function formatElapsed(ms: number): string {
-	let totalSeconds = Math.max(0, Math.floor(ms / 1000));
-	const parts: string[] = [];
-
-	const days = Math.floor(totalSeconds / 86400);
-	totalSeconds -= days * 86400;
-	const hours = Math.floor(totalSeconds / 3600);
-	totalSeconds -= hours * 3600;
-	const minutes = Math.floor(totalSeconds / 60);
-	const seconds = totalSeconds % 60;
-
-	if (days > 0) parts.push(`${days}d`);
-	if (hours > 0) parts.push(`${hours}h`);
-	if (minutes > 0) parts.push(`${minutes}m`);
-	parts.push(`${seconds}s`);
-
-	return parts.join(" ");
-}
 
 /** True when every appearance toggle is off and Pi's stock loader can be restored. */
 export function isFullyDefaultAppearance(features: {
@@ -202,113 +124,4 @@ export function buildWorkingMessage(
 	flushDetails();
 
 	return segments.join(" ");
-}
-
-const SHIMMER_SWEEP_S = 2.0;
-const SHIMMER_BAND_HALF = 5.0;
-const SHIMMER_PADDING = 10;
-
-/**
- * Codex-style light-sweep shimmer using the active Pi theme.
- *
- * With `invert=true`, the text color is used at rest and the sweep moves toward
- * the theme's dim color.
- */
-export function shimmerString(
-	text: string,
-	elapsedMs: number,
-	theme: Pick<Theme, "getFgAnsi" | "fg">,
-	direction: "ltr" | "rtl" = "ltr",
-	speed: "slow" | "normal" | "fast" = "normal",
-	invert = false,
-): string {
-	const chars = [...text];
-	if (chars.length === 0) return "";
-	const shimmerBase = ansiToRgb(theme.getFgAnsi(invert ? "text" : "dim"));
-	const shimmerHighlight = ansiToRgb(theme.getFgAnsi(invert ? "dim" : "text"));
-	if (!shimmerBase || !shimmerHighlight) return theme.fg("text", text);
-	const period = chars.length + SHIMMER_PADDING * 2;
-	const unitsPerS = period / SHIMMER_SWEEP_S;
-	// The band crosses padding at either end while every character is still dim. Scaling only
-	// the stretch where it actually overlaps the text keeps that dark pause identical at every
-	// speed, so `speed` changes the sweep alone rather than the whole cycle.
-	const litEnter = SHIMMER_PADDING - SHIMMER_BAND_HALF;
-	const litExit = SHIMMER_PADDING + chars.length - 1 + SHIMMER_BAND_HALF;
-	const enterS = litEnter / unitsPerS;
-	const litS = (litExit - litEnter) / unitsPerS / (speed === "slow" ? 0.5 : speed === "fast" ? 2 : 1);
-	const phase = (elapsedMs / 1000) % (enterS + litS + (period - litExit) / unitsPerS);
-	const linear = phase < enterS
-		? phase * unitsPerS
-		: phase < enterS + litS
-			? litEnter + ((phase - enterS) / litS) * (litExit - litEnter)
-			: litExit + (phase - enterS - litS) * unitsPerS;
-	const pos = direction === "rtl" ? period - linear : linear;
-
-	let out = "";
-	for (let i = 0; i < chars.length; i++) {
-		const ch = chars[i];
-		const dist = Math.abs((i + SHIMMER_PADDING) - pos);
-		const t = dist <= SHIMMER_BAND_HALF
-			? 0.5 * (1 + Math.cos(Math.PI * dist / SHIMMER_BAND_HALF))
-			: 0;
-		const alpha = t * 0.9;
-		const r = Math.round(shimmerHighlight[0] * alpha + shimmerBase[0] * (1 - alpha));
-		const g = Math.round(shimmerHighlight[1] * alpha + shimmerBase[1] * (1 - alpha));
-		const b = Math.round(shimmerHighlight[2] * alpha + shimmerBase[2] * (1 - alpha));
-		const bold = !invert && t > 0.2 ? "\x1b[1m" : "";
-		out += `${bold}\x1b[38;2;${r};${g};${b}m${ch}\x1b[22m`;
-	}
-	return out + "\x1b[0m";
-}
-
-function ansiToRgb(ansi: string): [number, number, number] | null {
-	const match = ansi.match(/\x1b\[38;2;(\d+);(\d+);(\d+)m/);
-	if (!match) return null;
-	return [Number(match[1]), Number(match[2]), Number(match[3])];
-}
-
-/**
- * Incremental whitespace-boundary word counter.
- *
- * The in-word state is retained across streaming chunks so a word split across
- * multiple deltas is counted exactly once.
- */
-export class StreamingWordCounter {
-	#inWordByStream = new Map<string, boolean>();
-
-	count(text: string, stream = "default"): number {
-		let inWord = this.#inWordByStream.get(stream) ?? false;
-		let count = 0;
-		for (let i = 0; i < text.length; i++) {
-			const code = text.charCodeAt(i);
-			if (isWhitespace(code)) {
-				inWord = false;
-			} else if (!inWord) {
-				count++;
-				inWord = true;
-			}
-		}
-		this.#inWordByStream.set(stream, inWord);
-		return count;
-	}
-
-	reset(): void {
-		this.#inWordByStream.clear();
-	}
-}
-
-function isWhitespace(code: number): boolean {
-	return (
-		code === 32 ||
-		(code >= 9 && code <= 13) ||
-		code === 160 ||
-		code === 0x1680 ||
-		(code >= 0x2000 && code <= 0x200a) ||
-		code === 0x2028 ||
-		code === 0x2029 ||
-		code === 0x202f ||
-		code === 0x205f ||
-		code === 0x3000 ||
-		code === 0xfeff
-	);
 }

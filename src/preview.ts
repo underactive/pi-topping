@@ -1,7 +1,8 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_PREVIEW_WIDTH, type PreviewResult } from "./menu.ts";
-import { ActivityMeter, METER_UPPER_BOUND_TPS_MAX, METER_UPPER_BOUND_TPS_MIN, rateToLevel } from "./activity-meter.ts";
-import { DEFAULT_WORKING_WORD, dimAttribute, ELAPSED_INTERVAL_MS, formatTokenRate, getThinkingLevelColorizer, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, SPINNER_FRAME_MS } from "./format.ts";
+import { ActivityMeter, METER_UPPER_BOUND_TPS_MAX, METER_UPPER_BOUND_TPS_MIN, rateToLevel } from "@underactive/pi-topping-primitives/activity";
+import { dimAttribute, renderMeter, thinkingLevelColorizer } from "@underactive/pi-topping-primitives/activity-tui";
+import { DEFAULT_WORKING_WORD, ELAPSED_INTERVAL_MS, formatTokenRate, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, SPINNER_FRAME_MS } from "./format.ts";
 import { buildLoaderMessage } from "./loader-message.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { isOutputStyleId, OUTPUT_STYLES } from "./output-style.ts";
@@ -97,7 +98,7 @@ export class PreviewRenderer {
 			spinnerAtMs: values.animatedSpinner !== false ? elapsedMs : undefined,
 			word,
 			shimmerAtMs: elapsedMs,
-			renderMeter: (colorizer, dimmed) => this.#meter.render((level, char) => ActivityMeter.colorizeCell(level, char, theme, colorizer, dimmed)),
+			renderMeter: (colorizer, dimmed) => renderMeter(this.#meter, theme, colorizer, dimmed),
 			elapsedMs,
 			outputTokens: Math.max(0, Math.floor(elapsedMs / 1000 * TOKEN_RATE_PER_SEC)),
 			tokenRateText: formatTokenRate(TOKEN_RATE_PER_SEC),
@@ -153,7 +154,7 @@ export class PreviewRenderer {
 		let model = "";
 		if (values.doneMarkerModel === true) {
 			const color = isThinkingLevelColor(values.doneMarkerModelColor) ? values.doneMarkerModelColor : DEFAULT_SETTINGS.decorations.doneMarkerModelColor;
-			const modelColored = getThinkingLevelColorizer(theme, color, this.#ctx.thinkingLevel)("test-model");
+			const modelColored = thinkingLevelColorizer(theme, color, this.#ctx.thinkingLevel)("test-model");
 			model = values.doneMarkerModelDimmed === true ? dimAttribute(modelColored) : modelColored;
 		}
 		const content = buildCompletionMarkerContent(theme, icon, word, "2m 52s", details, model);

@@ -17,14 +17,24 @@ import type {
 import { VERSION } from "@earendil-works/pi-coding-agent";
 import { CHANNELS, PI_VIRTUAL_MODEL_API, WORKING_STATUS_SLIDE_MS, subscribe } from "@underactive/pi-topping-primitives/contracts";
 import { Text, type Component } from "@earendil-works/pi-tui";
-import { ActivityMeter, rateToLevel, TokRateTracker } from "./activity-meter.ts";
+import {
+	ActivityMeter,
+	FADE_SHADE_COUNT,
+	formatElapsedUnits,
+	RateHoldFade,
+	rateToLevel,
+	slideOutTail,
+	StreamingWordCounter,
+} from "@underactive/pi-topping-primitives/activity";
 import {
 	dimAttribute,
-	getThinkingLevelColorizer,
+	fadeThemeColorString,
+	renderMeter,
+	thinkingLevelColorizer,
+} from "@underactive/pi-topping-primitives/activity-tui";
+import {
 	isThinkingLevel,
 	ELAPSED_INTERVAL_MS,
-	fadeThemeColorString,
-	formatElapsed,
 	formatTokenRate,
 	formatTokens,
 	isFullyDefaultAppearance,
@@ -33,11 +43,8 @@ import {
 	RESPONSE_MODEL_HOLD_MS,
 	RESPONSE_MODEL_SLIDE_FRAME_MS,
 	SHIMMER_INTERVAL_MS,
-	slideOutTail,
 	SPINNER_FRAME_MS,
 	SPINNER_FRAMES,
-	TOKEN_RATE_FADE_SHADE_COUNT,
-	StreamingWordCounter,
 	type ThinkingLevel,
 } from "./format.ts";
 import { buildLoaderMessage } from "./loader-message.ts";
@@ -125,9 +132,7 @@ interface SessionState {
 	liveTokens: number;
 	shimmerOrigin: number;
 	activityMeter: ActivityMeter;
-	rateTracker: TokRateTracker;
-	lastTokenRateSampledAt: number;
-	lastTokenRateTotal: number;
+	tokenRate: RateHoldFade;
 	responseModel: string;
 	served: { model: string; backend: string; routedId: string } | null;
 	/** The backend companion to the last raw response-model report. */
@@ -143,8 +148,6 @@ interface SessionState {
 	/** When the response model appeared in the loader and began sliding out; 0 if it never slid. */
 	responseModelShownAt: number;
 	responseModelSlideTimer: ReturnType<typeof setInterval> | null;
-	tokenRateText: string;
-	tokenRateFadeStartsAt: number;
 	timer: ReturnType<typeof setInterval> | null;
 	busy: boolean;
 	waiting: { kind: UIPromptKind; title?: string } | null;
@@ -156,15 +159,6 @@ interface SessionState {
 /** Sentinel distinguishing "never called setWorkingMessage()" from an explicit `undefined` message. */
 const NOT_SENT = Symbol("not-sent");
 
-/** Reset all token-rate tracking fields on `state` to their fresh-turn values. */
-function resetTokenRateState(state: SessionState): void {
-	state.rateTracker.reset();
-	state.lastTokenRateSampledAt = 0;
-	state.lastTokenRateTotal = 0;
-	state.tokenRateText = "";
-	state.tokenRateFadeStartsAt = 0;
-}
-
 function makeFreshState(): SessionState {
 	return {
 		startTime: 0,
@@ -173,9 +167,12 @@ function makeFreshState(): SessionState {
 		liveTokens: 0,
 		shimmerOrigin: 0,
 		activityMeter: new ActivityMeter(),
-		rateTracker: new TokRateTracker(),
-		lastTokenRateSampledAt: 0,
-		lastTokenRateTotal: 0,
+		tokenRate: new RateHoldFade({
+			holdMs: TOKEN_RATE_HOLD_MS,
+			fadeMs: TOKEN_RATE_FADE_MS,
+			shadeCount: FADE_SHADE_COUNT,
+			sampleIntervalMs: METER_INTERVAL_MS,
+		}),
 		responseModel: "",
 		served: null,
 		lastResponseModelBackend: NOT_SENT,
@@ -187,8 +184,6 @@ function makeFreshState(): SessionState {
 		responseModelFadeGeneration: 0,
 		responseModelShownAt: 0,
 		responseModelSlideTimer: null,
-		tokenRateText: "",
-		tokenRateFadeStartsAt: 0,
 		timer: null,
 		busy: false,
 		waiting: null,
@@ -330,11 +325,9 @@ export class SessionManager {
 			typeof rawTokens === "number" && Number.isFinite(rawTokens) && rawTokens >= 0 ? rawTokens : undefined;
 		this.#state.confirmTokens += exactTokens ?? this.#state.liveTokens;
 		if (exactTokens !== undefined) {
-			// Only reset the sampling state here, not tokenRateText/tokenRateFadeStartsAt:
+			// Only restart the sampling here, not the held rate or its fade:
 			// those must keep holding/fading across message boundaries to avoid flicker.
-			this.#state.rateTracker.reset();
-			this.#state.lastTokenRateSampledAt = 0;
-			this.#state.lastTokenRateTotal = this.#state.confirmTokens;
+			this.#state.tokenRate.resetSampling(this.#state.confirmTokens);
 		}
 		this.#state.liveTokens = 0;
 		this.#counter.reset();
@@ -403,7 +396,7 @@ export class SessionManager {
 		ctx.ui.setWorkingMessage();
 		if (responseModel) this.startResponseModelFade(ctx, responseModel, responseModelColor, responseModelDimmed);
 		this.#state.activityMeter.reset();
-		resetTokenRateState(this.#state);
+		this.#state.tokenRate.reset();
 		this.#state.lastMessage = NOT_SENT;
 		if (this.#settings.features.doneMarker && hadPrompt) {
 			const aborted = e.aborted === true;
@@ -447,10 +440,10 @@ export class SessionManager {
 		const thinkingLevel = isThinkingLevel(entry.data.thinkingLevel) ? entry.data.thinkingLevel : undefined;
 		const rawModel = sanitizedText(entry.data.model);
 		const modelColored = features.doneMarkerModel && rawModel
-			? getThinkingLevelColorizer(theme, this.#settings.decorations.doneMarkerModelColor, thinkingLevel)(rawModel)
+			? thinkingLevelColorizer(theme, this.#settings.decorations.doneMarkerModelColor, thinkingLevel)(rawModel)
 			: "";
 		const model = modelColored && this.#settings.decorations.doneMarkerModelDimmed ? dimAttribute(modelColored) : modelColored;
-		const markerContent = buildCompletionMarkerContent(theme, icon, word, formatElapsed(elapsedMs), details, model, aborted ? "warning" : "dim");
+		const markerContent = buildCompletionMarkerContent(theme, icon, word, formatElapsedUnits(elapsedMs), details, model, aborted ? "warning" : "dim");
 		const borderStyle = this.#settings.decorations.doneMarkerBorderStyle;
 		const borderColor = aborted ? "warning" : this.#settings.decorations.doneMarkerBorderColor;
 		const markerStyle = this.#settings.decorations.doneMarkerStyle;
@@ -592,7 +585,7 @@ export class SessionManager {
 
 		const color = this.#settings.decorations.spinnerColor;
 		ctx.ui.setWorkingIndicator({
-			frames: SPINNER_FRAMES.map((frame) => getThinkingLevelColorizer(ctx.ui.theme, color, ctx.thinkingLevel)(frame)),
+			frames: SPINNER_FRAMES.map((frame) => thinkingLevelColorizer(ctx.ui.theme, color, ctx.thinkingLevel)(frame)),
 		});
 	}
 
@@ -732,12 +725,12 @@ export class SessionManager {
 			render(shade++);
 			this.#state.responseModelFadeTimer = setInterval(() => {
 				if (this.#state.responseModelFadeGeneration !== generation) return;
-				if (shade >= TOKEN_RATE_FADE_SHADE_COUNT) {
+				if (shade >= FADE_SHADE_COUNT) {
 					this.cancelResponseModelFade(ctx);
 					return;
 				}
 				render(shade++);
-			}, RESPONSE_MODEL_FADE_MS / TOKEN_RATE_FADE_SHADE_COUNT);
+			}, RESPONSE_MODEL_FADE_MS / FADE_SHADE_COUNT);
 		}, RESPONSE_MODEL_HOLD_MS);
 	}
 
@@ -774,7 +767,7 @@ export class SessionManager {
 		state.lastResponseModelRaw = NOT_SENT;
 		state.lastResponseModelBackend = NOT_SENT;
 		state.activityMeter.reset();
-		resetTokenRateState(state);
+		state.tokenRate.reset();
 		state.midTurnInputs = 0;
 		state.lastMessage = NOT_SENT;
 		this.#counter.reset();
@@ -797,27 +790,15 @@ export class SessionManager {
 		const total = state.confirmTokens + state.liveTokens;
 		const features = this.#settings.features;
 		const decorations = this.#settings.decorations;
-		let hasNewTokenCount = false;
-		if ((decorations.tokenActivityMonitor || features.tokenRate) && now - state.lastTokenRateSampledAt >= METER_INTERVAL_MS) {
-			// Do not reset the fade for an EMA-only decay while output is quiet.
-			hasNewTokenCount = total > state.lastTokenRateTotal;
-			state.lastTokenRateTotal = total;
-			const tokenRate = state.rateTracker.sample(total, now);
-			if (decorations.tokenActivityMonitor) state.activityMeter.push(rateToLevel(tokenRate, decorations.meterUpperBoundTps));
-			state.lastTokenRateSampledAt = now;
+		// RateHoldFade samples at most once per METER_INTERVAL_MS and holds a rate only when the
+		// total grew, so an EMA-only decay while output is quiet does not reset the fade.
+		if ((decorations.tokenActivityMonitor || features.tokenRate) && state.tokenRate.sample(total, now) && decorations.tokenActivityMonitor) {
+			state.activityMeter.push(rateToLevel(state.tokenRate.tracker.tokenRate, decorations.meterUpperBoundTps));
 		}
 		const responseModelShown = features.responseModel && state.responseModel
 			? slideOutTail(state.responseModel, now - state.responseModelShownAt)
 			: "";
-		if (features.tokenRate) {
-			const latestTokenRate = formatTokenRate(state.rateTracker.tokenRate);
-			if (latestTokenRate && hasNewTokenCount) {
-				state.tokenRateText = latestTokenRate;
-				state.tokenRateFadeStartsAt = now + TOKEN_RATE_HOLD_MS;
-			} else if (now >= state.tokenRateFadeStartsAt + TOKEN_RATE_FADE_MS) {
-				state.tokenRateText = "";
-			}
-		}
+		const tokenRate = state.tokenRate.display(now);
 		const showSpinner = this.spinnerInMessage();
 		const msg = isFullyDefaultAppearance(features, decorations) && !showSpinner && !responseModelShown
 			? undefined
@@ -832,15 +813,11 @@ export class SessionManager {
 					spinnerAtMs: showSpinner ? now : undefined,
 					word: state.workingText.text,
 					shimmerAtMs: now - state.shimmerOrigin,
-					renderMeter: (colorizer, dimmed) => state.activityMeter.render((level, char) =>
-						ActivityMeter.colorizeCell(level, char, ctx.ui.theme, colorizer, dimmed),
-					),
+					renderMeter: (colorizer, dimmed) => renderMeter(state.activityMeter, ctx.ui.theme, colorizer, dimmed),
 					elapsedMs: now - state.startTime,
 					outputTokens: total,
-					tokenRateText: state.tokenRateText,
-					tokenRateShade: now < state.tokenRateFadeStartsAt
-						? undefined
-						: Math.floor((now - state.tokenRateFadeStartsAt) / (TOKEN_RATE_FADE_MS / TOKEN_RATE_FADE_SHADE_COUNT)),
+					tokenRateText: features.tokenRate && tokenRate.rate !== null ? formatTokenRate(tokenRate.rate) : "",
+					tokenRateShade: tokenRate.phase === "fading" ? tokenRate.fadeShade : undefined,
 					responseModel: responseModelShown,
 				},
 			);
