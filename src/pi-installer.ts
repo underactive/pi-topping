@@ -1,4 +1,8 @@
-import { spawn } from "node:child_process";
+import {
+	type PiInvocation,
+	resolvePiInvocation,
+	spawnCollect,
+} from "@underactive/pi-topping-primitives/process";
 
 export interface PiInstallResult {
 	code: number;
@@ -6,67 +10,46 @@ export interface PiInstallResult {
 	stderr: string;
 }
 
-const SIGKILL_GRACE_MS = 5_000;
-const EXIT_TIMEOUT = 124;
+export interface PiInstallOptions {
+	/** Run this instead of the pi hosting the session. For tests, which must not start a real pi. */
+	piInvocation?: PiInvocation;
+}
 
-function spawnPiPackageCommand(command: "install" | "remove", spec: string, timeoutMs: number): Promise<PiInstallResult> {
-	if (!/^npm:@?[\w.-]+(\/[\w.-]+)?$/.test(spec)) {
-		return Promise.resolve({ code: 1, stdout: "", stderr: `invalid spec: ${spec}` });
+const PACKAGE_SPEC = /^npm:@?[\w.-]+(\/[\w.-]+)?$/;
+
+async function spawnPiPackageCommand(
+	command: "install" | "remove",
+	spec: string,
+	timeoutMs: number,
+	options: PiInstallOptions,
+): Promise<PiInstallResult> {
+	if (!PACKAGE_SPEC.test(spec)) {
+		return { code: 1, stdout: "", stderr: `invalid spec: ${spec}` };
 	}
-	return new Promise((resolve) => {
-		const isWindows = process.platform === "win32";
-		const [executable, args, options] = isWindows
-			? (["cmd.exe", ["/c", "pi", command, spec], { windowsHide: true }] as const)
-			: (["pi", [command, spec], {}] as const);
-		const processHandle = spawn(executable, args, { ...options, stdio: ["ignore", "pipe", "pipe"] });
-		let stdout = "";
-		let stderr = "";
-		let settled = false;
-		let closed = false;
-		let killTimer: ReturnType<typeof setTimeout> | undefined;
 
-		const finish = (result: PiInstallResult): void => {
-			if (settled) return;
-			settled = true;
-			clearTimeout(timeoutTimer);
-			resolve(result);
-		};
+	// The pi that hosts this session, so install and remove reach the same agent dir.
+	const invocation = options.piInvocation
+		? { command: options.piInvocation.command, args: [...options.piInvocation.args, command, spec], via: "script" as const }
+		: resolvePiInvocation([command, spec]);
 
-		const timeoutTimer = setTimeout(() => {
-			processHandle.kill("SIGTERM");
-			killTimer = setTimeout(() => {
-				if (!closed) processHandle.kill("SIGKILL");
-			}, SIGKILL_GRACE_MS);
-			finish({
-				code: EXIT_TIMEOUT,
-				stdout,
-				stderr: `${stderr}${stderr ? "\n" : ""}[timed out after ${timeoutMs}ms]`,
-			});
-		}, timeoutMs);
+	let { command: executable, args } = invocation;
+	// Only `pi` on PATH can be a Windows `.cmd` shim, which a shell-less spawn cannot start. The
+	// spec was validated above, so it carries nothing for cmd.exe to re-parse.
+	if (invocation.via === "path" && process.platform === "win32") {
+		executable = "cmd.exe";
+		args = ["/c", "pi", command, spec];
+	}
 
-		processHandle.stdout?.on("data", (chunk: Buffer) => {
-			stdout += chunk.toString();
-		});
-		processHandle.stderr?.on("data", (chunk: Buffer) => {
-			stderr += chunk.toString();
-		});
-		processHandle.on("error", (error) => {
-			finish({ code: 1, stdout, stderr: `${stderr}${stderr ? "\n" : ""}${error.message}` });
-		});
-		processHandle.on("close", (code) => {
-			closed = true;
-			if (killTimer !== undefined) clearTimeout(killTimer);
-			finish({ code: code ?? 1, stdout, stderr });
-		});
-	});
+	const { code, stdout, stderr } = await spawnCollect(executable, args, { timeoutMs, windowsHide: true });
+	return { code, stdout, stderr };
 }
 
-/** Run `pi install <spec>` without relying on Pi's shell-less exec wrapper on Windows. */
-export function spawnPiInstall(spec: string, timeoutMs: number): Promise<PiInstallResult> {
-	return spawnPiPackageCommand("install", spec, timeoutMs);
+/** Run `pi install <spec>` with the pi hosting this session; a Windows `pi` on PATH goes through `cmd.exe`. */
+export function spawnPiInstall(spec: string, timeoutMs: number, options: PiInstallOptions = {}): Promise<PiInstallResult> {
+	return spawnPiPackageCommand("install", spec, timeoutMs, options);
 }
 
-/** Run `pi remove <spec>` without relying on Pi's shell-less exec wrapper on Windows. */
-export function spawnPiRemove(spec: string, timeoutMs: number): Promise<PiInstallResult> {
-	return spawnPiPackageCommand("remove", spec, timeoutMs);
+/** Run `pi remove <spec>` with the pi hosting this session; a Windows `pi` on PATH goes through `cmd.exe`. */
+export function spawnPiRemove(spec: string, timeoutMs: number, options: PiInstallOptions = {}): Promise<PiInstallResult> {
+	return spawnPiPackageCommand("remove", spec, timeoutMs, options);
 }
