@@ -1,20 +1,22 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { thinkingLevelColorizer } from "@underactive/pi-topping-primitives/activity-tui";
+import {
+	hexToFgAnsi,
+	isSwitchyardProvider,
+	NVIDIA_GREEN_HEX,
+	SWITCHYARD_PROVIDER,
+} from "@underactive/pi-topping-primitives/color";
 import type { ThinkingLevel } from "./format.ts";
 import type { ThinkingLevelColor } from "./settings.ts";
 
-/** Provider id whose working-loader response model uses NVIDIA green. */
-export const SWITCHYARD_PROVIDER = "switchyard";
+/**
+ * The Switchyard provider id, the bright NVIDIA green it shares with pi-topping-statusline's
+ * Switchyard border, and the case- and space-insensitive provider check.
+ */
+export { isSwitchyardProvider, NVIDIA_GREEN_HEX, SWITCHYARD_PROVIDER };
 
-/** Bright NVIDIA green shared with pi-topping-statusline's Switchyard border. */
-export const NVIDIA_GREEN_HEX = "#84c51a";
-
-const NVIDIA_GREEN_RGB = [1, 3, 5].map((offset) => Number.parseInt(NVIDIA_GREEN_HEX.slice(offset, offset + 2), 16));
-const NVIDIA_GREEN_ANSI = `\x1b[38;2;${NVIDIA_GREEN_RGB.join(";")}m`;
-
-export function isSwitchyardProvider(provider: string | undefined): boolean {
-	return provider?.trim().toLowerCase() === SWITCHYARD_PROVIDER;
-}
+/** Always truecolor, as the response-model colorizer has always been. */
+const NVIDIA_GREEN_ANSI = hexToFgAnsi(NVIDIA_GREEN_HEX, "truecolor");
 
 export function colorizeNvidiaGreen(text: string): string {
 	return `${NVIDIA_GREEN_ANSI}${text}\x1b[39m`;

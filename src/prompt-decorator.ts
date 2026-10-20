@@ -1,6 +1,7 @@
 import type { EntryRenderer, MessageRenderer, Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi, type Component } from "@earendil-works/pi-tui";
 import { thinkingLevelColorizer } from "@underactive/pi-topping-primitives/activity-tui";
+import { BOX_STYLES, type BoxGlyphs } from "@underactive/pi-topping-primitives/glyphs";
 import { isThinkingLevel, type ThinkingLevel } from "./format.ts";
 import { DEFAULT_SETTINGS, isBorderStyle, isPromptBorderColor, type BorderStyle, type DoneMarkerBorderColor, type DoneMarkerBorderStyle, type DoneMarkerStyle, type PromptBorderColor } from "./settings.ts";
 import { stripControlChars } from "./util.ts";
@@ -8,12 +9,8 @@ import { stripControlChars } from "./util.ts";
 export const PROMPT_BOX_TYPE = "pi-topping-prompt";
 export const PROMPT_BOX_ENTRY_TYPE = "pi-topping-prompt-entry";
 
-const BORDER_GLYPHS: Record<BorderStyle, { tl: string; tr: string; bl: string; br: string; h: string; v: string }> = {
-	double: { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║" },
-	single: { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│" },
-	rounded: { tl: "╭", tr: "╮", bl: "╰", br: "╯", h: "─", v: "│" },
-	heavy: { tl: "┏", tr: "┓", bl: "┗", br: "┛", h: "━", v: "┃" },
-};
+// Typed against this repo's BorderStyle, so a style added to settings.ts without a glyph set fails the typecheck.
+const BORDER_GLYPHS: Readonly<Record<BorderStyle, BoxGlyphs>> = BOX_STYLES;
 
 /**
  * False visibility options hide each corresponding part; present provider and
@@ -81,11 +78,11 @@ export function buildCompletionMarkerLine(
 
 	const g = BORDER_GLYPHS[borderStyle];
 	const border = thinkingLevelColorizer(theme, borderColor, thinkingLevel);
-	const prefix = `${g.bl}${g.h.repeat(2)} `;
+	const prefix = `${g.bottomLeft}${g.horizontal.repeat(2)} `;
 
 	const suffix = markerStyle === "bookend"
-		? ` ${g.h.repeat(Math.max(0, safeWidth - visibleWidth(prefix) - visibleWidth(content) - 2))}${g.br}`
-		: ` ${COMPLETION_MARKER_TRAIL_RUNS.map(length => g.h.repeat(length)).join(" ")}`;
+		? ` ${g.horizontal.repeat(Math.max(0, safeWidth - visibleWidth(prefix) - visibleWidth(content) - 2))}${g.bottomRight}`
+		: ` ${COMPLETION_MARKER_TRAIL_RUNS.map(length => g.horizontal.repeat(length)).join(" ")}`;
 	const line = `${border(prefix)}${content}${border(suffix)}`;
 	return visibleWidth(line) > safeWidth ? truncateToWidth(line, safeWidth) : line;
 }
@@ -132,12 +129,12 @@ export function buildPromptBoxLines(
 	const labelText = combinedLabel
 		? truncateToWidth(combinedLabel, Math.max(0, innerWidth - 3)).replace(/\x1b\[0m/g, "")
 		: "";
-	const titleLength = icon ? visibleWidth(`${g.h}${g.h} ${icon} `) : 0;
+	const titleLength = icon ? visibleWidth(`${g.horizontal}${g.horizontal} ${icon} `) : 0;
 	const timeLength = time ? time.length + 3 : 0; // time + right-side " ═"
 	const topFill = Math.max(0, innerWidth - titleLength - timeLength);
-	const iconSeg = icon ? `${border(`${g.h}${g.h} `)}${iconColor(icon)}${border(" ")}` : "";
-	const timeSeg = time ? `${border(" ")}${muted(time)}${border(` ${g.h}`)}` : "";
-	const topLine = border(g.tl) + iconSeg + border(g.h.repeat(topFill)) + timeSeg + border(g.tr);
+	const iconSeg = icon ? `${border(`${g.horizontal}${g.horizontal} `)}${iconColor(icon)}${border(" ")}` : "";
+	const timeSeg = time ? `${border(" ")}${muted(time)}${border(` ${g.horizontal}`)}` : "";
+	const topLine = border(g.topLeft) + iconSeg + border(g.horizontal.repeat(topFill)) + timeSeg + border(g.topRight);
 	const lines = [visibleWidth(topLine) > width ? truncateToWidth(topLine, width) : topLine];
 
 	if (content) {
@@ -145,14 +142,14 @@ export function buildPromptBoxLines(
 		for (const rawLine of wrapTextWithAnsi(content, textWidth)) {
 			const displayLine = rawLine || " ";
 			const padded = `${displayLine}${" ".repeat(Math.max(0, textWidth - visibleWidth(displayLine)))}`;
-			const line = `${border(g.v)}${bodyText(` ${padded} `)}${border(g.v)}`;
+			const line = `${border(g.vertical)}${bodyText(` ${padded} `)}${border(g.vertical)}`;
 			lines.push(visibleWidth(line) > width ? truncateToWidth(line, width) : line);
 		}
 	}
 
 	const labelLength = labelText ? visibleWidth(labelText) + 3 : 0; // label + right-side " ═"
-	const labelSeg = labelText ? `${border(" ")}${muted(labelText)}${border(` ${g.h}`)}` : "";
-	const bottomLine = `${border(g.bl)}${border(g.h.repeat(Math.max(0, innerWidth - labelLength)))}${labelSeg}${border(g.br)}`;
+	const labelSeg = labelText ? `${border(" ")}${muted(labelText)}${border(` ${g.horizontal}`)}` : "";
+	const bottomLine = `${border(g.bottomLeft)}${border(g.horizontal.repeat(Math.max(0, innerWidth - labelLength)))}${labelSeg}${border(g.bottomRight)}`;
 	lines.push(visibleWidth(bottomLine) > width ? truncateToWidth(bottomLine, width) : bottomLine);
 	return lines;
 }

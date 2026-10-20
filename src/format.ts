@@ -1,10 +1,10 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 
-/** Pi's default working-indicator frames (same braille spinner as pi-tui's Loader). */
-export const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-
-/** Milliseconds per spinner frame, matching pi-tui's Loader cadence. */
-export const SPINNER_FRAME_MS = 80;
+/**
+ * Pi's default working-indicator frames (same braille spinner as pi-tui's Loader) and the
+ * milliseconds per frame, matching its cadence.
+ */
+export { SPINNER_FRAME_MS, SPINNER_FRAMES } from "@underactive/pi-topping-primitives/glyphs";
 
 /** Default "Working" text shown when text randomization/substitution is off. */
 export const DEFAULT_WORKING_WORD = "Working";

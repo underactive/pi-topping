@@ -3,14 +3,8 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Strip control and formatting characters from untrusted single-line text. */
-export function stripControlChars(text: string): string {
-	return text.replace(/[\p{Cc}\p{Cf}]/gu, "");
-}
-
-export function sanitizedText(value: unknown): string {
-	return typeof value === "string" ? stripControlChars(value).trim() : "";
-}
+/** Strip control and formatting characters from untrusted single-line text; `sanitizedText` also trims and reads a non-string as empty. */
+export { sanitizedText, stripControlChars } from "@underactive/pi-topping-primitives/text";
 
 /**
  * True when `version` is a release older than `minimum`, both read as `major.minor.patch`.
