@@ -322,6 +322,10 @@ Order: moa-fusion, persona-audit, splash, routesense, pi-switchyard.
 
 Start with the pi-tui deletions, then the palette and comet bar (compact and statusline), then sanitisers and formatters as each repo is touched for other reasons.
 
+### Phase 6.1: xterm256ToRgb cube correction (0.7.0)
+
+Correct only `cubeLevel` to xterm's colour-cube levels. Keep the gray ramp, indices 0–15 as black, `rgbTo256`, the comet bar, and truecolor-sourced fades unchanged. Rewrite the 24 affected Phase 6 fade fixture rows in place; all other rows stay byte-identical. The primitives fix commit remains at version 0.6.0; a separate release commit moves primitives and test-utils to 0.7.0 and receives a local `v0.7.0` tag. Statusline is the only consumer bumped, and only after the owner publishes; gate it against the packed candidate first, then pause for the publish. Phase 7 (`./process`) follows as 0.8.0.
+
 ### Phase 7: process
 
 moa-fusion and persona-audit for the agent discovery and concurrency helpers; pi-topping `pi-installer.ts` and splash `relaunch.ts` for invocation and kill escalation.
@@ -827,7 +831,7 @@ ca1410e72a0742e4287158314b489c3d434f5577fe4797ef6c777875c46d1787  ~/.pi/agent/mo
 - **Not added, because they already shipped:** `easeRaisedCosine` (it is `easeFade` in `./activity`), `FADE_SHADE_COUNT`, `formatClock` and `formatElapsedUnits` (`formatElapsedClock` and `formatElapsedUnits` in `./activity`), and `dimAttribute` (`./activity-tui`). Also not added: `hueDistance` and `rgbToHex` (pi-tui's `colorToHex` replaces the one caller), and a token formatter (§6 decision 6).
 - **Added:** `channelsToFgAnsi`, so the fade and statusline's `fadeFg` build no tuple per colour; `mode` is a required argument of every call that writes an escape, so `./color` and `./glyphs` read no terminal state; `formatDuration` is `formatDurationCompact`, and the host wrappers keep `shimmerElapsedMs` where the package says `elapsedMs`.
 - **Non-text helpers deferred** (resolution 2): `isPlainObject`, `hostBelow`, `isTruthyEnvFlag`, `suppressNotifications`, `combineSignals`, `raceAbort`, `createDeadline` and `stableStringify` wait for Phase 7's `./process` or for sensei's and the env-using repos' own adoption. `THIRD_PARTY_NOTICES.md` is unchanged. The `./text` barrel says so.
-- **`xterm256ToRgb` keeps statusline's cube arithmetic**, `55 + v * 51`, where xterm's levels are `55 + v * 40` (0, 95, 135, 175, 215, 255). Levels 4 and 5 come out as 259 and 310, above what a channel holds, and every other non-zero level reads bright. It shows in the fade of a 256-colour escape and in the `rgb` that `parseSgrColor` reports for an indexed colour; a level-5 component passes 255 once the opacity is about 0.81 toward `#121212`. Correcting it would change faded 256-colour bytes, so it is kept for parity, documented in the README and CHANGELOG, and pinned by a test that must change with the fix.
+- **`xterm256ToRgb` keeps statusline's cube arithmetic**, `55 + v * 51`, where xterm's levels are `55 + v * 40` (0, 95, 135, 175, 215, 255). Levels 4 and 5 come out as 259 and 310, above what a channel holds, and every other non-zero level reads bright. It shows in the fade of a 256-colour escape and in the `rgb` that `parseSgrColor` reports for an indexed colour; a level-5 component passes 255 once the opacity is about 0.81 toward `#121212`. Correcting it would change faded 256-colour bytes, so it is kept for parity, documented in the README and CHANGELOG, and pinned by a test that must change with the fix. Planned for 0.7.0 (Phase 6.1).
 - **`sanitizeLabel` limit.** It strips escape sequences with Node's regex-based `stripVTControlCharacters`, which removes CSI and OSC sequences whole but can leave the payload of a DCS, APC, PM or SOS string behind when it holds spaces or punctuation. pi-tui's `stripTerminalSequences` covers a different subset. Documented in the README, the CHANGELOG and the docblock; hosts with untrusted text should run `stripTerminalSequences` first.
 - **Guards the vendored copies lacked** (see Behaviour changes) and a stricter hygiene path match (the directory straight under `src`, so a checkout under a directory named `color` no longer makes every file pi-free).
 - **Smoke deviation:** persona-audit and moa-fusion were checked through harness mounts (above), not real audit or MoA runs.
@@ -843,7 +847,7 @@ ca1410e72a0742e4287158314b489c3d434f5577fe4797ef6c777875c46d1787  ~/.pi/agent/mo
 3. splash's `hsvRgb` (it returns a string, and delegating would allocate a tuple per swatch cell) and `sanitizeTuiText` stay local; no consumer adopts `hsvToRgb` yet.
 4. moa-fusion's eight-field joined boxes, persona-audit's `sanitizeDiffLine` and routesense's signed `formatCost` stay local by design.
 5. `./activity-tui`'s `shimmerString` keeps its own loop, because it always closes a cell with `ESC[22m` and sweeps a string; only splash's per-cell `shimmerCell` moved.
-6. The `xterm256ToRgb` cube defect and the `sanitizeLabel` limit above.
+6. The `xterm256ToRgb` cube defect and the `sanitizeLabel` limit above; the cube fix is planned for 0.7.0 (Phase 6.1).
 7. pi-switchyard (pin bump, menu, models, and now colour/text), sensei and web-tools/bash-gate for the env and abort helpers.
 8. `@underactive/pi-topping-test-utils` moved to 0.6.0 in lockstep and stays unpublished.
 
