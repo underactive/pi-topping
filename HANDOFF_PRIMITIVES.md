@@ -831,7 +831,7 @@ ca1410e72a0742e4287158314b489c3d434f5577fe4797ef6c777875c46d1787  ~/.pi/agent/mo
 - **Not added, because they already shipped:** `easeRaisedCosine` (it is `easeFade` in `./activity`), `FADE_SHADE_COUNT`, `formatClock` and `formatElapsedUnits` (`formatElapsedClock` and `formatElapsedUnits` in `./activity`), and `dimAttribute` (`./activity-tui`). Also not added: `hueDistance` and `rgbToHex` (pi-tui's `colorToHex` replaces the one caller), and a token formatter (§6 decision 6).
 - **Added:** `channelsToFgAnsi`, so the fade and statusline's `fadeFg` build no tuple per colour; `mode` is a required argument of every call that writes an escape, so `./color` and `./glyphs` read no terminal state; `formatDuration` is `formatDurationCompact`, and the host wrappers keep `shimmerElapsedMs` where the package says `elapsedMs`.
 - **Non-text helpers deferred** (resolution 2): `isPlainObject`, `hostBelow`, `isTruthyEnvFlag`, `suppressNotifications`, `combineSignals`, `raceAbort`, `createDeadline` and `stableStringify` wait for Phase 7's `./process` or for sensei's and the env-using repos' own adoption. `THIRD_PARTY_NOTICES.md` is unchanged. The `./text` barrel says so.
-- **`xterm256ToRgb` keeps statusline's cube arithmetic**, `55 + v * 51`, where xterm's levels are `55 + v * 40` (0, 95, 135, 175, 215, 255). Levels 4 and 5 come out as 259 and 310, above what a channel holds, and every other non-zero level reads bright. It shows in the fade of a 256-colour escape and in the `rgb` that `parseSgrColor` reports for an indexed colour; a level-5 component passes 255 once the opacity is about 0.81 toward `#121212`. Correcting it would change faded 256-colour bytes, so it is kept for parity, documented in the README and CHANGELOG, and pinned by a test that must change with the fix. Planned for 0.7.0 (Phase 6.1).
+- **`xterm256ToRgb` keeps statusline's cube arithmetic**, `55 + v * 51`, where xterm's levels are `55 + v * 40` (0, 95, 135, 175, 215, 255). Levels 4 and 5 come out as 259 and 310, above what a channel holds, and every other non-zero level reads bright. It shows in the fade of a 256-colour escape and in the `rgb` that `parseSgrColor` reports for an indexed colour; a level-5 component passes 255 once the opacity is about 0.81 toward `#121212`. Correcting it would change faded 256-colour bytes, so it is kept for parity, documented in the README and CHANGELOG, and pinned by a test that must change with the fix. Corrected in 0.7.0; see §17.
 - **`sanitizeLabel` limit.** It strips escape sequences with Node's regex-based `stripVTControlCharacters`, which removes CSI and OSC sequences whole but can leave the payload of a DCS, APC, PM or SOS string behind when it holds spaces or punctuation. pi-tui's `stripTerminalSequences` covers a different subset. Documented in the README, the CHANGELOG and the docblock; hosts with untrusted text should run `stripTerminalSequences` first.
 - **Guards the vendored copies lacked** (see Behaviour changes) and a stricter hygiene path match (the directory straight under `src`, so a checkout under a directory named `color` no longer makes every file pi-free).
 - **Smoke deviation:** persona-audit and moa-fusion were checked through harness mounts (above), not real audit or MoA runs.
@@ -847,8 +847,48 @@ ca1410e72a0742e4287158314b489c3d434f5577fe4797ef6c777875c46d1787  ~/.pi/agent/mo
 3. splash's `hsvRgb` (it returns a string, and delegating would allocate a tuple per swatch cell) and `sanitizeTuiText` stay local; no consumer adopts `hsvToRgb` yet.
 4. moa-fusion's eight-field joined boxes, persona-audit's `sanitizeDiffLine` and routesense's signed `formatCost` stay local by design.
 5. `./activity-tui`'s `shimmerString` keeps its own loop, because it always closes a cell with `ESC[22m` and sweeps a string; only splash's per-cell `shimmerCell` moved.
-6. The `xterm256ToRgb` cube defect and the `sanitizeLabel` limit above; the cube fix is planned for 0.7.0 (Phase 6.1).
+6. The `sanitizeLabel` limit above; the cube defect is fixed in 0.7.0, see §17.
 7. pi-switchyard (pin bump, menu, models, and now colour/text), sensei and web-tools/bash-gate for the env and abort helpers.
 8. `@underactive/pi-topping-test-utils` moved to 0.6.0 in lockstep and stays unpublished.
 
-**Next: Phase 7 (`./process`).**
+## 17. Phase 6.1 outcome: the xterm256ToRgb cube fix (0.7.0, 2026-10-20)
+
+Status: **published by the owner and `latest`.** Registry shasum `6e19432a6408fc6f5f8519d8af64f03f56e09b7a`, integrity `sha512-Cxz1cLvgSbJ7fTg3jd+xQDX5O9sq65UzHlCVuZcphgGvdUW/+xH103Tci0P2BywPolmQP9v2qTP5VJRY+DEebQ==`. The registry tarball is byte-identical to the Stage 3 candidate (`cmp` agrees; sha256 `b5df292c7d034dcc05ec4eec16a354d2572fd16f0e3c874d38a028bd7f5298ef`). The independent read-only verification is still pending; this record captures the implementation gates and is not verifier sign-off.
+
+### What shipped
+
+- **primitives** (`7931410` fix, `aa89b9b` release; local tag `v0.7.0`): `cubeLevel` now reads the xterm cube as `55 + v * 40`, yielding levels 0, 95, 135, 175, 215 and 255. The gray ramp, indices 0–15 as black, `rgbTo256`, comet bar and truecolor-sourced fades are unchanged. Primitives and test-utils moved to 0.7.0 in lockstep; test-utils remains unpublished.
+- **statusline** (`d32b9f7`): adopts the registry package at `^0.7.0` and adds a host regression test and changelog entry; runtime source is unchanged. It is the only consumer bumped. The other six consumers remain on `^0.6.0` until their next bump.
+- **Plan record** (`pi-topping`, `adf64f1`): Phase 6.1 was recorded on `primitives-color` before implementation. No branches or tags were pushed.
+
+### Behaviour and fixtures
+
+The corrected cube changes `xterm256ToRgb` and `parseSgrColor`'s `rgb` for indices 17–231, and therefore changes their partial fades. For example, index 196 at opacity 0.75 changes from truecolor `38;2;237;5;5` to `38;2;196;5;5`; in 256-colour mode its faded foreground changes from index 196 to 160 (the bar background remains 247). Index 39 at 0.9 changes from truecolor `2;189;281` to `2;159;231`, and from 256-colour index 46 to 39. Index 178 at 0.9 remains 178 instead of turning gold at 220. The 24 cube-reaching fixture rows were recomputed; 18 output lines changed bytes and the other six stayed identical. No unrelated fixture output changed.
+
+### Test counts and release gates
+
+| Repo / gate | Result |
+| --- | --- |
+| primitives `npm run check` | repo 47; source 490; compiled exports 54; test-utils source 12 and exports 38; pack check 2 packages / 325 files |
+| statusline, registry 0.7.0 | 0.6.0 red baseline: the new test showed 46 / 220 / 281; registry 0.7.0: typecheck passed; 195 tests passed |
+| statusline, fresh `npm ci` clone at `d32b9f7` | `npm ls` resolved registry 0.7.0 with no file/link; typecheck passed; 195 tests passed; clean tree |
+| statusline extension loader | bundled chunk and unbundled SDK each registered 1 command and 13 handler event types, with zero errors |
+
+The package loader probe passed all four bundled/unbundled × pi-peers-present/absent rows against both the candidate and registry tarball. Every real `./color` row returned `cube: [0,175,255]` with zero errors. `npm view` confirmed 0.7.0 is `latest`.
+
+### Smoke evidence
+
+In 120×40 tmux panes, statusline loaded through `-ne -e` in a scratch git repository with one staged, one unstaged and one untracked change. The 256-colour capture covered 160 top-border frames and showed `*1` at 178, `+1` at 70 and `?1` at 39; neither wrong index 46 nor 220 appeared. The truecolor capture covered 160 frames and 18,274 truecolor SGR triples; every channel was an integer from 0 through 255. The statusline settings file and `crashes.json` retained their original SHA-256 values, and `$TMPDIR/pi-tui-crash.log` was absent.
+
+The short live prompts did not produce an observable `leftFade` transition in the captured frames. The statusline host regression directly exercises the fade at opacity 0.9 in both colour modes; the live smoke is recorded as a render/crash sanity check, not as proof of the animated transition.
+
+### Deviations and remaining
+
+- The cube fix changes only statusline's faded git indicators (`*N`, `+N`, `?N`); no other consumer calls the changed functions.
+- The independent read-only verification report is pending. Do not consider Phase 6.1 closed until its findings are reviewed and any gaps are fixed.
+- `rgbTo256` remains a linear approximation and does not round-trip every xterm index.
+- The documented `sanitizeLabel` limitation remains.
+- Six consumers remain on `^0.6.0`; they adopt 0.7.0 on their next bump.
+- Pushes of the primitives branch/tag and consumer branches remain pending separate owner approval.
+
+**Next: Phase 7 (`./process`), released as 0.8.0.**
