@@ -654,3 +654,77 @@ Each extension ran in a barebones pi (`-ne -e ./index.ts`, `openai-codex/gpt-6-l
 6. `@underactive/pi-topping-test-utils` moved to 0.4.0 in lockstep and stays unpublished.
 
 **Next: Phase 5.**
+
+## 15. Phase 5 outcome (2026-10-19)
+
+Status: **complete.** `@underactive/pi-topping-primitives@0.5.0` (`./models`) was published to npm by the owner on 2026-10-19 and is `latest`. Its registry artifact (sha1 `e201d5fc…`, sha256 `6c4da8fd…`) is byte-identical to the tarball packed from the release commit, which differs from the candidate every consumer was gated against only in the CHANGELOG heading (`[Unreleased]` → `[0.5.0] - 2026-10-19`). Tag `v0.5.0` is local, on primitives `e76be47`. moa-fusion, persona-audit, splash, routesense and pi-topping are committed locally on `primitives-models` against `^0.5.0` from the registry; nothing is pushed. pi-switchyard was deferred, per the owner's decision.
+
+### What shipped
+
+- **primitives** (`7ad7b81` feat, `e76be47` release): `./models` exports the vocabulary (`ModelRef`, frozen `THINKING_LEVELS` and `COMMON_THINKING_LEVELS`, `ThinkingLevel`, `isThinkingLevel`, strict `isModelRef`, `modelRefLabel`, lenient `parseRef`, sensei's `parseModelKey`/`composeModelKey`, `shortModelName`), the registry catalogue (`getModelCatalogue`, `CatalogueRegistry`, `ModelCatalogue`, `validateSavedChoice`, `registryLevelOptions`), the thinking policy (`thinkingOptionsForModel` with an optional fallback, `defaultThinkingForModel`), the label helpers (`smartTruncateModelLabel`, frozen `MODEL_LIST_LAYOUT`, `modelThinkingPaneWidths`), `fuzzyRanked`, and `TwoPaneModelThinking<L>` with `TwoPaneModelThinkingOptions` and the structural `ModelPickerTheme`. moa-fusion's picker is the base; persona-audit's selected-row sentinel and catalogue, splash's `fuzzyRanked`, printable decoding and render-pure dispatch, and routesense's kitty input are merged in. The one module-state exception is the catalogue `WeakMap`, keyed by the host registry, behind a reasoned `hygiene-allow`. Runtime pi imports: pi-ai `getSupportedThinkingLevels`; pi-tui `SelectList`, `fuzzyFilter`, `Key`, `matchesKey`, `decodeKittyPrintable`, `truncateToWidth`, `visibleWidth`, `wrapTextWithAnsi`. pi-coding-agent is imported for types only, so `./settings` is still its only runtime importer.
+- **Consumers**, each one commit titled `feat(models): Adopt @underactive/pi-topping-primitives 0.5.0 model primitives`: moa-fusion `275f43b`, persona-audit `68048cd`, splash `66dea49a`, routesense `b0b48f2`, pi-topping `790f8c9`. moa-fusion, persona-audit and splash keep a local factory (`createMoaModelPicker`, `createPhaseModelPicker`, `createSplashModelPicker`) that binds their policy; routesense's `PiModelPickerComponent` composes the shared body inside its own frame; pi-topping re-exports the level vocabulary from `format.ts`. Each host keeps its frame, warnings, persistence and overlay; the vendored catalogue, label and picker copies are deleted.
+
+### Test counts (Stage 0 baseline to now)
+
+| Repo | Baseline | Now | Where the difference went |
+| --- | --- | --- | --- |
+| primitives | 46 + 262 + 33 + 12 + 38 | 46 + 362 + 37 + 12 + 38 | +99 in six `models-*.test.ts` suites (refs 12, thinking 8, catalogue 15, label 10, filter 15, picker 39), +1 `./models` row in the source entries test; +3 `./models` rows in the compiled entries test, +1 `exports/models.test.ts` |
+| moa-fusion | 117 | 108 | -9: `model-catalogue` (1 file test), `model-label-truncate` (6), `two-pane-model-picker` (1), `model-picker-registry-levels` (1). The filter-retention case was added inside `moa-thinking-preferences.test.mjs`, which counts as one |
+| persona-audit | 613 | 605 | -5 `test/modelCatalogue.test.ts`, -2 thinking helpers in `modelConfig.test.ts`, -2 truncation cases in `modelPicker.test.ts`; +1 host test (ten model rows with and without a filter) |
+| splash | 498 | 481 | -6 pure helpers in `model-picker.test.ts`, -13 printable and `fuzzyRanked` cases in `gate-ui.test.ts`; +2 host tests (ten-row boundary at 9/10/11/12/15 models, last-of-eleven selection visibility) |
+| routesense | 451 (1 skipped) | 459 (1 skipped) | +8 host tests for the wrapper (labels, defaults, retention, paste, Select, frame and viewport widths, `showPiModelPicker` wiring); none removed |
+| pi-topping | 243 | 243 | re-export only |
+
+Every removed test maps to a named package test; the tables are in the four migration reports, and the splash printable gap they disclosed (exhaustive positive ASCII, NBSP, `ÿ`) was closed in `models-filter.test.ts` before release. The same counts held against the packed candidate, against the registry package, and in fresh clones of the committed branches (`npm ci`, or `npm install` for moa-fusion, whose lockfile is gitignored). moa-fusion's suite runs with `NODE_OPTIONS='-C compiled --experimental-transform-types'`; routesense's with `PI_SUBAGENT_CHILD` unset.
+
+### Loader gate
+
+`scripts/probe-pi-loader.sh` takes `SUBPATH=models`, which builds the picker from a one-model fake registry through `registryLevelOptions` (so pi-ai's `getSupportedThinkingLevels` and pi-tui's `SelectList` both resolve through the loader), renders it at width 60 and presses Enter. In both loader branches with pi peers present and absent, on pi 1.3.0 and Node 24.18, all four rows returned `{"rows":2,"pick":{"ref":{"provider":"probe","id":"model"},"thinking":"off"}}` with zero errors, against each candidate and again against the registry tarball. All five consumers loaded through both branches with zero errors (commands/handlers: moa-fusion 8/11, persona-audit 3/4, splash 2/4, routesense 1/7, pi-topping 2/13).
+
+### Smoke evidence
+
+Each extension ran in a barebones pi (`-ne -e ./index.ts`, `openai-codex/gpt-6-luna`) in a 120x40 tmux pane against the candidate install; no Save, Start, Continue or Apply was pressed, and every session exited 0. Splash ran from an empty temp directory so its startup summary had no diff to send.
+
+- moa-fusion, `/mf-plan-settings` → cheap/fast agent: typing `gpt` added the filter row and moved the selection to the first match; ANSI captures showed Tab moving the accent from the Models header to Thinking and then to `[ Select ]`; the active row carried `selectedBg`; Escape from the buttons returned to the settings; Escape closed with no save notification.
+- persona-audit, `/persona-audit --full src/modelConfig.ts` → manual reviewers → phase overview → Review: `❯` in both panes; moving Thinking to `off` showed the host's warning row; Ctrl+C returned to the overview with Review unchanged; Escape three times printed "Audit cancelled." `validateSavedChoice` reported the saved claude-bridge refs (that provider is not loaded under `-ne`) without persisting the drop.
+- splash, `/topping-splash-settings` → Summary model: the picker opened over the still-mounted menu with exactly ten model rows and `(121/675)`; pasting `gpt` gave the filter row, ten rows and `(1/157)`; Escape returned to the same menu row (`[ 7/7 ]`) with the value unchanged.
+- routesense, `/routesense settings` → Default model: the square frame, `thinking` pane title and `>` marker rendered, the saved default level `low` was honoured, two Tabs focused `[ Select ]`, and Escape left the menu unchanged.
+- pi-topping loaded and `/topping-settings` rendered its thinking-level colour rows.
+- The persona-audit smoke found that the shared total-body cap showed 8 model rows where the old picker showed 10; the host budget below restores 10. The review-wave fixes after the smokes (moa-fusion level retention, splash live registry reads, persona-audit hint inset, no `requestRender` at construction) are covered by tests and were not re-smoked.
+- `crashes.json` and every settings file kept their shasums, except `mf-plan/settings.json`, whose `.implementer` changed at 20:26 to `claude-bridge/claude-opus-5-5`. That was the owner switching the session's implementation model, not a smoke (the smoke's registry could not even offer claude-bridge), so the backup was not restored. No `pi-tui-crash.log` existed.
+
+### Behaviour changes
+
+- `isModelRef` rejects an empty provider or id, so such a saved ref in moa-fusion or persona-audit settings reads as unset (splash already required both).
+- Empty Select is inert in every host; moa-fusion, splash and routesense used to back out.
+- Typing or Backspace while the buttons are focused edits the filter and returns to Models (every copy ignored it); multi-character paste and kitty CSI-u printable keys filter; Backspace follows pi-tui's key parser and removes one whole character; C0, DEL, C1 and control sequences are rejected.
+- A selected model that still matches survives filtering (persona-audit and splash jumped to the first match). moa-fusion keeps a hand-picked thinking level while the same model stays selected, as it did; persona-audit and splash re-apply their default level on filter, as they did; routesense keeps the previous level through the package default.
+- The select-list colours are derived from the theme the host passes in (accent selected text; muted description, scroll and no-match). moa-fusion and splash used pi's global `getSelectListTheme()`, which uses exactly those roles, so nothing looks different; persona-audit already derived them; routesense still passes the global theme through the `selectTheme` override.
+- `maxVisibleRows` caps the whole body (header, filter and scroll rows included), and the scroll row is reserved when the items exactly fill the space as well as when they overflow. moa-fusion and routesense already counted the whole body; at exact equality they now show one fewer item plus a scroll row. splash and persona-audit keep exactly ten model rows through host budgets.
+- Footer hints wrap instead of clipping. splash wraps them inside its own rules; persona-audit keeps its two-column inset.
+- splash gets asymmetric panes, one-column insets, namespace-aware truncation and the kitty input above; its look (`→` marker, no row background, `fuzzyRanked`, the common-four fallback) is unchanged.
+- routesense's buttons sit one column further left inside its frame (the shared action row ends in two spaces). Cosmetic; not changed.
+
+### Deviations from §4.5 and the plan
+
+- **Scroll row reserved at equality** (`itemCount >= available`). Splash's boundary test found that no total budget gave exactly ten rows for exactly eleven models (twelve rows showed eleven, eleven showed nine). A bounded read-only review found no smaller API-preserving fix; the trade-off is documented in the package README and CHANGELOG, and model- and level-pane tests pin it with the selected row still visible.
+- **Host row budgets.** splash (`renderSplashModelPicker`, `GATE_LIST_HEIGHT + 2 + (filter ? 1 : 0)`) and persona-audit (`pickerBodyRows`, `10 + 2 + (filter ? 1 : 0)`, applied in `renderFramedPicker`) set the cap per render; the plan assumed one constructor option would do.
+- splash's local `renderFooter(theme, picker, bodyWidth, hints)` takes the host theme, because the rules need it and the picker's theme is private.
+- **splash reads the registry live** (`getAvailable()` in `availableModelRefs`, `find()` plus `thinkingOptionsForModel` for levels) instead of `getModelCatalogue`/`registryLevelOptions` as step 23 said: pi refreshes its registry in place after a login or a models.json reload, and the catalogue snapshot would hide that. moa-fusion and persona-audit cached before this phase and still do.
+- moa-fusion's `preferredLevel` keeps `previous` while the same model stays selected; the plan's one-line wrapper over the saved/current default reset the level on every filter keystroke.
+- The picker's constructor applies its initial state without calling `requestRender`; only `reset()` and input mutations notify.
+- `defaultPrintable` lives in `picker.ts` (still internal), not `filter.ts`.
+- Files outside the plan's lists: moa-fusion `test/moa-thinking-preferences.test.mjs` (the filter-retention case); splash `test/contracts.md` (it described the moved helpers and the old escape rejection); the consumer lockfiles, which only moved to the registry 0.5.0 entry. moa-fusion has no tracked lockfile. No source file outside the lists changed, and nothing outside the six repos was touched.
+- The foundation, the picker and the four picker-consumer migrations were delegated to workers; every report and diff was read back, two fresh-context reviewers (package and consumers) returned "OK with notes", and every gate was re-run by the parent before commit. The session model was switched to claude-opus-5-5 partway through. The sensei advisor was unavailable throughout (stale extension context), so no advisor review ran.
+- The publish was run by the owner; the registry artifact was then verified byte-for-byte against the release-commit tarball.
+
+### Remaining
+
+1. Pushes (the primitives branch and `v0.5.0` tag, then each consumer) need separate owner approval; the Phase 4 pushes are still pending too.
+2. pi-switchyard: pin bump, then menu and models adoption over `ReasoningEffort`. The generic level type and `levelWidthLabels` shipped for it.
+3. sensei and routesense's `tiers.ts` keep local model-key parsers; `parseModelKey`/`composeModelKey` are the shared names when they adopt.
+4. The catalogue snapshot does not observe `registry.refresh()`. moa-fusion and persona-audit keep the cached lists they had before; an invalidation hook or a live variant would be a later, additive change.
+5. The lineage-B menus in moa-fusion and persona-audit stay local.
+6. `@underactive/pi-topping-test-utils` moved to 0.5.0 in lockstep and stays unpublished.
+
+**Next: Phase 6 (`./color`, `./text`, `./glyphs`).**
