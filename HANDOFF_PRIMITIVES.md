@@ -853,7 +853,7 @@ ca1410e72a0742e4287158314b489c3d434f5577fe4797ef6c777875c46d1787  ~/.pi/agent/mo
 
 ## 17. Phase 6.1 outcome: the xterm256ToRgb cube fix (0.7.0, 2026-10-20)
 
-Status: **published by the owner and `latest`.** Registry shasum `6e19432a6408fc6f5f8519d8af64f03f56e09b7a`, integrity `sha512-Cxz1cLvgSbJ7fTg3jd+xQDX5O9sq65UzHlCVuZcphgGvdUW/+xH103Tci0P2BywPolmQP9v2qTP5VJRY+DEebQ==`. The registry tarball is byte-identical to the Stage 3 candidate (`cmp` agrees; sha256 `b5df292c7d034dcc05ec4eec16a354d2572fd16f0e3c874d38a028bd7f5298ef`). The independent read-only verification is still pending; this record captures the implementation gates and is not verifier sign-off.
+Status: **published by the owner and `latest`.** Registry shasum `6e19432a6408fc6f5f8519d8af64f03f56e09b7a`, integrity `sha512-Cxz1cLvgSbJ7fTg3jd+xQDX5O9sq65UzHlCVuZcphgGvdUW/+xH103Tci0P2BywPolmQP9v2qTP5VJRY+DEebQ==`. The registry tarball is byte-identical to the Stage 3 candidate (`cmp` agrees; sha256 `b5df292c7d034dcc05ec4eec16a354d2572fd16f0e3c874d38a028bd7f5298ef`). The mf-plan verifier ran once the implementation turn settled at the publish pause (report `.pi/mf-plan/read-implement-pause-publish__verification.md`, local and gitignored, 2026-10-20 10:35). Verdict: **partial**. C1–C25 and C28 pass, including a hand re-derivation of all 24 fixture rows and of the host test's values. C26, C27, C29 and C30 failed only because Stages 5–7 were waiting on the publish. Those stages landed afterwards (below) and have not been re-verified independently.
 
 ### What shipped
 
@@ -863,14 +863,19 @@ Status: **published by the owner and `latest`.** Registry shasum `6e19432a6408fc
 
 ### Behaviour and fixtures
 
+| Cube digit `v` | 0 | 1 | 2 | 3 | 4 | 5 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0.6.0 (`55 + v * 51`) | 0 | 106 | 157 | 208 | 259 | 310 |
+| 0.7.0 (`55 + v * 40`, xterm's) | 0 | 95 | 135 | 175 | 215 | 255 |
+
 The corrected cube changes `xterm256ToRgb` and `parseSgrColor`'s `rgb` for indices 17–231, and therefore changes their partial fades. For example, index 196 at opacity 0.75 changes from truecolor `38;2;237;5;5` to `38;2;196;5;5`; in 256-colour mode its faded foreground changes from index 196 to 160 (the bar background remains 247). Index 39 at 0.9 changes from truecolor `2;189;281` to `2;159;231`, and from 256-colour index 46 to 39. Index 178 at 0.9 remains 178 instead of turning gold at 220. The 24 cube-reaching fixture rows were recomputed; 18 output lines changed bytes and the other six stayed identical. No unrelated fixture output changed.
 
 ### Test counts and release gates
 
 | Repo / gate | Result |
 | --- | --- |
-| primitives `npm run check` | repo 47; source 490; compiled exports 54; test-utils source 12 and exports 38; pack check 2 packages / 325 files |
-| statusline, registry 0.7.0 | 0.6.0 red baseline: the new test showed 46 / 220 / 281; registry 0.7.0: typecheck passed; 195 tests passed |
+| primitives `npm run check` | baseline 47 + 485 + 53 + 12 + 38; now repo 47, source 490 (+5), compiled exports 54 (+1), test-utils source 12 and exports 38; pack check 2 packages / 325 files |
+| statusline, registry 0.7.0 | baseline 194; the new host test failed against 0.6.0 (46 / 220 / 281); against registry 0.7.0, typecheck passed and 195 tests passed (+1, the host test) |
 | statusline, fresh `npm ci` clone at `d32b9f7` | `npm ls` resolved registry 0.7.0 with no file/link; typecheck passed; 195 tests passed; clean tree |
 | statusline extension loader | bundled chunk and unbundled SDK each registered 1 command and 13 handler event types, with zero errors |
 
@@ -885,7 +890,8 @@ The short live prompts did not produce an observable `leftFade` transition in th
 ### Deviations and remaining
 
 - The cube fix changes only statusline's faded git indicators (`*N`, `+N`, `?N`); no other consumer calls the changed functions.
-- The independent read-only verification report is pending. Do not consider Phase 6.1 closed until its findings are reviewed and any gaps are fixed.
+- The verifier's deviations need no change. The §5 heading reads `xterm256ToRgb cube correction` where the plan said `the xterm256ToRgb cube fix` (committed in `adf64f1`). The criteria's literal greps for `55 + v * 51` and `[310, 0, 0]` hit only the docblock sentence and the `// 0.6.0:` comments the plan requires. `docs/consumers.md:7` said statusline had moved before it had; `d32b9f7` made that true.
+- The verifier could not run commands, so the gate counts above are executor runs. The four post-publish criteria (C26 statusline's range and lockfile, C27 its CHANGELOG, C29 this section, C30 the memory note) were closed after the verifier ran and have not been independently re-verified.
 - `rgbTo256` remains a linear approximation and does not round-trip every xterm index.
 - The documented `sanitizeLabel` limitation remains.
 - Six consumers remain on `^0.6.0`; they adopt 0.7.0 on their next bump.
