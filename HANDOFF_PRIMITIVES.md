@@ -1015,9 +1015,36 @@ ca1410e72a0742e4287158314b489c3d434f5577fe4797ef6c777875c46d1787  ~/.pi/agent/mo
 
 ### Remaining
 
-1. Pushes (the primitives branch and `v0.8.0` tag, then each consumer) need separate owner approval; the Phase 2 to 6 pushes are still pending too.
+1. ~~Pushes~~ Primitives `main` and tags `v0.2.0`–`v0.8.0` were pushed afterwards (§19). The consumer branches (pi-topping, moa-fusion, persona-audit, splash, statusline and the Phase 2 to 6 stacks) still need separate owner approval.
 2. The deferred non-text helpers: `isPlainObject` (pi-topping keeps its own), the env-flag and notification helpers, `combineSignals`, `raceAbort`, `createDeadline` and `stableStringify` wait for sensei's, web-tools' and compact's own adoption.
 3. Sub-run transports, agent layering and persona-audit's shadow guard stay in their hosts by design. moa-fusion's `--no-mcp` probe and cache stay local.
-4. pi-switchyard (pin bump, menu, models, colour/text and now process), sensei, web-tools, compact and bash-gate adopt `^0.8.0` on their next bump; statusline stays on `^0.7.0`, and compact and routesense on `^0.6.0`, until then.
+4. pi-switchyard (pin bump, menu, models, colour/text and now process), compact and bash-gate adopt `^0.8.0` on their next bump (sensei and web-tools did, §19); statusline stays on `^0.7.0`, and compact and routesense on `^0.6.0`, until then.
 5. Not exercised: Windows (the `cmd.exe` wrapper and `basename` handling are tested as strings only), splash's relaunch on a real compiled pi (the gate was rendered and escaped; the relaunch was not triggered), and `/topping-setup` against a real install (its menu was rendered and cancelled; nothing was installed).
 6. `@underactive/pi-topping-test-utils` moved to 0.8.0 in lockstep and stays unpublished.
+
+## 19. Primitives push, sensei and web-tools on ^0.8.0 (2026-10-20)
+
+Done after the Phase 7 re-verification, on the owner's instruction to push primitives and bring sensei and web-tools up to date.
+
+### Primitives pushed
+
+- `main` fast-forwarded `d9d9e03..734b983` and tags `v0.2.0` to `v0.8.0` (lightweight; each is an ancestor of the pushed history) went to `github.com/underactive/pi-topping-primitives`. Before this the remote had only `v0.1.0`, although npm had 0.1.0 to 0.8.0. The only workflow, `ci.yml`, triggers on pushes to `main` and on pull requests, so the tag push could not start a publish. CI on `734b983` passed all three jobs (Node 22.19.0, Node 24, host-latest).
+- The `primitives-*` work branches in primitives and in every consumer are **not** pushed.
+
+### sensei (`44b26ee`, branch `primitives-process`)
+
+- Built on `primitives-activity` (`72a303d`, which was on `^0.3.0`), in the existing worktree `pi-topping-sensei-activity`; the branch name `primitives-activity` still points at `72a303d` but is no longer checked out. The main checkout stays on `primitives-contracts` at `^0.1.0` with the owner's uncommitted edits (`CHANGELOG.md`, `README.md`, `docs/tool-reference.md`, `src/text/notices.ts`, two tests, untracked `scratchpad`), which were not touched.
+- `^0.3.0` becomes `^0.8.0`, and `src/core/model-ref.ts` re-exports `parseModelKey`, `composeModelKey` and `ModelRef` from `./models`. The package took those functions from sensei's own codec, so they are byte-identical. The six importers and `test/sensei/model-ref.test.ts` are unchanged; the test now runs against the package.
+- Gates: `npm run check` is green at 67 files and **701** tests before and after (nothing moved or was added), in the worktree and in a fresh clone (`npm ci`, then `npm run check`). The extension loads under both pi loader branches (1 command, 4 handlers, no errors).
+- Not adopted, on purpose: `./settings` (the handoff defers it: it needs `readFallbackPaths`, `onDiagnostic` wiring and a delete-on-undefined decision); `EFFORT_ORDER` in `src/text/effort.ts` (graded levels without `off`, a different vocabulary from the package's seven); `abort.ts`, `review/deadline.ts`, `stable-json.ts` and `terminal-controls.ts` (the helpers are not in the package; `abort.ts`, `stable-json.ts` and `terminal-controls.ts` carry pi-advisor MIT attribution that must move with the code).
+
+### web-tools (`78e6cde`, branch `primitives-process`)
+
+- Range and lockfile only: `^0.2.0` becomes `^0.8.0`. web-tools imports only `./contracts` and `./settings`, and `git diff v0.2.0 v0.8.0 -- src/settings src/contracts` is empty, so there is nothing for it to adopt from 0.3.0 to 0.8.0: it spawns no processes and the env and abort helpers are not in the package. npm reformatted the `keywords` array while installing; the single-line form was restored.
+- Gates: typecheck clean and **244** tests before and after, also in a fresh clone. All four manifest entries (`fetch-markdown`, `pdf-extract`, `web-browser`, `web-permissions`) load clean under both pi loader branches. The owner's untracked `scratchoad` was not touched.
+
+### Remaining
+
+1. The env and abort helpers need a primitives release before sensei and web-tools can finish: `isTruthyEnvFlag` and `suppressNotifications` (web-tools `src/env.ts`), `combineSignals`, `raceAbort`, `createDeadline`, `stableStringify`, `abortError` and `isAbortError`. The two `combineSignals` differ: web-tools' takes a timeout and an `activeFetches` set, so the shared signature has to be decided first. That release also carries the `spawnCollect` timeout clamp note (§18) in its CHANGELOG.
+2. sensei's `primitives-activity` branch still edits two files the owner has uncommitted in the main checkout (§13), and `primitives-process` inherits that, so expect a textual conflict when they meet.
+3. Consumer pushes, as in §18 item 1.
