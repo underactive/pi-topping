@@ -898,3 +898,122 @@ The short live prompts did not produce an observable `leftFade` transition in th
 - Pushes of the primitives branch/tag and consumer branches remain pending separate owner approval.
 
 **Next: Phase 7 (`./process`), released as 0.8.0.**
+
+## 18. Phase 7 outcome (2026-10-20)
+
+Status: **complete.** `@underactive/pi-topping-primitives@0.8.0` (`./process`) was published to npm by the owner on 2026-10-20 and is `latest`. Its registry artifact (shasum `d008995760e22028a8c8f3e144d1b9e3a7dc8101`, integrity `sha512-e4KaaGDZaKtWlpciFgDDXtikdBxOkjP2u6YSNZ2ua7euDkdaN4X6Nws0N58mpPVPplBRNopDLAQhx0FfH2gc2A==`, 290 files) is byte-identical to the tarball packed from the release commit (sha256 `41117c7f574c13a6601f224897686dd2e1ebbd0348f7abb378cedf57e9305226`; `cmp` agrees). Tag `v0.8.0` is local, on primitives `734b983` (`fa83d00` feat). moa-fusion, persona-audit, pi-topping and splash are committed locally on `primitives-process` against `^0.8.0` from the registry; nothing is pushed. This is the last planned subpath: no phase remains.
+
+The mf-plan verifier ran once when the implementation turn stopped at the publish pause (report `.pi/mf-plan/read-implement-phase-seven__verification.md`, local and gitignored, 2026-10-20 14:57). Verdict: **partial**. Three criteria failed on content and the rest could not be checked without history or the registry:
+
+- **C11 (timer margins):** the kill tests used 20 ms graces and 60 ms waits, and the spawn timeout test used 400 ms with no ready handshake. They now use a 50 ms grace, waits of ten times that where nothing more should happen, and a deadline poll where a signal is expected; the spawn timeout test runs `timeoutMs: 100, killGraceMs: 50` against `sh`, which traps SIGTERM on its first instruction, so there is no startup race (a node child installs its handler about 40 ms in). It is stable over five runs and four parallel runs.
+- **C16 (CHANGELOG provenance):** the `### Added` entry named source repos and files without lines. It now lists each export group with its source lines at the base commits.
+- **C26 (installer timeout):** the injected child could be ended by SIGTERM. It is now `sh -c 'trap "" TERM; sleep 1.5'`, so the timeout resolves while the child is still alive (asserted under 1 s) and the child ends by itself.
+- **C29 and C30** waited for the publish and landed afterwards (below). **C1, C9, C10, C18, C19, C22, C28** asked for history and execution evidence rather than content; it is recorded under "Evidence for the cannot-verify criteria".
+
+Because the CHANGELOG is packed and the release was unpublished, the fixes were folded into the feat commit and the release commit was replayed on top (`4631c83`/`cf9d25a` became `fa83d00`/`734b983`, tag moved), as in Phase 6. The first release pack (shasum `55d48cce6034d5feda83e0a59a481139e5eda790`) was superseded before it was published; the pack that differs from the Stage 2 candidate only in the version field and the CHANGELOG is the published one.
+
+### What shipped
+
+- **primitives** (`fa83d00` feat, `734b983` release):
+  - `./process` exports `resolvePiInvocation(args?, facts?)` returning `{ command, args, via }` with `via` one of `"script"`, `"executable"` and `"path"` (moa-fusion's `getPiInvocation`, `nodejs` added to the generic runtimes, no Windows shim); `escalateKill` and `DEFAULT_KILL_GRACE_MS`; `createProcessTracker()` (a frozen, Set-like registry: `add`, `delete`, `has`, `size`, `cleanup`); `spawnCollect` and `SPAWN_TIMEOUT_EXIT_CODE` (pi-topping's collect-with-124 contract, plus `timedOut`); `mapWithConcurrencyLimit` (with `onStart`); `parsePiVersion`, `versionAtLeast`, `hostBelow`; and `parseAgentFile`, `loadAgentsFromDir`, `findNearestProjectAgentsDir` with the `parseThinking` callback. Thirteen runtime exports and eleven types.
+  - `agents.ts` imports `parseFrontmatter` and `CONFIG_DIR_NAME` from pi-coding-agent at runtime, the second subpath to do so after `./settings`. The other five files need only Node.
+  - `scripts/probe-pi-loader.sh` takes `SUBPATH=process`. `THIRD_PARTY_NOTICES.md` records the MIT licence of pi's `subagent` example for `invocation.ts`, `concurrency.ts` and `agents.ts`. The README gained `## Process` and lost `## Future subpaths`. The `./text` barrel now says `hostBelow` shipped. Primitives and test-utils moved to 0.8.0 in lockstep; test-utils stays unpublished.
+- **Consumers**, each one commit titled `feat(process): Adopt @underactive/pi-topping-primitives 0.8.0 process primitives`: moa-fusion `7e439e4`, persona-audit `f618f46`, pi-topping `1fd68fa`, splash `fa4ef9d5`. Each commit's parent is its stated base (`9f3b187`, `e678f0f`, `c8e2f3e`, `a8cb0f87`):
+  - **moa-fusion** (`^0.6.0` to `^0.8.0`): `processPool.ts` is the host tracker module (`trackedProcesses = createProcessTracker()`, `cleanupTrackedProcesses` delegating to `.cleanup`); `runner.ts` calls `resolvePiInvocation` at its two sites and loses `getPiInvocation`; `piCapabilities.ts` re-exports the version helpers and `PiInvocation` and keeps the `--no-mcp` probe and its cache; `discovery.ts` keeps `AgentScope`, the user-then-project merge and its two-argument `parseAgentFile`, with a frozen `AGENT_FILE_OPTIONS` carrying `isThinkingLevel`.
+  - **persona-audit**: `subprocess.ts` re-exports `loadAgentsFromDir` and `mapWithConcurrencyLimit` (so every importer keeps its path), defines `AgentConfig = AgentDefinition<AgentSource>`, and keeps `BUNDLED_AGENTS_DIR`, the bundled, user, project order and the `persona-audit-*` shadow guard.
+  - **pi-topping**: `pi-installer.ts` resolves the pi hosting the session, takes an optional `{ piInvocation }` third parameter, wraps in `cmd.exe /c` only when `via === "path"` on Windows, and returns exactly `{ code, stdout, stderr }`; `util.ts` re-exports `hostBelow`.
+  - **splash**: `relaunch.ts` gained `relaunchInvocation(overrides, facts?)`, which returns `undefined` for the PATH fallback, and `relaunchPi` refuses before `tui.stop()` on that.
+  - moa-fusion's commit leaves its pre-existing `test/rename-verification.test.mjs` edit and the untracked `HANDOFF-fanout-max-tokens.md` alone; its lockfile is not tracked, so none was added.
+
+### Test counts (Stage 0 baseline to now)
+
+| Repo | Baseline | Now | Where the difference went |
+| --- | --- | --- | --- |
+| primitives | 47 + 490 + 54 + 12 + 38 | 47 + 561 + 63 + 12 + 38 | source +71: 70 in six new suites (`process-invocation` 10, `process-kill` 15, `process-spawn` 14, `process-concurrency` 9, `process-version` 8, `process-agents` 14) and +1 row in `entries.test.ts`; compiled +9 (+3 rows in the compiled entries test: resolves to dist, second instance, no shared mutable state; +6 in `exports/process.test.ts`) |
+| moa-fusion | 108 | 108 | nothing removed or added as a test. `plan-read-only-boundary.test.mjs` swapped its five body-shape greps on `cleanupTrackedProcesses` for delegation greps (imports from the package, `trackedProcesses = createProcessTracker()`, `.cleanup(termTimeoutMs)`, no `new Set(`, no `!proc.killed`, no `proc.kill(`); the behaviour they described is pinned by the package tests "cleanup SIGKILLs the snapshot after clearing" and "cleanup judges a process by its exit state, not its killed flag", and by the unchanged real-child `subagent-trust-boundary.test.mjs`. `agent-thinking-frontmatter.test.mjs` gained broken-YAML, `tools: [read]` and `name: 123` siblings |
+| persona-audit | 604 | 606 | -1 `mapWithConcurrencyLimit preserves order and caps concurrency` -> the same name in `process-concurrency.test.ts`, body moved verbatim; +1 `mapWithConcurrencyLimit is the shared implementation` (identity against the package function); +2 `a project-local persona-audit-* file cannot shadow the bundled agent` and `a malformed project agent file does not abort discovery`, both isolated with `PI_CODING_AGENT_DIR` |
+| pi-topping | 242 | 245 | +3 installer tests that inject `piInvocation` (success passthrough for install and remove, the 124 timeout with the exact `[timed out after 50ms]` suffix against a SIGTERM-ignoring child, spawn error code 1). `tests/util.test.ts` is byte-identical to `c8e2f3e` and stays as the host oracle; its `hostBelow` table is copied byte for byte into `process-version.test.ts` |
+| splash | 463 | 466 | +3 pure `relaunchInvocation` tests (X-07: script, Bun virtual path, PATH fallback refused). X-01 to X-05 and `gate.test.ts` are byte-identical to `a8cb0f87` |
+
+Stage 0 was recorded on the branch heads before any edit with each repo's own runner (splash counted with `--test-reporter=spec`). Each consumer's suite also ran **unedited** against the candidate and returned the baseline count (108, 604, 242, 463) before a test moved. The same counts held against the registry install and in fresh clones of the committed branches (`npm ci`, or `npm install` for moa-fusion), each of which installed 0.8.0 from the registry, with typecheck clean.
+
+### Package gate
+
+`npm run check` at the primitives root passed with the counts above in the working tree, on the feat commit alone (which still carries version 0.7.0 and the `./process` export as the last key), and in a clean `npm ci` checkout of `v0.8.0`. `check:pack` reports 2 packages, 355 files, nothing forbidden and no `dist/` committed. `node scripts/check-release.ts packages/primitives` lists ten non-empty subpaths: `./contracts` 8 exports, `./settings` 10, `./activity` 22, `./activity-tui` 11, `./menu` 11, `./models` 19, `./color` 23, `./text` 17, `./glyphs` 5, `./process` 13. The repo's own hygiene scanner reports zero findings on all seven `src/process` files, and `tools/`, `tests/package-shape.test.ts`, `scripts/check-release.ts`, `scripts/check-pack.ts`, `.github`, `biome.json` and `tsconfig.base.json` are untouched across both commits.
+
+The timer-based tests were checked for discrimination as well as stability, on the final versions of the suites: with the settled check also reading `proc.killed`, with the snapshot taken after the clear, with the finite-timeout guard removed, with `setEncoding` removed and with both SIGKILL calls removed, the matching tests failed (3, 5, 1, 1 and 8 tests) and the source was restored with `git checkout`. The final process suites pass 70 of 70 in four parallel runs.
+
+### Loader gate
+
+`SUBPATH=process` writes a project agent file and reports what the package reads through pi's real loader. On pi 1.3.0 and Node 24.18, in both loader branches with pi peers present and absent, all four rows returned zero errors and the expected JSON, against the Stage 2 candidate, against the release tarball, and again against the registry tarball; `SUBPATH=settings`, the other pi-coding-agent importer, passed all four rows each time.
+
+| Subpath | Expected row (all four peer/branch combinations) |
+| --- | --- |
+| `process` | `{"agents":[["probe",["read","grep"],"high"]],"atLeast":true,"inv":{"command":"pi","args":["--version"],"via":"path"},"mapped":[2,4,6],"tracked":0}` |
+
+With `PEERS=absent` nothing else on disk can supply pi-coding-agent, so that row shows `parseFrontmatter` and `CONFIG_DIR_NAME` resolving through the host's alias. The probe spawns nothing. All four consumers loaded through both branches with zero errors against the candidate install and again against the registry install (commands/handlers: pi-topping 2/13, splash 2/4, persona-audit 3/4, moa-fusion 8/11, identical to §16), and hiding `node_modules/@underactive/pi-topping-primitives` made each load fail ("Cannot find module '@underactive/pi-topping-primitives/<first subpath imported>'"), so the check can fail.
+
+### Evidence for the cannot-verify criteria
+
+- **Branches (C1):** each of the five repos has a local `primitives-process`; no `refs/remotes/*/primitives-process` exists anywhere. statusline, compact, routesense, sensei, bash-gate, web-tools and pi-switchyard have no such branch and no `feat(process)` commit; their dirty files were dirty before the phase and were not touched.
+- **Byte identity against the bases (C18, C19, C22, C28):** against moa-fusion `9f3b187`, `planMode.ts`, `mutationTripwire.ts`, `wire.ts`, `authoritative.ts`, `mfPlanSubagent.ts` and the four oracle tests (`subagent-trust-boundary`, `runner-nul-task`, `runner-no-mcp`, `max-concurrent-agents`) are identical, and `runner.ts` differs only in the new import, the deleted `getPiInvocation` and the two call lines. Against splash `a8cb0f87`, the only removed line in `relaunch.test.ts` is the import, and the X-01 to X-05 blocks and `gate.test.ts` are identical. `getPiInvocation` appears nowhere under `src/`. The moa-fusion suite reports 108 tests (84 `.mjs` files).
+- **Feat-commit manifest (C10):** `fa83d00` has version 0.7.0 and `./process` as the last export; `734b983` changes only the version, to 0.8.0.
+
+### Smoke evidence
+
+Each extension ran in a barebones pi (`-ne -e <abs path>/index.ts`, `--model openai-codex/gpt-6-luna`) in a 120x40 tmux pane. No Save, Apply, Start or Install was pressed, and every session exited with ctrl+d.
+
+- **pi-topping:** loaded (`[Extensions]` listed the checkout), no old-host warning on pi 1.3.0 (`hostBelow("1.3.0", "1.2.0")` is false), and `/topping-setup` answered "All Pi Topping extensions are already active in this session", because under `-ne` it reports the settings fallback and does not open its menu. The installer's real spawn path was therefore **not** run live; the three injected-invocation tests cover it.
+- **splash**, from an empty temp directory: the startup panel drew, and `/topping-splash-settings` rendered the shared menu and was left with Escape. `menuGate` is off in the owner's settings and was not changed, so the gate itself and the relaunch were not triggered; the relaunch resolution is covered by the pure tests only.
+- **persona-audit:** `/persona-audit --full src/modelConfig.ts` reached "Choose reviewers" (the command refuses to start if the bundled agents are missing), the manual list showed 53 reviewers, and Escape ended with "Audit cancelled.". A direct call of the real `discoverAgents` against the candidate install returned `persona-audit-adjudicator`, `persona-audit-reviewer` and `persona-audit-verifier`, all `bundled`, with no `thinking` key on any.
+- **moa-fusion:** loaded. A throwaway harness extension outside every repo called the real `runSingleAgent` once ("Reply with exactly OK.", `openai-codex/gpt-6-luna`): the resolver returned `via: "script"` with node and pi's own `.bin/pi`, the child exited 0 with output "OK", `trackedProcesses.size` was 0 afterwards, and `ps` showed no leftover child. The run was repeated against the registry install with the same result.
+- **Shasums.** All fourteen files the smoke could touch are byte-identical to their baseline copies (`cmp` and `shasum -c`, after the candidate pass and again after the registry pass), and `$TMPDIR/pi-tui-crash.log` did not exist before and does not exist after. The baseline sha256 values:
+
+```
+0afd74b37558e82990f36b5591a60c54c6f387b18f62ce53bb61262e0b091ecc  ~/.pi/agent/settings.json
+2574cf06634081365e9adb85714dcc8c173c0d0b498cdd89c4d1ac428d8c5d98  ~/.pi/agent/crashes.json
+9d3147cd0d2c680b9fccb4bd2691ed4854c0bc1c8b7831a91792c19dabff566b  ~/.pi/agent/pi-topping/settings.json
+56c2ee40e3b9a421b72b77728591792b7933b46dd30e8086a6ddf13026688a95  ~/.pi/agent/pi-topping-bash-gate/settings.json
+e999ee4ee0884fad6454fff25e4e55324d8cd569c575cdbec81d8a8dc36ba383  ~/.pi/agent/pi-topping-statusline/settings.json
+cef4768e33681e3bbad85d6969181a19a93e9860550e1a37568b103db5b4a2b4  ~/.pi/agent/pi-topping-splash.json
+a3524909066a1fbd4ff56dd078c199a59147d8c571ad3909f169e6c7534a9d05  ~/.pi/agent/pi-topping-routesense/config.json
+08b1dc585965b1fb5ca71c5fb303a0526fcf2f62e07ab10fd99c30b02dddb051  ~/.pi/agent/pi-topping-routesense/config.v1.json
+7b8c187494624fc41ab8276fbff176f465883ac80bfefcc69c571c9323187149  ~/.pi/agent/pi-startup-splash.json
+56d6d3c26647947c71bccdbfcb00128073943cbf44ad2b06eae997d395bdbebf  ~/.pi/agent/persona-audit/settings.json
+ca1410e72a0742e4287158314b489c3d434f5577fe4797ef6c777875c46d1787  ~/.pi/agent/moa-plan/settings.json
+3a75440df39db2bd1cc895c78677cb1a3fa35e951631be1dbcd2f4016648d584  ~/.pi/agent/mf-plan/settings.json
+947e90becd918c8a996ff3032faa7597f7bc92925304fcb2c6f8e33fe428b45b  ~/.pi/agent/pi-topping/custom_words.json
+1bb5d791a98540d764dfc3af08a22fc3ae71825c68bc6dfd6f20b447c301bc33  ~/.pi/agent/pi-topping/setup-check.json
+```
+
+`mf-plan/settings.json` differs from the §16 value (`22a83df0…`): it had already changed before this phase's baseline was taken, and the smoke left the Phase 7 baseline intact. The other thirteen match §16.
+
+### Behaviour changes
+
+- **pi-topping's install target.** `/topping-setup` install and remove now run the pi hosting the session (the entry script under its runtime, or a compiled pi's own executable) instead of the first `pi` on PATH, so they reach the same agent directory. They fall back to `pi` on PATH only when neither is usable, and on Windows `cmd.exe /c` is used only for that fallback. Spec rejection, code 124 and the `[timed out after Nms]` suffix are unchanged; output is decoded intact across chunk boundaries.
+- **splash's relaunch.** A Bun-compiled pi is relaunched through its executable instead of being handed its `/$bunfs/root/` virtual script path; the PATH-only case is still refused before the TUI stops. This is inferred from moa-fusion's handling and covered with injected process facts, not on a real compiled binary.
+- **Malformed agent files are skipped.** In moa-fusion and persona-audit a bad file (broken YAML, a frontmatter that is not a mapping, a non-string `name`, `description`, `tools`, `model` or `thinking`) no longer aborts discovery, and a non-string `name` can no longer crash `/persona-audit`. This fails closed: a malformed project file cannot override a trusted bundled definition. YAML `null` counts as absent.
+- **`nodejs` is a generic runtime** when looking for the pi to spawn, as `node` and `bun` already were (the basename comparison was already case-insensitive).
+- **`mapWithConcurrencyLimit`** accepts `NaN` and fractional limits (the vendored copies threw `RangeError`) and a `readonly` input. `spawnCollect`'s SIGKILL timer is `unref`'d, where pi-topping's old one kept the event loop alive.
+- Nothing else a user can see. Statusline, compact, routesense, sensei, bash-gate and web-tools do not call `./process` and are unchanged.
+
+### Deviations from §4.7 and the plan
+
+- **Tracker factory instead of an exported set.** §4.7 names `trackedProcesses`; a package-level `Set` would be module state (the hygiene `module-state` rule and the deep-frozen exports test both reject it), so each extension makes its own with `createProcessTracker()`. moa-fusion keeps the name `trackedProcesses` for its instance, so `runner.ts`, `planMode.ts` and the `size` assertions did not change.
+- **`resolvePiInvocation(args, facts?)` returns `via` and wraps no shell.** The PATH fallback is something each host decides about: pi-topping's installer adds `cmd.exe /c` there only, and splash refuses there. `cmd.exe` re-parses its arguments, so a shared wrapper would put moa-fusion's arbitrary task text at risk.
+- **`spawnCollect` clamps oversized finite timeouts** to Node's 2,147,483,647 ms timer limit (a larger delay fires almost at once). This was not in the plan; the message still prints the requested value. It is documented in the source but not in the published CHANGELOG, which is already on the registry, so it belongs in the next release's notes.
+- **The rewritten moa-fusion greps** (above) replace body-shape checks with delegation checks; the fallback the plan named (moa keeps its local cleanup body) was not needed.
+- **Skip rules** go further than either vendored loader: both let the parser's exception escape.
+- **The timeout tests use `sh`**, not a node child, for the SIGTERM-ignoring case (above), and the installer's timeout test is POSIX-only like the package's.
+- **Notice source.** pi-coding-agent's npm package ships no `LICENSE`; the copyright line (`Copyright (c) 2025 Mario Zechner`, MIT) was taken from the `earendil-works/pi` repository's `LICENSE` on GitHub, and the package's own `"license": "MIT"` and `"author"` fields agree.
+- **`docs/consumers.md` at the release commit** said the four consumers had moved to `^0.8.0` before they had; the consumer commits made it true.
+- **Files outside the plan's lists:** none.
+
+### Remaining
+
+1. Pushes (the primitives branch and `v0.8.0` tag, then each consumer) need separate owner approval; the Phase 2 to 6 pushes are still pending too.
+2. The deferred non-text helpers: `isPlainObject` (pi-topping keeps its own), the env-flag and notification helpers, `combineSignals`, `raceAbort`, `createDeadline` and `stableStringify` wait for sensei's, web-tools' and compact's own adoption.
+3. Sub-run transports, agent layering and persona-audit's shadow guard stay in their hosts by design. moa-fusion's `--no-mcp` probe and cache stay local.
+4. pi-switchyard (pin bump, menu, models, colour/text and now process), sensei, web-tools, compact and bash-gate adopt `^0.8.0` on their next bump; statusline stays on `^0.7.0`, and compact and routesense on `^0.6.0`, until then.
+5. Not exercised: Windows (the `cmd.exe` wrapper and `basename` handling are tested as strings only), splash's relaunch on a real compiled pi, `/topping-setup` against a real install, and the splash gate.
+6. `@underactive/pi-topping-test-utils` moved to 0.8.0 in lockstep and stays unpublished.
