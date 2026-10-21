@@ -271,53 +271,32 @@ test("loadSettings returns defaults when the file is missing", () => {
 	});
 });
 
-test("loadSettings imports the legacy style when pi-topping has no settings file", () => {
+test("loadSettings ignores a pi-topping-insights settings file", () => {
 	withTempAgentDir((dir) => {
-		const legacyPath = join(dir, "pi-topping-insights", "settings.json");
-		mkdirSync(dirname(legacyPath), { recursive: true });
-		writeFileSync(legacyPath, JSON.stringify({ style: "Explanatory" }));
-		assert.equal(loadSettings().outputStyle, "explanatory");
-	});
-});
+		const insightsPath = join(dir, "pi-topping-insights", "settings.json");
+		mkdirSync(dirname(insightsPath), { recursive: true });
+		writeFileSync(insightsPath, JSON.stringify({ style: "Explanatory" }));
+		assert.equal(loadSettings().outputStyle, "default");
 
-test("loadSettings imports the legacy style when its own file is not an object", () => {
-	withTempAgentDir((dir) => {
-		const legacyPath = join(dir, "pi-topping-insights", "settings.json");
-		mkdirSync(dirname(legacyPath), { recursive: true });
-		writeFileSync(legacyPath, JSON.stringify({ style: "Explanatory" }));
 		mkdirSync(dirname(settingsPath()), { recursive: true });
 		writeFileSync(settingsPath(), JSON.stringify("not an object"));
-		assert.equal(loadSettings().outputStyle, "explanatory");
+		assert.equal(loadSettings().outputStyle, "default");
+
+		writeFileSync(settingsPath(), JSON.stringify({ outputStyle: "Bogus" }));
+		assert.equal(loadSettings().outputStyle, "default");
 	});
 });
 
-test("loadSettings falls back to Default for an invalid outputStyle without legacy settings", () => {
+test("loadSettings falls back to Default for an invalid outputStyle and keeps a valid one", () => {
 	withTempAgentDir(() => {
 		mkdirSync(dirname(settingsPath()), { recursive: true });
 		writeFileSync(settingsPath(), JSON.stringify({ outputStyle: "Explanatory" }));
 		assert.equal(loadSettings().outputStyle, "default");
-	});
-});
 
-test("loadSettings validates outputStyle and lets an explicit Default win over legacy", () => {
-	withTempAgentDir((dir) => {
-		const legacyPath = join(dir, "pi-topping-insights", "settings.json");
-		mkdirSync(dirname(legacyPath), { recursive: true });
-		writeFileSync(legacyPath, JSON.stringify({ style: "Explanatory" }));
-		mkdirSync(dirname(settingsPath()), { recursive: true });
-		writeFileSync(settingsPath(), JSON.stringify({ outputStyle: "Bogus" }));
+		writeFileSync(settingsPath(), JSON.stringify({ outputStyle: "explanatory" }));
 		assert.equal(loadSettings().outputStyle, "explanatory");
 
 		writeFileSync(settingsPath(), JSON.stringify({ outputStyle: "default" }));
-		assert.equal(loadSettings().outputStyle, "default");
-	});
-});
-
-test("loadSettings falls back to Default for a corrupt legacy style file", () => {
-	withTempAgentDir((dir) => {
-		const legacyPath = join(dir, "pi-topping-insights", "settings.json");
-		mkdirSync(dirname(legacyPath), { recursive: true });
-		writeFileSync(legacyPath, "{ not json");
 		assert.equal(loadSettings().outputStyle, "default");
 	});
 });

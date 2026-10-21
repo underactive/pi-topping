@@ -5,7 +5,6 @@ import {
 	EXPLANATORY_FEATURE_PROMPT,
 	EXPLANATORY_REMINDER,
 	EXPLANATORY_SECTION,
-	fromLegacyOutputStyle,
 	INSIGHT_STAR,
 	isOutputStyleId,
 	OUTPUT_STYLE_IDS,
@@ -43,18 +42,12 @@ test("Explanatory prompt retains Claude Code's rule lengths", () => {
 	assert.equal((rules[1]?.match(/─/g) ?? []).length, 49);
 });
 
-test("output style ids are lowercase and legacy ids map explicitly", () => {
+test("output style ids are lowercase", () => {
 	assert.equal(isOutputStyleId("default"), true);
 	assert.equal(isOutputStyleId("explanatory"), true);
 	assert.equal(isOutputStyleId("Explanatory"), false);
 	assert.equal(isOutputStyleId("Learning"), false);
 	assert.equal(isOutputStyleId(42), false);
-
-	assert.equal(fromLegacyOutputStyle("Explanatory"), "explanatory");
-	assert.equal(fromLegacyOutputStyle("default"), "default");
-	assert.equal(fromLegacyOutputStyle("explanatory"), undefined);
-	assert.equal(fromLegacyOutputStyle("Bogus"), undefined);
-	assert.equal(fromLegacyOutputStyle(undefined), undefined);
 });
 
 test("every output style has a bounded description and Default has no decorations", () => {

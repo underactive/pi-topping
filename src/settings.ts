@@ -1,10 +1,9 @@
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createSettingsStore, type SettingsWriteResult } from "@underactive/pi-topping-primitives/settings";
 import { DEFAULT_METER_UPPER_BOUND_TPS, METER_UPPER_BOUND_TPS_MAX, METER_UPPER_BOUND_TPS_MIN } from "@underactive/pi-topping-primitives/activity";
 import { DEFAULT_LOADER_ORDER, type LoaderElement } from "./format.ts";
-import { fromLegacyOutputStyle, isOutputStyleId, OUTPUT_STYLE_IDS, OUTPUT_STYLES, type OutputStyleId } from "./output-style.ts";
+import { isOutputStyleId, OUTPUT_STYLE_IDS, OUTPUT_STYLES, type OutputStyleId } from "./output-style.ts";
 import type { MenuItem, MenuSection, MenuValue } from "@underactive/pi-topping-primitives/menu";
 import { isWordPackEnabled, isWordPackId, WORD_PACK_MENU_PREFIX, type WordPack } from "./word-packs.ts";
 import { isPlainObject } from "./util.ts";
@@ -170,16 +169,8 @@ export function parseLoaderOrder(value: unknown): LoaderElement[] {
 
 export function settingsPath(): string { return join(getAgentDir(), "pi-topping", "settings.json"); }
 
-/** pi-topping-insights' saved style, honored until pi-topping's own settings record one. */
-function legacyOutputStyle(): OutputStyleId {
-	try {
-		const parsed: unknown = JSON.parse(readFileSync(join(getAgentDir(), "pi-topping-insights", "settings.json"), "utf8"));
-		return (isPlainObject(parsed) ? fromLegacyOutputStyle(parsed.style) : undefined) ?? DEFAULT_SETTINGS.outputStyle;
-	} catch { return DEFAULT_SETTINGS.outputStyle; }
-}
-
 function defaultSettings(): DecoratorSettings {
-	return { ...structuredClone(DEFAULT_SETTINGS), outputStyle: legacyOutputStyle() };
+	return structuredClone(DEFAULT_SETTINGS);
 }
 
 function mergeGroup<T extends Record<string, boolean | string | number>>(defaults: T, parsed: unknown): T {
@@ -394,7 +385,7 @@ export function applyMenuResult(settings: DecoratorSettings, values: Record<stri
  * setting. A missing, non-integer, or out-of-range meter upper bound resolves
  * to the default of 80 tps. A legacy `features.simCityWorkingText: true` enables the
  * `simcity` pack when no explicit preference is stored. A missing or invalid `outputStyle`
- * falls back to `pi-topping-insights/settings.json`'s `style`, then to `default`, without a schema-version gate.
+ * falls back to `default`, without a schema-version gate.
  */
 function sanitizeSettings(parsed: unknown): DecoratorSettings {
 	if (!isPlainObject(parsed)) return defaultSettings();
@@ -408,7 +399,7 @@ function sanitizeSettings(parsed: unknown): DecoratorSettings {
 		wordPacks.simcity = true;
 	}
 	const storedOutputStyle = parsed.outputStyle;
-	const outputStyle = isOutputStyleId(storedOutputStyle) ? storedOutputStyle : legacyOutputStyle();
+	const outputStyle = isOutputStyleId(storedOutputStyle) ? storedOutputStyle : DEFAULT_SETTINGS.outputStyle;
 	const settings = { decorations: mergeGroup(DEFAULT_SETTINGS.decorations, parsed.decorations), features: mergeGroup(DEFAULT_SETTINGS.features, parsed.features), loaderOrder: parseLoaderOrder(parsed.loaderOrder), wordPacks, outputStyle };
 	if (isPlainObject(parsed.decorations)) {
 		for (const [key, value] of Object.entries(parsed.decorations)) {

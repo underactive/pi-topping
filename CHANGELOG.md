@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- The fallback that read the output style saved by the retired `pi-topping-insights` extension (`~/.pi/agent/pi-topping-insights/settings.json`) when pi-topping had no `outputStyle` of its own. A missing or invalid `outputStyle` now falls back to `default`, and the old extension's file is ignored. Anyone who still relied on it re-selects the style in `/topping-settings`. `fromLegacyOutputStyle` is gone.
+
 ### Changed
 - `/topping-setup` install and remove now run the pi that hosts the session (this process's entry script under its runtime, or a compiled pi's own executable) instead of the first `pi` on PATH, so they reach the same agent directory. They fall back to `pi` on PATH only when neither is usable, and on Windows `cmd.exe /c` is used only for that fallback. Spec rejection, exit code 124 and the `[timed out after Nms]` suffix are unchanged. Output is now decoded as UTF-8 across chunk boundaries. Spawning, the kill escalation and `hostBelow` now come from `@underactive/pi-topping-primitives` 0.8.0 (`./process`).
 - The spinner frames and their cadence, the control-character sanitisers (`stripControlChars`, `sanitizedText`), the Switchyard provider check and NVIDIA green, and the prompt box's border glyphs now come from `@underactive/pi-topping-primitives` 0.6.0 (`./glyphs`, `./text`, `./color`). Rendered output is unchanged. `format.ts`, `util.ts` and `nvidia-green.ts` re-export them under the same names.

@@ -132,13 +132,6 @@ export function isOutputStyleId(value: unknown): value is OutputStyleId {
 	return typeof value === "string" && OUTPUT_STYLE_IDS.some(id => id === value);
 }
 
-/** Map the old pi-topping-insights style spelling to the current lowercase id. */
-export function fromLegacyOutputStyle(value: unknown): OutputStyleId | undefined {
-	if (value === "default") return "default";
-	if (value === "Explanatory") return "explanatory";
-	return undefined;
-}
-
 /**
  * Apply a style's prompt section and return its hidden reminder. Default removes the section only
  * when it holds one of these styles' text, so another extension's section survives. Hosts without
