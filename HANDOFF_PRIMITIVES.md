@@ -1045,6 +1045,71 @@ Done after the Phase 7 re-verification, on the owner's instruction to push primi
 
 ### Remaining
 
-1. The env and abort helpers need a primitives release before sensei and web-tools can finish: `isTruthyEnvFlag` and `suppressNotifications` (web-tools `src/env.ts`), `combineSignals`, `raceAbort`, `createDeadline`, `stableStringify`, `abortError` and `isAbortError`. The two `combineSignals` differ: web-tools' takes a timeout and an `activeFetches` set, so the shared signature has to be decided first. That release also carries the `spawnCollect` timeout clamp note (§18) in its CHANGELOG.
-2. sensei's `primitives-activity` branch still edits two files the owner has uncommitted in the main checkout (§13), and `primitives-process` inherits that, so expect a textual conflict when they meet.
+1. ~~The env and abort helpers need a primitives release before sensei and web-tools can finish~~ Shipped in 0.9.0 (§20), minus `stableStringify`, which stays in sensei. The original list was: `isTruthyEnvFlag` and `suppressNotifications` (web-tools `src/env.ts`), `combineSignals`, `raceAbort`, `createDeadline`, `stableStringify`, `abortError` and `isAbortError`. The two `combineSignals` differ: web-tools' takes a timeout and an `activeFetches` set, so the shared signature has to be decided first. That release also carries the `spawnCollect` timeout clamp note (§18) in its CHANGELOG.
+2. ~~sensei's `primitives-activity` branch still edits two files the owner has uncommitted in the main checkout~~ The owner's `CHANGELOG.md` and `consulting-line.test.ts` edits are stashed (§20); the stash applies cleanly on top of the branch work.
 3. Consumer pushes, as in §18 item 1.
+
+## 20. `./env` and `./abort` (primitives 0.9.0); sensei, web-tools and compact (2026-10-20)
+
+Done on the owner's instruction after §19, which listed these helpers as the work sensei and web-tools were waiting on.
+
+### Scope, and why it is narrow
+
+A grep of every repo's `src` before starting found that only the env helpers have more than one live copy (compact `config.ts`, web-tools `env.ts`, and both were byte-identical to pi core's `isTruthyEnvFlag`). `combineSignals` (web-tools), `raceAbort`, `abortError`, `isAbortError` and `createDeadline` (sensei) each have one owner, so moving them removes no duplication; it only makes them reusable and moves sensei's MIT notice. They shipped anyway, as instructed, in two small subpaths. `stableStringify` (sensei only) and `isPlainObject` (pi-topping keeps its own; pi-switchyard has the other copy) stay local.
+
+### Primitives (branch `primitives-env-abort`)
+
+- Commits: feat `abb9813`, release `b68f81a` (tag `v0.9.0`, lightweight, on `b68f81a`), then `768ac09` (the `docs/consumers.md` consumer pins). The owner published 0.9.0 and it is `latest`: shasum `5a5870543e136d4b4a63fe1ad8412f18214d650b`, integrity `sha512-B/PSZ8IwCzQ7XaEpiov5eRElF13sM04Y2GZ3hkfL8Zcwa2jjYtRTVJo74azAzJuXNqEQvbBcrwhLtw3Szoreeg==`, sha256 `bd0c75f1d2d83d846b23fd69aff843f797525aa902ace14fe582b0b1f0f443ce`, 330 files. A fresh `npm pack` from the registry is byte-identical (`cmp`) to the pack the consumers were validated against before the publish. **Not pushed**; the owner pushes by hand.
+- `./env`: `isTruthyEnvFlag`, `suppressNotifications` (web-tools `src/env.ts:1-10`, compact `src/config.ts:18-27`).
+- `./abort`: `isAbortError`, `abortError`, `raceAbort` (sensei `src/core/abort.ts`, adapted from pi-advisor), `createDeadline` and `Deadline` (sensei `src/review/deadline.ts`), `combineSignals` and `CombinedSignals` (web-tools `src/abort-utils.ts`). The two timeout helpers were not merged: `createDeadline` owns a `setTimeout`, answers `timedOut()` and needs `dispose()`; `combineSignals` uses `AbortSignal.timeout` and registers a controller in the host's set for shutdown. Both keep their vendored signatures.
+- `THIRD_PARTY_NOTICES.md` gained pi-advisor's MIT notice for `src/abort/errors.ts` and `race.ts`; sensei's notice now lists only `stable-json.ts` and `terminal-controls.ts` and points to the package for the third portion.
+- `env/` and `abort/` joined the subpaths the hygiene scanner forbids from importing pi at runtime (`pi-runtime-import`), with a test; the scan finds nothing in the eight new source files and flags a pi import, module state and `console` in a negative control under both paths.
+
+### Behaviour changes (both measured, not assumed)
+
+- **Timer clamp.** `createDeadline` and `combineSignals` clamp a timeout above 2^31 - 1 ms to that value. On Node 24.18 `setTimeout(Infinity)` and `setTimeout(2 ** 31)` fire after about 2 ms with only a `TimeoutOverflowWarning`, and `AbortSignal.timeout(2 ** 31)` and `(2 ** 32 - 1)` abort after 2 and 4 ms; from 2^32 up it throws `ERR_OUT_OF_RANGE`. Sensei's copy would have aborted a call at once on `Infinity`. `spawnCollect` (0.8.0) already clamps the same way and the 0.8.0 CHANGELOG never said so; the 0.9.0 notes do.
+- **Register after validate.** web-tools' `combineSignals` added its controller to `activeFetches` before `AbortSignal.timeout` could throw on a `NaN`, negative or fractional timeout, leaving a stale entry. The package builds the timeout signal first.
+
+### Tests
+
+| Suite | Before (0.8.0) | After | Delta |
+| --- | --- | --- | --- |
+| repo (`test:repo`) | 47 | 48 | +1: the `pi-runtime-import` case for `env/` and `abort/` |
+| primitives source | 561 | 597 | +36: 34 in five suites (`env-flags` 7, `abort-errors` 3, `abort-race` 7, `abort-deadline` 8, `abort-signals` 9) and +2 `./env` and `./abort` rows in the entries test |
+| primitives compiled exports | 63 | 74 | +11: `exports/env` 2, `exports/abort` 3, and 3 rows each in the entries test for the two subpaths |
+| test-utils source / exports | 12 / 38 | 12 / 38 | none |
+
+The env tests carry web-tools' and compact's assertions over unchanged. The package's timer tests use real timers (no mocking): they count live `Timeout` resources with `process.getActiveResourcesInfo()` and wait 75 times longer than the unclamped failure would take. Breaking each change in turn made exactly one test fail: `createDeadline` without the clamp, `combineSignals` without the clamp, and `combineSignals` registering before validating. `npm run check` (lint, typecheck, tests, build, pack check) is green; the pack is 330 files.
+
+### Loader gate
+
+`scripts/probe-pi-loader.sh` has `SUBPATH=env` and `SUBPATH=abort` arms. Loaded from the 0.9.0 tarball through both pi loader branches, with `PEERS=present` and `PEERS=absent`, all eight rows returned the expected object (`{"yes":true,"no":false,"off":false,"on":true}` for env; `{"named":true,"plain":false,"registered":1,"after":0,"noTimer":true,"timedOut":false}` for abort). Neither subpath imports a pi package, so the `absent` rows show them running with no peers on disk.
+
+### Consumers
+
+| Repo | Commit (branch `primitives-env-abort`) | Range | What changed | Tests before and after | Fresh clone |
+| --- | --- | --- | --- | --- | --- |
+| sensei (worktree `pi-topping-sensei-activity`) | `f9e5076` | `^0.8.0` to `^0.9.0` | `src/core/abort.ts` and `src/review/deadline.ts` are re-exports; notices and CHANGELOG | 701 / 701 | 701 |
+| web-tools | `35d7a96` | `^0.8.0` to `^0.9.0` | `src/env.ts` and `src/abort-utils.ts` are re-exports; CHANGELOG | 244 / 244 | 244 |
+| compact (no remote) | `9e0ee3d` | `^0.6.0` to `^0.9.0` | `src/config.ts` imports and re-exports `isTruthyEnvFlag`, `suppressNotifications`; CHANGELOG | 121 / 121 | 121 |
+
+Each consumer was first run against the packed tarball with uncommitted edits (`npm install --no-save`), then re-run after the publish against the registry package (`npm install --save-dev=false ...@^0.9.0 --prefer-online`), then committed. The lockfiles resolve registry 0.9.0 with the registry's integrity and no `file:` or `link:` spec for primitives (sensei's own `sensei-test-utils` link was already there). The consumers' existing tests are the parity oracles: sensei's `deadline.test.ts` (vitest fake timers over `createDeadline` and `raceAbort`), web-tools' `env.test.ts` and compact's `config.test.ts` now run against the package unchanged. Extensions load clean under both pi loader branches: sensei 1 command and 4 handlers, compact 2 and 11, and all four web-tools entries.
+
+### The sensei stash
+
+The owner's uncommitted edits to `CHANGELOG.md` and `test/sensei/consulting-line.test.ts` in the main sensei checkout are `stash@{0}` (the separator change, U+E0B1); a patch copy was kept at `/tmp/p9/sensei-two-files.patch`. Applied to a throwaway worktree on `primitives-process`, the stash gives no conflict markers, and the four other dirty files (`README.md`, `docs/tool-reference.md`, `src/text/notices.ts`, `test/sensei/run-response-model.test.ts`) do not overlap anything the branches touch. Stashing only those two leaves the main checkout half-applied: `notices.ts` still carries the separator while the test that asserts it is stashed, so `consulting-line.test.ts` fails there until `git stash pop`.
+
+### Deviations
+
+- npm reformatted `package.json` on install in web-tools (`keywords`) and compact (`extensions` and whitespace on two lines); both were restored so each commit carries only the range line.
+- compact's first commit message listed three primitives subpaths and omitted `./contracts`; it was amended before anything else depended on it (`80c8b9c` became `9e0ee3d`, tree unchanged).
+- The 0.9.0 repo docs were written to say only what was true at release time (no consumer had moved); `768ac09` records the three that have.
+- Not exercised: a real sensei consult (it sends repo context to external models), a live web-tools fetch or browser session, and Windows.
+
+### Remaining
+
+1. Pushes, by the owner: primitives `primitives-env-abort` (it contains `main`'s history plus Phase 8; `v0.9.0` is on `b68f81a`), and every consumer branch, including these three. sensei's `primitives-env-abort` stacks on `primitives-process`, `primitives-activity` and `primitives-contracts`; web-tools' on `primitives-process` and `primitives-settings`.
+2. Still local to their hosts: `isPlainObject` and `stableStringify`. sensei's settings store stays deferred (§12). sensei's `EFFORT_ORDER` is a different vocabulary from the package's thinking levels and stays.
+3. Behind: statusline `^0.7.0`, routesense `^0.6.0`, bash-gate `^0.4.0`; moa-fusion, persona-audit, pi-topping and splash on `^0.8.0` need no change for `./env` or `./abort`. pi-switchyard has no dependency yet.
+4. `@underactive/pi-topping-test-utils` moved to 0.9.0 in lockstep and stays unpublished.
+5. The sensei stash needs `git stash pop` (or a decision) in the main checkout.
