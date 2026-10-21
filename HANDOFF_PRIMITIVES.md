@@ -1151,5 +1151,46 @@ A missing or invalid `outputStyle` used to fall back to `~/.pi/agent/pi-topping-
 
 ### Remaining
 
-1. The owner's decisions: ~~remove `extensions[13]` and `[19]` together, and optionally the dead `[7]`, from `~/.pi/agent/settings.json`~~ done, see the pi settings bullet above; delete or keep the three directories and the two data directories; keep or drop statusline's compact savings subscription and the compact entry types in `./contracts`.
+1. ~~The owner's decisions~~ The settings entries were removed (above); the rest was decided and carried out in §22: archive without deleting, remove statusline's compact seed and saved feeds, remove the compact entry types in primitives 0.10.0, and prepare the pushes.
 2. Pushes, as in §18 and §20; this section's commits are `4f25d9f` (pi-topping `primitives-process`), `2b0f314` (statusline `primitives-cube`) and `3b67827` (primitives `primitives-env-abort`).
+
+## 22. Retired repos archived, compact seed and types removed (primitives 0.10.0), pushes prepared (2026-10-20)
+
+The owner's answers to the open items in §21: archive the retired repos and delete nothing; remove statusline's compact seed and the two saved compact feeds; remove the compact entry types from `./contracts` in 0.10.0; prepare all six consumer pushes for the owner to run, with `HANDOFF_PRIMITIVES.md` published as is.
+
+### Archive (nothing deleted)
+
+`~/Development/archive/pi-retired-2026-10-20/` (1.8 MB) holds a `git bundle` of compact (4 branches, 67 commits) and of bash-gate (3 branches, 11 commits), a tarball of each of the three directories without `node_modules` (insights has no commits, so it only has the tarball), the two data files from `~/.pi/agent`, and a `MANIFEST.txt` with sha256 values and restore steps. Verified: `git bundle verify`; a bare clone of each bundle reproduces every branch head and the commit count; each tarball extracts to a tree identical to the live directory (compact 201 files, bash-gate 219, insights 42); the data copies compare equal to the originals; the manifest checksums pass. The three directories and both data directories are still where they were.
+
+### statusline (`27d2bee`)
+
+`DEFAULT_FEEDS` is empty and the `ENTRY_TYPES` import that only the seed used is gone. README and the doc comments use `my-extension/savings` and say the list ships empty. The feeds tests that leaned on the seeded default now pass it explicitly (it is the `OPTIONS` test constant), two seed tests became three (empty default, a saved subscription renders, an unsubscribed entry renders nothing) and the settings-menu test addresses the first feed as `feed.0`. Against the old seeded `settings.ts` exactly those three tests fail; 195 tests became 196. A fresh clone of the tip run against the 0.10.0 tarball (`npm install --no-save`) passes typecheck and all 196 tests, so statusline needs no code change to move to 0.10.0 later.
+
+The owner's saved feeds in `~/.pi/agent/pi-topping-statusline/settings.json` went from 5 to 3: `pi-topping-compact/savings` (`CS:`) and `pi-topping-compact/compaction-savings` (`XS:`) were removed, and the two `pi-memdir` feeds and the web-tools feed stayed. Text-level edit, sha256 `e999ee4e…` to `98498b3f…`, backup `/tmp/p13/statusline-settings.json.bak` (volatile), mode 0600, tab indent and trailing newline kept, the other 12 top-level keys equal to the backup, unchanged six seconds later.
+
+### primitives 0.10.0 (branch `primitives-trim-compact`)
+
+Feature commit `e50f951`, release commit `b15a53c`, lightweight tag `v0.10.0`; **not published**. `ENTRY_TYPES.compactSavings`, `compactCompactionSavings` and `compactCompaction`, the `SavingsEntry` and `CompactionOutcomeEntry` types and their `EntryPayloads` rows are removed (a breaking change; `./contracts` now has `browser` and `splashLocalChanges`). The contracts header comment and the README said "names never change", so both now record the one exception: a name whose only publisher is retired may be removed in a breaking release. The three names join the retired list that must not be reintroduced, in the README and in the test that guards it. Against the old source exactly the two contract tests fail. The pack for `b15a53c` is shasum `468212d16779d91f36c5ad526b30b97a7447e4fa`, sha256 `67ca94012060b519da01dff41941ee1e313ca7fa2e6a65525511d1b5343cbb68`, 330 files; none of the removed identifiers is in the packed `src/contracts` or `dist/contracts` (three hits for the string `pi-topping-compact/` are the explanatory header comment). `npm run check` passes at repo 48, source 597, compiled exports 74, test-utils 12 and 38 (no count changed), in the working tree and in a fresh clone. `v0.9.0` still points at `b68f81a`. No consumer needs to bump: a caret range on 0.x stops at the next minor, and nothing outside compact used the removed names.
+
+### The six pushes, prepared
+
+Primitives is a fast-forward of `main`. Each consumer's `main` is the Phase 1 stack squashed into one commit, and each stack contains all of `main`'s content (for pi-topping, `main`'s tree is the stack's `primitives-contracts` tree minus `HANDOFF_PRIMITIVES.md`, which the stack adds). Each stack now has `main` merged in with `-s ours`, as sensei did in §20; every merge kept the tree unchanged, makes `main` an ancestor, and a `git merge-tree` dry run into `main` gave zero conflicts and a tree equal to the branch's. Remote `main` equals local `main` in every repo (splash compared by full SHA).
+
+| Repo | Branch | Merge commit | Fresh-clone gate (`npm ci` or `npm install`, then typecheck and tests) |
+| --- | --- | --- | --- |
+| primitives | `primitives-trim-compact` | none (fast-forward) | `npm run check`: 48 / 597 / 74 |
+| pi-topping | `primitives-process` | `c2e0ad2` | 242 tests |
+| moa-fusion | `primitives-process` | `158dc42` | 108 |
+| persona-audit | `primitives-process` | `7b99070` | 606 |
+| splash | `primitives-process` | `c47f79b8` | 466 |
+| statusline | `primitives-cube` | `d1a736b` | 196 |
+| web-tools | `primitives-env-abort` | `9788361` | 244 |
+
+web-tools failed once in the first, parallel run (six repos installing and testing at once): `client-side cross-origin navigation is blocked without replacing the approved page`, a real-browser test in `test/web-browser-egress.test.ts` that read the page URL back as `null`. The file passes 4 of 4 when run alone and the whole suite passes 244 of 244 with nothing else running; the stack touches neither that test nor `egress-policy.ts`. Treat it as a load-sensitive test, not a regression. moa-fusion's two pre-existing dirty files (`test/rename-verification.test.mjs`, `HANDOFF-fanout-max-tokens.md`) are byte-identical before and after its merge. A scan of what the stacks add found no secret-shaped strings and no absolute home paths; `HANDOFF_PRIMITIVES.md` (165 KB) becomes public with the pi-topping push, on the owner's decision. Nothing was pushed.
+
+### Remaining
+
+1. The pushes, by the owner, primitives first (`git push origin primitives-trim-compact:main`, then the tags `v0.9.0` and `v0.10.0`), then each consumer with `git push origin <branch>:main`. Afterwards `git branch -f main <branch>` in each repo keeps the local `main` level. sensei has no remote: `git switch main && git merge --ff-only primitives-env-abort` in its main checkout.
+2. Publish 0.10.0 (the owner); nothing depends on it.
+3. Delete the three retired directories and the two data directories when comfortable; the archive exists.
+4. pi-switchyard (no dependency), statusline `^0.7.0`, routesense `^0.6.0` and `isPlainObject`/`stableStringify` are unchanged from §20.
