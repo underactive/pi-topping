@@ -1143,7 +1143,7 @@ A missing or invalid `outputStyle` used to fall back to `~/.pi/agent/pi-topping-
 
 ### Left in place on purpose
 
-- **pi settings.** `~/.pi/agent/settings.json` still loads compact: `extensions[13]` is the compact directory, and `[7]` (`-extensions/pi-prompt-cache/index.ts`) and `[19]` (`-../../Development/projects/pi/pi-topping-compact/index.ts`) are dead exclusions. Not changed; entry 13 should go before compact's directory is deleted.
+- **pi settings.** `~/.pi/agent/settings.json` lists compact but has it switched off. `extensions[13]` adds the compact directory and `[19]` (`-../../Development/projects/pi/pi-topping-compact/index.ts`, which resolves to compact's `index.ts`) is pi's exact-path exclude for that file, so compact is disabled. That fits the sessions: 375 contain a real `pi-topping-compact/` entry, the newest from 2026-10-07, and none of the 163 sessions from the last three days does, while 159 of them carry entries from other pi-topping extensions. `[7]` (`-extensions/pi-prompt-cache/index.ts`) excludes a path that does not exist (compact's old name). Not changed. `[13]` and `[19]` have to be removed together (dropping only `[19]` would switch compact on), and `[7]` is a harmless tidy. (An earlier version of this section called `[19]` a dead exclusion and said the settings still loaded compact; both were wrong.)
 - **Data directories.** `~/.pi/agent/pi-topping-bash-gate/settings.json` and `pi-topping-insights/settings.json` were not touched.
 - **Published contracts.** `./contracts` still exports `ENTRY_TYPES.compactSavings`, `compactCompactionSavings` and `compactCompaction` and the `SavingsEntry` and `CompactionOutcomeEntry` types, and statusline's default savings subscription is still `pi-topping-compact/savings` (its segment is off by default). Removing them would be a breaking change.
 - **Seed sources.** test-utils' README and source comments name bash-gate as a seed for five unported helpers (`./theme`, `./keys`, `./ansi`, `./sandbox`, `./fixtures/models`). routesense is named beside it for every one of them, so deleting bash-gate removes no seed that routesense does not also hold.
@@ -1151,5 +1151,5 @@ A missing or invalid `outputStyle` used to fall back to `~/.pi/agent/pi-topping-
 
 ### Remaining
 
-1. The owner's decisions: remove `extensions[13]` (and the two dead exclusions) from `~/.pi/agent/settings.json`; delete or keep the three directories and the two data directories; keep or drop statusline's compact savings subscription and the compact entry types in `./contracts`.
+1. The owner's decisions: remove `extensions[13]` and `[19]` together, and optionally the dead `[7]`, from `~/.pi/agent/settings.json` (a three-line diff; compact is already switched off); delete or keep the three directories and the two data directories; keep or drop statusline's compact savings subscription and the compact entry types in `./contracts`.
 2. Pushes, as in §18 and §20; this section's commits are `4f25d9f` (pi-topping `primitives-process`), `2b0f314` (statusline `primitives-cube`) and `3b67827` (primitives `primitives-env-abort`).
