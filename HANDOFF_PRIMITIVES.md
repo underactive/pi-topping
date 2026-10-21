@@ -1193,6 +1193,10 @@ web-tools failed once in the first, parallel run (six repos installing and testi
 ### Remaining
 
 1. The pushes, by the owner, primitives first (`git push origin primitives-trim-compact:main`, then the tags `v0.9.0` and `v0.10.0`), then each consumer with `git push origin <branch>:main`. Afterwards `git branch -f main <branch>` in each repo keeps the local `main` level. sensei has no remote: `git switch main && git merge --ff-only primitives-env-abort` in its main checkout, **then `npm ci` there**. That checkout is the one pi loads (`~/.pi/agent/extensions/pi-topping-sensei` is a symlink to it) and its `node_modules` held primitives 0.1.0 while the merged source imports `./models`, `./abort` and `./activity`, so pi failed to start with `Package subpath './models' is not defined by "exports"` until `npm ci` installed the lockfile's 0.9.0 (2026-10-20). The worktree's own install does not cover the main checkout.
-2. Publish 0.10.0 (the owner); nothing depends on it.
+2. ~~Publish 0.10.0~~ Done, see Published below.
 3. Delete the three retired directories and the two data directories when comfortable; the archive exists.
+
+### Published (2026-10-20)
+
+The owner pushed primitives `main` (`2c54008`) with tags `v0.9.0` (`b68f81a`) and `v0.10.0` (`2c54008`); CI passed on the release commit. The first `npm publish` of 0.10.0 failed with `E404` on the `PUT` because the token in `~/.npmrc` had expired (`npm whoami` gave `E401`; npm reports an unauthorised write to a scoped package as 404). That attempt packed the intended tarball (shasum `27b67832…`, 330 files) and published nothing. After a fresh `npm login` the publish succeeded: `latest` is 0.10.0, `dist.shasum` `27b6783244e69062875e6b0e54b87d07370f9111`, `dist.integrity` `sha512-qmlulizNt/99m…`, 330 files, and the tarball downloaded from the registry is byte-identical (`cmp`) to the pack made before publishing (sha256 `33169b9b…`). A clean install of the published version loads `./contracts`, `./abort` and `./env` under the `compiled` condition and `ENTRY_TYPES` holds only `browser` and `splashLocalChanges`. No consumer range reaches 0.10.0 (a caret on 0.x stops at the next minor) and none needs to.
 4. pi-switchyard (no dependency), statusline `^0.7.0`, routesense `^0.6.0` and `isPlainObject`/`stableStringify` are unchanged from §20.
