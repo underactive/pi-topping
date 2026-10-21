@@ -332,10 +332,10 @@ moa-fusion and persona-audit for the agent discovery and concurrency helpers; pi
 
 ### Cleanup, any time after phase 1
 
-- Archive pi-topping-insights. After a grace period drop the migration read in pi-topping `src/settings.ts:172-178`.
-- Raise devDependency pins to 1.3.0 in bash-gate, compact, insights (if kept) using the in-place pin recipe in the memory note `pi-topping-family-compat-check.md`. All needed exports were confirmed present at 1.0.3 in those repos' installed node_modules.
-- pi-topping `src/toppings.ts` catalogue lists only the five siblings published on npm (statusline, splash, persona-audit, web-tools, moa-fusion). That is correct today: `/topping-setup` installs through `pi install npm:<pkg>`, so an unpublished entry would produce an unactionable notice. When routesense, sensei, or bash-gate are published, add them in the same change. Never add compact (private), insights (retiring), or the primitives package (a library, not an extension).
-- compact's `node_modules` (1.0.3) disagrees with its lockfile (1.0.0); reinstall after the pin bump.
+- Archive pi-topping-insights. After a grace period drop the migration read in pi-topping `src/settings.ts:172-178`. **Status (2026-10-20, §21):** insights was never committed or pushed, so there is nothing to archive; the migration read was removed in `4f25d9f`.
+- Raise devDependency pins to 1.3.0 in bash-gate, compact, insights (if kept) using the in-place pin recipe in the memory note `pi-topping-family-compat-check.md`. All needed exports were confirmed present at 1.0.3 in those repos' installed node_modules. **Status (§21):** moot; all three are being retired, so their pins (bash-gate 0.99.1, compact 1.0.0, insights 1.0.0) were not raised.
+- pi-topping `src/toppings.ts` catalogue lists only the five siblings published on npm (statusline, splash, persona-audit, web-tools, moa-fusion). That is correct today: `/topping-setup` installs through `pi install npm:<pkg>`, so an unpublished entry would produce an unactionable notice. When routesense, sensei, or bash-gate are published, add them in the same change. Never add compact (private), insights (retiring), or the primitives package (a library, not an extension). **Status (§21):** still correct; bash-gate is being retired and is no longer a candidate, and routesense and sensei are still unpublished.
+- compact's `node_modules` (1.0.3) disagrees with its lockfile (1.0.0); reinstall after the pin bump. **Status (§21):** the drift is gone (installed and locked are both 1.0.0) because the `npm install` run in compact for the 0.9.0 adoption reconciled it; the pin bump itself is moot.
 
 ## 6. Decisions to confirm with the owner
 
@@ -376,7 +376,7 @@ Recommended defaults in parentheses; the owner can override before the relevant 
 - Both packages published to npm under `@underactive`, with READMEs stating they are libraries, and CI green.
 - All lineage-A menus, all five activity meters, all five model pickers, and all nine settings stores import from the package; the only remaining copies are lineage-B menus, documented as deferred.
 - The three contract defects are fixed and covered by tests in the package.
-- pi-topping-insights archived; compact's embed module deleted; pi-topping's sibling catalogue current; laggard pins at 1.3.0.
+- pi-topping-insights archived; compact's embed module deleted; pi-topping's sibling catalogue current; laggard pins at 1.3.0. (Status 2026-10-20, §21: the embed module went in Phase 1; the catalogue is current; the insights and pin items were resolved by retiring bash-gate, compact and insights.)
 - Every migrated repo passes typecheck, tests, and a live smoke test, and its CHANGELOG names the primitives version and any behaviour change.
 
 ## 10. Phase 0 outcome (2026-10-17)
@@ -1016,9 +1016,9 @@ ca1410e72a0742e4287158314b489c3d434f5577fe4797ef6c777875c46d1787  ~/.pi/agent/mo
 ### Remaining
 
 1. ~~Pushes~~ Primitives `main` and tags `v0.2.0`–`v0.8.0` were pushed afterwards (§19). The consumer branches (pi-topping, moa-fusion, persona-audit, splash, statusline and the Phase 2 to 6 stacks) still need separate owner approval.
-2. The deferred non-text helpers: `isPlainObject` (pi-topping keeps its own), the env-flag and notification helpers, `combineSignals`, `raceAbort`, `createDeadline` and `stableStringify` wait for sensei's, web-tools' and compact's own adoption.
+2. ~~The deferred non-text helpers wait for sensei's, web-tools' and compact's own adoption.~~ The env-flag and abort helpers shipped in 0.9.0 (§20); `isPlainObject` and `stableStringify` stay local to their hosts.
 3. Sub-run transports, agent layering and persona-audit's shadow guard stay in their hosts by design. moa-fusion's `--no-mcp` probe and cache stay local.
-4. pi-switchyard (pin bump, menu, models, colour/text and now process), compact and bash-gate adopt `^0.8.0` on their next bump (sensei and web-tools did, §19); statusline stays on `^0.7.0`, and compact and routesense on `^0.6.0`, until then.
+4. pi-switchyard (pin bump, menu, models, colour/text and now process) adopts `^0.8.0` on its next bump. sensei and web-tools did (§19, §20); compact and bash-gate are being retired and will not (§21). statusline stays on `^0.7.0` and routesense on `^0.6.0` until then.
 5. Not exercised: Windows (the `cmd.exe` wrapper and `basename` handling are tested as strings only), splash's relaunch on a real compiled pi (the gate was rendered and escaped; the relaunch was not triggered), and `/topping-setup` against a real install (its menu was rendered and cancelled; nothing was installed).
 6. `@underactive/pi-topping-test-utils` moved to 0.8.0 in lockstep and stays unpublished.
 
@@ -1115,6 +1115,41 @@ The owner's uncommitted separator change (U+E0B1 before the answering model on t
 
 1. Pushes, by the owner: primitives `primitives-env-abort` (it contains `main`'s history plus Phase 8; `v0.9.0` is on `b68f81a`), and every consumer branch, including these three. sensei's `primitives-env-abort` (tip `e480539`) contains `main` and stacks on `primitives-process`, `primitives-activity` and `primitives-contracts`; web-tools' on `primitives-process` and `primitives-settings`.
 2. Still local to their hosts: `isPlainObject` and `stableStringify`. sensei's settings store stays deferred (§12). sensei's `EFFORT_ORDER` is a different vocabulary from the package's thinking levels and stays.
-3. Behind: statusline `^0.7.0`, routesense `^0.6.0`, bash-gate `^0.4.0`; moa-fusion, persona-audit, pi-topping and splash on `^0.8.0` need no change for `./env` or `./abort`. pi-switchyard has no dependency yet.
+3. Behind: statusline `^0.7.0` and routesense `^0.6.0`; moa-fusion, persona-audit, pi-topping and splash on `^0.8.0` need no change for `./env` or `./abort`. pi-switchyard has no dependency yet. bash-gate (`^0.4.0`) is being retired and compact (`^0.9.0` on an unpushed branch) with it (§21).
 4. `@underactive/pi-topping-test-utils` moved to 0.9.0 in lockstep and stays unpublished.
 5. ~~The sensei stash needs `git stash pop`~~ Resolved in the subsection above. The owner merges with `git switch main && git merge --ff-only primitives-env-abort` in the main sensei checkout (sensei has no remote).
+
+## 21. Retiring bash-gate, compact and insights; the "Cleanup" list (2026-10-20)
+
+The owner is retiring pi-topping-bash-gate, pi-topping-compact and pi-topping-insights. None of them is published anywhere. There is no git remote on any of the three, `github.com/underactive/pi-topping-compact` returns 404 (a repository that exists returned 200 as a control), `gh repo view` cannot resolve any of them, bash-gate is not on npm (E404 as `@underactive/pi-topping-bash-gate`), compact and insights are `private`, and insights has no commits at all.
+
+### The four "Cleanup, any time after phase 1" items (§5)
+
+| Item | Result |
+| --- | --- |
+| Archive insights; drop the migration read | Nothing to archive. The migration read was removed in pi-topping `4f25d9f`. |
+| Raise the pi pins in bash-gate, compact, insights | Moot: bash-gate 0.99.1, compact 1.0.0 and insights 1.0.0 were left as they are. The other eight toppings (pi-topping, statusline, splash, persona-audit, moa-fusion, web-tools, routesense, sensei) and both primitives packages are on 1.3.0; pi-switchyard, which is not in this list, is on 0.85.1. |
+| `toppings.ts` catalogue | Still correct: the five siblings, all on npm (statusline 0.2.8, splash 0.5.3, persona-audit 0.3.1, web-tools 0.2.9, moa-fusion 0.4.5). routesense and sensei are still unpublished (E404), and bash-gate no longer counts as a candidate. |
+| compact `node_modules` against its lockfile | Gone: installed and locked are both 1.0.0, because the `npm install` run in compact for the 0.9.0 adoption reconciled it. |
+
+### The insights fallback (pi-topping `4f25d9f`)
+
+A missing or invalid `outputStyle` used to fall back to `~/.pi/agent/pi-topping-insights/settings.json`. That read is gone: `legacyOutputStyle()` and `fromLegacyOutputStyle()` are deleted along with the `readFileSync` import only they used, and the fallback is now `default`. `README.md` line 131 told readers the old style "is imported until you next save"; it now says the saved style is no longer read. `CHANGELOG.md` has a "Removed" entry. Five tests that exercised the legacy file became two, one of which pins that the file is ignored: it fails against the previous source (30 of 31 pass in `settings.test.ts`) and passes against the new. pi-topping goes from 245 to 242 tests, typecheck clean. On the owner's machine nothing changes: `~/.pi/agent/pi-topping/settings.json` already records `outputStyle: explanatory`, and the insights file (`style: Explanatory`) was only a fallback.
+
+### Documentation fixes
+
+- statusline `2b0f314`: the README linked a compact repository that does not exist; the name stays, marked private. No tests read the README; 195 tests pass.
+- primitives `3b67827`: the settings-store example used `pi-topping-bash-gate` and now uses `pi-topping-example`, and `docs/consumers.md` no longer lists bash-gate as a consumer still to adopt. The `./menu` provenance sentence ("pi-topping, pi-topping-bash-gate, ... each carried a copy of") and the CHANGELOG history were left, because both are true history. The README is packed, so the published 0.9.0 keeps the old example until the next release; `v0.9.0` still points at `b68f81a`.
+
+### Left in place on purpose
+
+- **pi settings.** `~/.pi/agent/settings.json` still loads compact: `extensions[13]` is the compact directory, and `[7]` (`-extensions/pi-prompt-cache/index.ts`) and `[19]` (`-../../Development/projects/pi/pi-topping-compact/index.ts`) are dead exclusions. Not changed; entry 13 should go before compact's directory is deleted.
+- **Data directories.** `~/.pi/agent/pi-topping-bash-gate/settings.json` and `pi-topping-insights/settings.json` were not touched.
+- **Published contracts.** `./contracts` still exports `ENTRY_TYPES.compactSavings`, `compactCompactionSavings` and `compactCompaction` and the `SavingsEntry` and `CompactionOutcomeEntry` types, and statusline's default savings subscription is still `pi-topping-compact/savings` (its segment is off by default). Removing them would be a breaking change.
+- **Seed sources.** test-utils' README and source comments name bash-gate as a seed for five unported helpers (`./theme`, `./keys`, `./ansi`, `./sandbox`, `./fixtures/models`). routesense is named beside it for every one of them, so deleting bash-gate removes no seed that routesense does not also hold.
+- **Moot branches.** bash-gate's `primitives-settings` and `primitives-menu`, and compact's `primitives-contracts`, `primitives-color` and `primitives-env-abort` (`9e0ee3d`, the `^0.9.0` adoption), are local only and go with their directories.
+
+### Remaining
+
+1. The owner's decisions: remove `extensions[13]` (and the two dead exclusions) from `~/.pi/agent/settings.json`; delete or keep the three directories and the two data directories; keep or drop statusline's compact savings subscription and the compact entry types in `./contracts`.
+2. Pushes, as in §18 and §20; this section's commits are `4f25d9f` (pi-topping `primitives-process`), `2b0f314` (statusline `primitives-cube`) and `3b67827` (primitives `primitives-env-abort`).
