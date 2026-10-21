@@ -1185,7 +1185,7 @@ Primitives is a fast-forward of `main`. Each consumer's `main` is the Phase 1 st
 | moa-fusion | `primitives-process` | `158dc42` | 108 |
 | persona-audit | `primitives-process` | `7b99070` | 606 |
 | splash | `primitives-process` | `c47f79b8` | 466 |
-| statusline | `primitives-cube` | `d1a736b` | 196 |
+| statusline | `primitives-cube` | `d1a736b` (now `9d02dfc`, see below) | 196 |
 | web-tools | `primitives-env-abort` | `9788361` | 244 |
 
 web-tools failed once in the first, parallel run (six repos installing and testing at once): `client-side cross-origin navigation is blocked without replacing the approved page`, a real-browser test in `test/web-browser-egress.test.ts` that read the page URL back as `null`. The file passes 4 of 4 when run alone and the whole suite passes 244 of 244 with nothing else running; the stack touches neither that test nor `egress-policy.ts`. Treat it as a load-sensitive test, not a regression. moa-fusion's two pre-existing dirty files (`test/rename-verification.test.mjs`, `HANDOFF-fanout-max-tokens.md`) are byte-identical before and after its merge. A scan of what the stacks add found no secret-shaped strings and no absolute home paths; `HANDOFF_PRIMITIVES.md` (165 KB) becomes public with the pi-topping push, on the owner's decision. Nothing was pushed.
@@ -1196,7 +1196,11 @@ web-tools failed once in the first, parallel run (six repos installing and testi
 2. ~~Publish 0.10.0~~ Done, see Published below.
 3. Delete the three retired directories and the two data directories when comfortable; the archive exists.
 
+### statusline moved to 0.10.0 (`9d02dfc`)
+
+The last consumer on an old range, `^0.7.0`, now depends on `^0.10.0` (2026-10-20, after 0.10.0 was published). It imports `./activity`, `./color`, `./contracts`, `./glyphs`, `./menu`, `./settings` and `./text`; across 0.8.0 to 0.10.0 only `./contracts` changed for it (the compact names removed in 0.10.0, which the feeds list stopped referencing in `27d2bee`), so there is no code change and no visible change. `package.json` differs from the previous commit by the range line alone (tab indentation kept) and the lockfile by that one package, resolved to the published 0.10.0 with integrity `sha512-qmlulizNt/99m…`. Verified in the checkout pi loads (typecheck clean, 196 of 196, the extension entry loads through both loader paths with 13 handlers, as before) and in a fresh clone that ran `npm ci` from the registry (same results). The statusline tip to push is `9d02dfc`, still a fast-forward of the remote `main` (`7caf4d6`); `primitives-cube` and `main` are level.
+
 ### Published (2026-10-20)
 
 The owner pushed primitives `main` (`2c54008`) with tags `v0.9.0` (`b68f81a`) and `v0.10.0` (`2c54008`); CI passed on the release commit. The first `npm publish` of 0.10.0 failed with `E404` on the `PUT` because the token in `~/.npmrc` had expired (`npm whoami` gave `E401`; npm reports an unauthorised write to a scoped package as 404). That attempt packed the intended tarball (shasum `27b67832…`, 330 files) and published nothing. After a fresh `npm login` the publish succeeded: `latest` is 0.10.0, `dist.shasum` `27b6783244e69062875e6b0e54b87d07370f9111`, `dist.integrity` `sha512-qmlulizNt/99m…`, 330 files, and the tarball downloaded from the registry is byte-identical (`cmp`) to the pack made before publishing (sha256 `33169b9b…`). A clean install of the published version loads `./contracts`, `./abort` and `./env` under the `compiled` condition and `ENTRY_TYPES` holds only `browser` and `splashLocalChanges`. No consumer range reaches 0.10.0 (a caret on 0.x stops at the next minor) and none needs to.
-4. pi-switchyard (no dependency), statusline `^0.7.0`, routesense `^0.6.0` and `isPlainObject`/`stableStringify` are unchanged from §20.
+4. pi-switchyard (no dependency), routesense `^0.6.0` and `isPlainObject`/`stableStringify` are unchanged from §20. statusline is no longer behind: see below.
