@@ -1192,7 +1192,7 @@ web-tools failed once in the first, parallel run (six repos installing and testi
 
 ### Remaining
 
-1. The pushes, by the owner, primitives first (`git push origin primitives-trim-compact:main`, then the tags `v0.9.0` and `v0.10.0`), then each consumer with `git push origin <branch>:main`. Afterwards `git branch -f main <branch>` in each repo keeps the local `main` level. sensei has no remote: `git switch main && git merge --ff-only primitives-env-abort` in its main checkout.
+1. The pushes, by the owner, primitives first (`git push origin primitives-trim-compact:main`, then the tags `v0.9.0` and `v0.10.0`), then each consumer with `git push origin <branch>:main`. Afterwards `git branch -f main <branch>` in each repo keeps the local `main` level. sensei has no remote: `git switch main && git merge --ff-only primitives-env-abort` in its main checkout, **then `npm ci` there**. That checkout is the one pi loads (`~/.pi/agent/extensions/pi-topping-sensei` is a symlink to it) and its `node_modules` held primitives 0.1.0 while the merged source imports `./models`, `./abort` and `./activity`, so pi failed to start with `Package subpath './models' is not defined by "exports"` until `npm ci` installed the lockfile's 0.9.0 (2026-10-20). The worktree's own install does not cover the main checkout.
 2. Publish 0.10.0 (the owner); nothing depends on it.
 3. Delete the three retired directories and the two data directories when comfortable; the archive exists.
 4. pi-switchyard (no dependency), statusline `^0.7.0`, routesense `^0.6.0` and `isPlainObject`/`stableStringify` are unchanged from §20.
