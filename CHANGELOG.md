@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-21
+
 ### Removed
 - The fallback that read the output style saved by the retired `pi-topping-insights` extension (`~/.pi/agent/pi-topping-insights/settings.json`) when pi-topping had no `outputStyle` of its own. A missing or invalid `outputStyle` now falls back to `default`, and the old extension's file is ignored. Anyone who still relied on it re-selects the style in `/topping-settings`. `fromLegacyOutputStyle` is gone.
 
