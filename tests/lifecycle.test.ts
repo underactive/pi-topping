@@ -230,7 +230,7 @@ function createContext(
 		statuses?: { key: string; text: string | undefined }[];
 		selectedModel?: string;
 		/** Full selected model, for selections whose `api` matters; takes precedence over selectedModel. */
-		model?: { provider: string; id: string; api: string; name?: string };
+		model?: { provider: string; id: string; api: string; name?: string; reasoning?: boolean };
 		thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 		onCustomComponent?: (component: { render(width: number): string[]; handleInput?(data: string): void; dispose?(): void }) => void;
 	},
@@ -330,15 +330,18 @@ function stripAnsi(text: string): string {
 
 const VIRTUAL_MODEL = { provider: "routesense", id: "auto", api: "pi-virtual" };
 
-/** A CHANNELS.routedModel announcement as pi-topping-routesense emits it. */
-function routedModel(modelId: string, reason = "user", provider = "openai-codex"): Record<string, unknown> {
+/**
+ * A CHANNELS.routedModel announcement as pi-topping-routesense emits it. The level defaults
+ * to `off`, which the loader leaves out, so tests about the model see only its name.
+ */
+function routedModel(modelId: string, reason = "user", provider = "openai-codex", thinkingLevel = "off"): Record<string, unknown> {
 	return {
 		version: 1,
 		provider,
 		modelId,
 		model: `${provider}/${modelId}`,
 		name: modelId,
-		thinkingLevel: "high",
+		thinkingLevel,
 		reason,
 		cause: "jev_classifier",
 		tier: "COMPLEX",
@@ -3975,6 +3978,75 @@ test("a continuation announcement naming a different model swaps in place", asyn
 		extension.events.emit(CHANNELS.routedModel, routedModel("claude-opus-5-5", "continuation"));
 		assert.match(stripAnsi(messages.at(-1)!), / · claude-opus-5-5$/, "the continuation's model shows whole at once");
 		assert.equal(slideTimer(timers), firstSlide, "without starting another slide");
+	});
+});
+
+test("the routed thinking level follows the announced model with its Nerd Font glyph", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		// A virtual selection offers only `off`; the level the request runs at comes from the route.
+		const ctx = createContext(messages, [], undefined, { model: VIRTUAL_MODEL, thinkingLevel: "off" });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-6.1-sol", "user", "openai-codex", "low"));
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-6\.1-sol \u{f0a9f} low$/u);
+
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-6.1-sol", "continuation", "openai-codex", "xhigh"));
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-6\.1-sol \u{f0aa5} xhigh$/u, "a new level for the same model repaints");
+
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-6.1-sol", "continuation", "openai-codex", "off"));
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-6\.1-sol$/, "an `off` route shows no level");
+
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
+		const data = extension.appendedEntries[0]!.data as { model?: string };
+		assert.equal(data.model, "gpt-6.1-sol", "the completion marker records the model without the level");
+	});
+});
+
+test("the routed thinking level drops its glyph without Nerd Font and resets with the next turn", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({ ...DEFAULT_SETTINGS, decorations: { ...DEFAULT_SETTINGS.decorations, useNerdFont: false } });
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], undefined, { model: VIRTUAL_MODEL, thinkingLevel: "off" });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-6.1-sol", "user", "openai-codex", "medium"));
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-6\.1-sol med$/);
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
+
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const routed = { ...assistantMessage(0), provider: "openai-codex", model: "gpt-6.1-sol" };
+		await extension.emit("message_start", { type: "message_start", message: routed }, ctx);
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-6\.1-sol$/, "an unannounced turn does not reuse the last route's level");
+	});
+});
+
+test("without a route, the session thinking level follows the response model of a reasoning selection", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const reasoningCtx = createContext(messages, [], undefined, { model: { provider: "openrouter", id: "auto", api: "openai-completions", reasoning: true }, thinkingLevel: "high" });
+		const plainCtx = createContext(messages, [], undefined, { model: { provider: "openrouter", id: "auto", api: "openai-completions" }, thinkingLevel: "high" });
+		t.mock.method(Date, "now", () => 1_000);
+		mockTimers(t, () => {});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, reasoningCtx);
+		await extension.emit("message_start", { type: "message_start", message: assistantMessage(0, "anthropic/claude-opus-5-5") }, reasoningCtx);
+		assert.match(stripAnsi(messages.at(-1)!), / · anthropic\/claude-opus-5-5 \u{f0aa3} high$/u);
+		await extension.emit("agent_settled", agentSettledEvent(), reasoningCtx);
+
+		await extension.emit("agent_start", { type: "agent_start" }, plainCtx);
+		await extension.emit("message_start", { type: "message_start", message: assistantMessage(0, "anthropic/claude-opus-5-5") }, plainCtx);
+		assert.match(stripAnsi(messages.at(-1)!), / · anthropic\/claude-opus-5-5$/, "a selection without reasoning shows no level");
 	});
 });
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildWorkingMessage, formatTokenRate, formatTokens, TOKEN_RATE_PLACEHOLDER } from "../src/format.ts";
+import { buildWorkingMessage, formatThinkingLevel, formatTokenRate, formatTokens, TOKEN_RATE_PLACEHOLDER } from "../src/format.ts";
 
 test("formatTokens uses readable thresholds", () => {
 	assert.equal(formatTokens(999), "999");
@@ -71,4 +71,17 @@ test("response model is a pre-colored detail and follows the default trailing se
 		buildWorkingMessage(theme as never, { text: "Working", responseModel: "\x1b[2m<accent>test-model</accent>\x1b[22m" }, ["responseModel", "text"]),
 		"\x1b[2m<accent>test-model</accent>\x1b[22m Working",
 	);
+});
+
+test("formatThinkingLevel prefixes the level name with its Nerd Font glyph", () => {
+	assert.equal(formatThinkingLevel("minimal", true), "\u{f0a9e} min");
+	assert.equal(formatThinkingLevel("medium", true), "\u{f0aa1} med");
+	assert.equal(formatThinkingLevel("xhigh", true), "\u{f0aa5} xhigh");
+	assert.equal(formatThinkingLevel("max", true), "\u{f06d} max");
+});
+
+test("formatThinkingLevel drops the glyph without Nerd Font and hides off or absent levels", () => {
+	assert.equal(formatThinkingLevel("high", false), "high");
+	assert.equal(formatThinkingLevel("off", true), "");
+	assert.equal(formatThinkingLevel(undefined, true), "");
 });

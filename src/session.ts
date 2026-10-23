@@ -35,6 +35,7 @@ import {
 import {
 	isThinkingLevel,
 	ELAPSED_INTERVAL_MS,
+	formatThinkingLevel,
 	formatTokenRate,
 	formatTokens,
 	isFullyDefaultAppearance,
@@ -134,6 +135,8 @@ interface SessionState {
 	activityMeter: ActivityMeter;
 	tokenRate: RateHoldFade;
 	responseModel: string;
+	/** The thinking level routesense chose for the in-flight request; undefined until a route is announced. */
+	routedThinkingLevel: ThinkingLevel | undefined;
 	served: { model: string; backend: string; routedId: string } | null;
 	/** The backend companion to the last raw response-model report. */
 	lastResponseModelBackend: string | undefined | typeof NOT_SENT;
@@ -174,6 +177,7 @@ function makeFreshState(): SessionState {
 			sampleIntervalMs: METER_INTERVAL_MS,
 		}),
 		responseModel: "",
+		routedThinkingLevel: undefined,
 		served: null,
 		lastResponseModelBackend: NOT_SENT,
 		pendingServiceTier: "",
@@ -487,7 +491,12 @@ export class SessionManager {
 			// Direct routes serve compaction and other extensions' side requests; a route while idle
 			// is such a background request too, and must not leave a stale model for the next turn.
 			if (announcement.reason === "direct" || !this.#state.busy) return;
+			// A virtual selection offers only `off`, so the route carries the level the request runs at.
+			const thinkingLevel = isThinkingLevel(announcement.thinkingLevel) ? announcement.thinkingLevel : undefined;
+			const levelChanged = thinkingLevel !== this.#state.routedThinkingLevel;
+			this.#state.routedThinkingLevel = thinkingLevel;
 			this.updateResponseModel({ raw: announcement.modelId, weak: true, provider: announcement.provider, routedId: announcement.modelId });
+			if (levelChanged && this.#state.responseModel) this.tick();
 		});
 		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) => this.#renderDoneEntry(entry, theme));
 		this.#pi.registerEntryRenderer<MissingToppingsEntryData>(SETUP_ENTRY_TYPE, (entry, _o, theme) => renderMissingToppingsEntry(entry, theme));
@@ -761,6 +770,7 @@ export class SessionManager {
 		state.confirmTokens = 0;
 		state.liveTokens = 0;
 		state.responseModel = "";
+		state.routedThinkingLevel = undefined;
 		state.served = null;
 		state.pendingServiceTier = "";
 		state.serviceTiers = [];
@@ -795,8 +805,10 @@ export class SessionManager {
 		if ((decorations.tokenActivityMonitor || features.tokenRate) && state.tokenRate.sample(total, now) && decorations.tokenActivityMonitor) {
 			state.activityMeter.push(rateToLevel(state.tokenRate.tracker.tokenRate, decorations.meterUpperBoundTps));
 		}
+		const thinkingLevel = state.routedThinkingLevel ?? (ctx.model?.reasoning ? ctx.thinkingLevel : undefined);
+		const thinkingLabel = formatThinkingLevel(thinkingLevel, decorations.useNerdFont);
 		const responseModelShown = features.responseModel && state.responseModel
-			? slideOutTail(state.responseModel, now - state.responseModelShownAt)
+			? slideOutTail(thinkingLabel ? `${state.responseModel} ${thinkingLabel}` : state.responseModel, now - state.responseModelShownAt)
 			: "";
 		const tokenRate = state.tokenRate.display(now);
 		const showSpinner = this.spinnerInMessage();

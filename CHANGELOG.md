@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The working loader's response model is followed by its thinking level, with the Nerd Font glyph from pi-topping-statusline's nerd preset (for example `gpt-6.1-sol 󰪟 low`), or the short name alone when **Use NerdFont icons** is off. Under a routesense selection the level is the one routesense announced for the request. Otherwise it is the session's level, and it shows only when the selected model supports reasoning. `off` shows nothing, and the completion marker and response-model footer still show only the model.
+
 ## [0.13.0] - 2026-10-21
 
 ### Removed

@@ -2,7 +2,7 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { MenuValue, PreviewSlot } from "@underactive/pi-topping-primitives/menu";
 import { ActivityMeter, METER_UPPER_BOUND_TPS_MAX, METER_UPPER_BOUND_TPS_MIN, rateToLevel } from "@underactive/pi-topping-primitives/activity";
 import { dimAttribute, renderMeter, thinkingLevelColorizer } from "@underactive/pi-topping-primitives/activity-tui";
-import { DEFAULT_WORKING_WORD, ELAPSED_INTERVAL_MS, formatTokenRate, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, SPINNER_FRAME_MS } from "./format.ts";
+import { DEFAULT_WORKING_WORD, ELAPSED_INTERVAL_MS, formatThinkingLevel, formatTokenRate, METER_INTERVAL_MS, SHIMMER_INTERVAL_MS, SPINNER_FRAME_MS } from "./format.ts";
 import { buildLoaderMessage } from "./loader-message.ts";
 import { getResponseModelColorizer } from "./nvidia-green.ts";
 import { isOutputStyleId, OUTPUT_STYLES } from "./output-style.ts";
@@ -118,7 +118,7 @@ export class PreviewRenderer implements PreviewSlot<Values> {
 			elapsedMs,
 			outputTokens: Math.max(0, Math.floor(elapsedMs / 1000 * TOKEN_RATE_PER_SEC)),
 			tokenRateText: formatTokenRate(TOKEN_RATE_PER_SEC),
-			responseModel: features.responseModel ? "test-model" : undefined,
+			responseModel: features.responseModel ? ["test-model", (this.#ctx.model?.reasoning ? formatThinkingLevel(this.#ctx.thinkingLevel, values.useNerdFont === true) : "")].filter(Boolean).join(" ") : undefined,
 		});
 	}
 	private packValues(values: Values): Record<string, boolean> {
