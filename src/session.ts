@@ -411,7 +411,7 @@ export class SessionManager {
 				tokens: this.#state.confirmTokens,
 				midTurnInputs: this.#state.midTurnInputs,
 				...(this.#state.serviceTiers.length ? { serviceTiers: this.#state.serviceTiers.map((count) => ({ ...count })) } : {}),
-				thinkingLevel: ctx.thinkingLevel,
+				thinkingLevel: this.turnThinkingLevel(ctx),
 				model: this.#state.responseModel || undefined,
 			});
 		}
@@ -496,7 +496,11 @@ export class SessionManager {
 			const levelChanged = thinkingLevel !== this.#state.routedThinkingLevel;
 			this.#state.routedThinkingLevel = thinkingLevel;
 			this.updateResponseModel({ raw: announcement.modelId, weak: true, provider: announcement.provider, routedId: announcement.modelId });
-			if (levelChanged && this.#state.responseModel) this.tick();
+			if (!levelChanged) return;
+			// Thinking-level colors follow the route, so recolor the spinner and the loader.
+			const ctx = this.#currentCtx;
+			if (ctx && this.usable(ctx) && !this.#state.waiting) this.applyIndicator(ctx);
+			this.tick();
 		});
 		this.#pi.registerEntryRenderer<DoneEntryData>(DONE_ENTRY_TYPE, (entry, _o, theme) => this.#renderDoneEntry(entry, theme));
 		this.#pi.registerEntryRenderer<MissingToppingsEntryData>(SETUP_ENTRY_TYPE, (entry, _o, theme) => renderMissingToppingsEntry(entry, theme));
@@ -507,6 +511,14 @@ export class SessionManager {
 			handler: async (_a, ctx) => this.showSettings(ctx),
 		});
 		registerSetupCommand(this.#pi);
+	}
+
+	/**
+	 * The level the turn's request runs at: the one routesense announced for it, else the session's.
+	 * A virtual selection offers only `off`, so without the route its colors would all read as `off`.
+	 */
+	private turnThinkingLevel(ctx: ExtensionContext): ThinkingLevel | undefined {
+		return this.#state.routedThinkingLevel ?? ctx.thinkingLevel;
 	}
 
 	private usable(ctx: ExtensionContext): boolean {
@@ -594,7 +606,7 @@ export class SessionManager {
 
 		const color = this.#settings.decorations.spinnerColor;
 		ctx.ui.setWorkingIndicator({
-			frames: SPINNER_FRAMES.map((frame) => thinkingLevelColorizer(ctx.ui.theme, color, ctx.thinkingLevel)(frame)),
+			frames: SPINNER_FRAMES.map((frame) => thinkingLevelColorizer(ctx.ui.theme, color, this.turnThinkingLevel(ctx))(frame)),
 		});
 	}
 
@@ -713,7 +725,7 @@ export class SessionManager {
 	private startResponseModelFade(ctx: ExtensionContext, model: string, color: ThinkingLevelColor, dimmed: boolean): void {
 		this.cancelResponseModelFade(ctx);
 		const generation = this.#state.responseModelFadeGeneration;
-		const colorizer = getResponseModelColorizer(ctx.ui.theme, color, ctx.thinkingLevel, ctx.model?.provider);
+		const colorizer = getResponseModelColorizer(ctx.ui.theme, color, this.turnThinkingLevel(ctx), ctx.model?.provider);
 		const render = (shade?: number): void => {
 			const colored = shade === undefined
 				? colorizer(model)
@@ -805,8 +817,8 @@ export class SessionManager {
 		if ((decorations.tokenActivityMonitor || features.tokenRate) && state.tokenRate.sample(total, now) && decorations.tokenActivityMonitor) {
 			state.activityMeter.push(rateToLevel(state.tokenRate.tracker.tokenRate, decorations.meterUpperBoundTps));
 		}
-		const thinkingLevel = state.routedThinkingLevel ?? (ctx.model?.reasoning ? ctx.thinkingLevel : undefined);
-		const thinkingLabel = formatThinkingLevel(thinkingLevel, decorations.useNerdFont);
+		const thinkingLevel = this.turnThinkingLevel(ctx);
+		const thinkingLabel = state.routedThinkingLevel || ctx.model?.reasoning ? formatThinkingLevel(thinkingLevel, decorations.useNerdFont) : "";
 		const responseModelShown = features.responseModel && state.responseModel
 			? slideOutTail(thinkingLabel ? `${state.responseModel} ${thinkingLabel}` : state.responseModel, now - state.responseModelShownAt)
 			: "";
@@ -816,7 +828,7 @@ export class SessionManager {
 			? undefined
 			: buildLoaderMessage(
 				ctx.ui.theme,
-				ctx.thinkingLevel,
+				thinkingLevel,
 				ctx.model?.provider,
 				features,
 				decorations,

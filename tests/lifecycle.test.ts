@@ -4007,6 +4007,52 @@ test("the routed thinking level follows the announced model with its Nerd Font g
 	});
 });
 
+test("thinking-level colors follow the routed level, not the virtual selection's `off`", async (t) => {
+	await withTempAgentDir(async () => {
+		saveSettings({
+			...DEFAULT_SETTINGS,
+			decorations: { ...DEFAULT_SETTINGS.decorations, spinnerColor: "thinking-level", meterColor: "thinking-level", responseModelColor: "thinking-level" },
+			features: { ...DEFAULT_SETTINGS.features, responseModelFooter: true },
+		});
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const indicators: unknown[] = [];
+		const statuses: { key: string; text: string | undefined }[] = [];
+		const ctx = createContext(messages, indicators, (color, text) => `<${color}>${text}</${color}>`, { model: VIRTUAL_MODEL, thinkingLevel: "off", statuses });
+		let tick: (() => void) | undefined;
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		mockTimers(t, (callback) => {
+			tick = callback;
+		});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		assert.deepEqual(indicators.at(-1), { frames: SPINNER_FRAMES.map((frame) => `<thinking-off>${frame}</thinking-off>`) }, "before the route, the session's level");
+
+		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-6.1-sol", "user", "openai-codex", "low"));
+		assert.deepEqual(indicators.at(-1), { frames: SPINNER_FRAMES.map((frame) => `<thinking-low>${frame}</thinking-low>`) }, "the spinner recolors on the route");
+		assert.match(messages.at(-1)!, /<thinking-low>gpt-6\.1-sol \u{f0a9f} low<\/thinking-low>/u, "the response model and its level");
+
+		// Under a virtual selection Pi stamps the routed model on the message.
+		const partial = { ...assistantMessage(), provider: "openai-codex", model: "gpt-6.1-sol" };
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: partial,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two", partial },
+		}, ctx);
+		now = 1_100;
+		tick!();
+		assert.match(messages.at(-1)!, /<thinking-low>[⣀⣠⣤⣴⣶⣾⣿]<\/thinking-low>/, "the activity meter");
+		assert.doesNotMatch(messages.at(-1)!, /thinking-off/);
+
+		await extension.emit("agent_settled", agentSettledEvent(), ctx);
+		assert.match(statuses.at(-1)!.text!, /<thinking-low>gpt-6\.1-sol<\/thinking-low>/, "the response-model footer");
+		const data = extension.appendedEntries[0]!.data as { thinkingLevel?: string };
+		assert.equal(data.thinkingLevel, "low", "the completion marker records the routed level");
+	});
+});
+
 test("the routed thinking level drops its glyph without Nerd Font and resets with the next turn", async (t) => {
 	await withTempAgentDir(async () => {
 		saveSettings({ ...DEFAULT_SETTINGS, decorations: { ...DEFAULT_SETTINGS.decorations, useNerdFont: false } });
