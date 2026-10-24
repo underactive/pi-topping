@@ -22,6 +22,17 @@ export function modelsResemble(selectedModel?: string, responseModel?: string): 
 	return selectedTokens.length > 0 && selectedTokens.every((token) => normalizedResponse.includes(token));
 }
 
+/**
+ * Length of the longest common prefix of `next` and `prev`, scanning from `from` onward.
+ * `from` lets callers skip already-verified prefix positions; it must be <= both lengths.
+ */
+export function longestCommonPrefixLength(prev: string, next: string, from = 0): number {
+	const max = Math.min(prev.length, next.length);
+	let index = from;
+	while (index < max && prev.charCodeAt(index) === next.charCodeAt(index)) index++;
+	return index;
+}
+
 /** Lowercase letters and digits only, so names that differ just in case and separators compare equal. */
 function spelling(text: string): string {
 	return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");

@@ -66,7 +66,7 @@ import {
 	type PromptBoxDetails,
 	type PromptBoxEntryData,
 } from "./prompt-decorator.ts";
-import { hostBelow, isPlainObject, modelsResemble, modelsSpelledAlike, sanitizedText, stripControlChars } from "./util.ts";
+import { hostBelow, isPlainObject, longestCommonPrefixLength, modelsResemble, modelsSpelledAlike, sanitizedText, stripControlChars } from "./util.ts";
 import { formatServiceTierSummary, recordServiceTierCall, serviceTierCountsOf, serviceTierOf, type ServiceTierCount } from "./service-tier.ts";
 import { servedModelOf } from "./served-model.ts";
 import { loadBundledWordPacks, loadUserWordPacks, pickWorkingTextSelection, type WorkingTextSelection, type WordPack } from "./word-packs.ts";
@@ -131,6 +131,10 @@ interface SessionState {
 	workingText: WorkingTextSelection;
 	confirmTokens: number;
 	liveTokens: number;
+	/** Estimated output tokens from diffusion frame progress; exact usage replaces it at message end. */
+	diffusionTokens: number;
+	/** Latest diffusion frame and its decoded-prefix length, for incremental accounting across frames. */
+	diffusion: { frame: string; lcpLen: number; key: string } | null;
 	shimmerOrigin: number;
 	activityMeter: ActivityMeter;
 	tokenRate: RateHoldFade;
@@ -162,12 +166,28 @@ interface SessionState {
 /** Sentinel distinguishing "never called setWorkingMessage()" from an explicit `undefined` message. */
 const NOT_SENT = Symbol("not-sent");
 
+/** Monotonic id that separates concurrent diffusion streams' word-counter state. */
+let diffusionStreamSeq = 0;
+
+/** The complete-text delta of an Inception diffusion frame, or "" when the event has none. */
+function diffusionFrameContent(raw: unknown): string {
+	if (!isPlainObject(raw)) return "";
+	const choice = Array.isArray(raw.choices) ? raw.choices[0] : undefined;
+	if (!isPlainObject(choice)) return "";
+	const delta = choice.delta;
+	if (!isPlainObject(delta)) return "";
+	const content = delta.content;
+	return typeof content === "string" ? content : "";
+}
+
 function makeFreshState(): SessionState {
 	return {
 		startTime: 0,
 		workingText: { text: "", pastTense: "Worked" },
 		confirmTokens: 0,
 		liveTokens: 0,
+		diffusionTokens: 0,
+		diffusion: null,
 		shimmerOrigin: 0,
 		activityMeter: new ActivityMeter(),
 		tokenRate: new RateHoldFade({
@@ -299,6 +319,8 @@ export class SessionManager {
 		this.#currentCtx = ctx;
 		if (this.usable(ctx) && event.message.role === "assistant") {
 			this.#state.liveTokens = 0;
+			this.#state.diffusionTokens = 0;
+			this.#state.diffusion = null;
 			this.#counter.reset();
 			this.updateResponseModel(this.responseModelOf(event.message));
 		}
@@ -327,19 +349,25 @@ export class SessionManager {
 		const rawTokens = event.message.usage?.output;
 		const exactTokens =
 			typeof rawTokens === "number" && Number.isFinite(rawTokens) && rawTokens >= 0 ? rawTokens : undefined;
-		this.#state.confirmTokens += exactTokens ?? this.#state.liveTokens;
+		this.#state.confirmTokens += exactTokens ?? Math.max(this.#state.liveTokens, this.#state.diffusionTokens);
 		if (exactTokens !== undefined) {
 			// Only restart the sampling here, not the held rate or its fade:
 			// those must keep holding/fading across message boundaries to avoid flicker.
 			this.#state.tokenRate.resetSampling(this.#state.confirmTokens);
 		}
 		this.#state.liveTokens = 0;
+		this.#state.diffusionTokens = 0;
+		this.#state.diffusion = null;
 		this.#counter.reset();
 		this.updateResponseModel(this.responseModelOf(event.message));
 	};
 
 	#onProviderStreamEvent = (event: ProviderStreamEvent, ctx: ExtensionContext): void => {
 		if (!this.usable(ctx) || !this.#state.busy) return;
+		const added = this.accountDiffusionFrame(event);
+		if (added.length > 0 && this.#state.diffusion) {
+			this.#state.diffusionTokens += this.#counter.count(added, this.#state.diffusion.key);
+		}
 		const tier = serviceTierOf(event.data);
 		if (tier) this.#state.pendingServiceTier = tier;
 		const served = servedModelOf(event.data);
@@ -347,6 +375,29 @@ export class SessionManager {
 			this.updateResponseModel({ raw: served.model, weak: false, provider: event.provider, backend: served.backend });
 		}
 	};
+
+	/**
+	 * Diffusion providers resend the whole answer so far in every frame, with undecoded regions
+	 * still noisy; only the decoded prefix is stable across frames. Attribute the newly decoded
+	 * slice between consecutive frames so the working loader sees text resolve instead of one
+	 * late burst. Returns the newly decoded slice, or "" for non-diffusion events and frames
+	 * with no progress (including the first frame of a stream, which only seeds it).
+	 */
+	private accountDiffusionFrame(event: ProviderStreamEvent): string {
+		if (event.api !== "inception-diffusion") return "";
+		const content = diffusionFrameContent(event.data);
+		if (!content) return "";
+		const prior = this.#state.diffusion;
+		if (!prior || !content.startsWith(prior.frame.slice(0, prior.lcpLen))) {
+			// First frame, or a different stream took over: reseed without attributing progress.
+			this.#state.diffusion = { frame: content, lcpLen: 0, key: `diffusion-${++diffusionStreamSeq}` };
+			return "";
+		}
+		const lcp = longestCommonPrefixLength(prior.frame, content, prior.lcpLen);
+		const added = content.slice(prior.lcpLen, lcp);
+		this.#state.diffusion = { frame: content, lcpLen: lcp, key: prior.key };
+		return added;
+	}
 
 	private commitServiceTierCall(): void {
 		if (!this.#state.pendingServiceTier) return;
@@ -781,6 +832,8 @@ export class SessionManager {
 		state.workingText = this.pickWorkingWord();
 		state.confirmTokens = 0;
 		state.liveTokens = 0;
+		state.diffusionTokens = 0;
+		state.diffusion = null;
 		state.responseModel = "";
 		state.routedThinkingLevel = undefined;
 		state.served = null;
@@ -809,7 +862,7 @@ export class SessionManager {
 		}
 
 		const now = Date.now();
-		const total = state.confirmTokens + state.liveTokens;
+		const total = state.confirmTokens + state.liveTokens + state.diffusionTokens;
 		const features = this.#settings.features;
 		const decorations = this.#settings.decorations;
 		// RateHoldFade samples at most once per METER_INTERVAL_MS and holds a rate only when the

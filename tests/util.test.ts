@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { hostBelow, modelsResemble, modelsSpelledAlike } from "../src/util.ts";
+import { hostBelow, longestCommonPrefixLength, modelsResemble, modelsSpelledAlike } from "../src/util.ts";
 
 test("hostBelow compares release versions and treats unreadable versions as new enough", () => {
 	for (const { version, minimum, expected } of [
@@ -17,6 +17,20 @@ test("hostBelow compares release versions and treats unreadable versions as new 
 		{ version: "1.2.0", minimum: "garbage", expected: false },
 	] as const) {
 		assert.equal(hostBelow(version, minimum), expected, `${version} below ${minimum}`);
+	}
+});
+
+test("longestCommonPrefixLength scans from the given offset", () => {
+	for (const { prev, next, from, expected } of [
+		{ prev: "", next: "", from: 0, expected: 0 },
+		{ prev: "abc", next: "abd", from: 0, expected: 2 },
+		{ prev: "abcdef", next: "abxyz", from: 0, expected: 2 },
+		{ prev: "abcdef", next: "abxyz", from: 2, expected: 2 },
+		{ prev: "abcdef", next: "abcdef", from: 2, expected: 6 },
+		{ prev: "abc", next: "abcdef", from: 3, expected: 3 },
+		{ prev: "one two ~!@#", next: "one two three ~!@#", from: 0, expected: 8 },
+	] as const) {
+		assert.equal(longestCommonPrefixLength(prev, next, from), expected, `${prev} vs ${next} from ${from}`);
 	}
 });
 

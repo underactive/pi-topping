@@ -923,6 +923,111 @@ test("token rate holds, fades, and resets to full brightness on updates", async 
 	});
 });
 
+test("diffusion frames animate the token rate while denoising", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`);
+		let tick: (() => void) | undefined;
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		mockTimers(t, (callback) => {
+			tick = callback;
+		});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		assert.match(messages.at(-1)!, /<dim>--- tps<\/dim>/);
+
+		const partial = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: partial }, ctx);
+		// During diffusion no text_delta events reach the transcript; only provider frames do.
+		const frame = (content: string): ProviderStreamEvent =>
+			providerStreamEvent({ choices: [{ delta: { content } }] }, "inception", "inception-diffusion");
+		await extension.emit("provider_stream_event", frame("one two ~!@#"), ctx);
+		await extension.emit("provider_stream_event", frame("one two three ~!@#"), ctx);
+		now = 1_100;
+		tick!();
+		// "one two " decoded: 2 words over 0.1s -> EMA 0.4 * 20 = 8 tps.
+		assert.match(messages.at(-1)!, /<warning>  8 tps<\/warning>/);
+
+		await extension.emit("provider_stream_event", frame("one two three four five"), ctx);
+		now = 1_200;
+		tick!();
+		// "three" decoded: +1 word -> EMA 0.4 * 10 + 0.6 * 8 = 9 tps.
+		assert.match(messages.at(-1)!, /<warning>  9 tps<\/warning>/);
+
+		// The exact usage replaces the estimate at message end.
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(3) }, ctx);
+		now = 2_400;
+		tick!();
+		assert.match(messages.at(-1)!, /<warning>  9 tps<\/warning>/);
+		now = 2_950;
+		tick!();
+		assert.match(messages.at(-1)!, /<dim>--- tps<\/dim>/);
+	});
+});
+
+test("non-diffusion provider frames do not count toward the token rate", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`);
+		let tick: (() => void) | undefined;
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		mockTimers(t, (callback) => {
+			tick = callback;
+		});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const partial = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: partial }, ctx);
+		await extension.emit("provider_stream_event", providerStreamEvent(
+			{ choices: [{ delta: { content: "one two three four five" } }] },
+		), ctx);
+		now = 1_100;
+		tick!();
+		assert.match(messages.at(-1)!, /<dim>--- tps<\/dim>/);
+	});
+});
+
+test("diffusion frames reseed when the stream restarts mid-turn", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`);
+		let tick: (() => void) | undefined;
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		mockTimers(t, (callback) => {
+			tick = callback;
+		});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const partial = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: partial }, ctx);
+		const frame = (content: string): ProviderStreamEvent =>
+			providerStreamEvent({ choices: [{ delta: { content } }] }, "inception", "inception-diffusion");
+
+		await extension.emit("provider_stream_event", frame("one two ~!@#"), ctx);
+		await extension.emit("provider_stream_event", frame("one two three ~!@#"), ctx);
+		// A second stream starts mid-turn (e.g. a parallel request): its first frame reseeds.
+		await extension.emit("provider_stream_event", frame("diff ~!@#$%"), ctx);
+		now = 1_100;
+		tick!();
+		assert.match(messages.at(-1)!, /<warning>  8 tps<\/warning>/);
+
+		await extension.emit("provider_stream_event", frame("diffusion models ~!@#"), ctx);
+		now = 1_200;
+		tick!();
+		// "diff" resolves: +1 word -> EMA 0.4 * 10 + 0.6 * 8 = 9 tps.
+		assert.match(messages.at(-1)!, /<warning>  9 tps<\/warning>/);
+	});
+});
+
 test("disabled token rate omits the throughput segment", async (t) => {
 	await withTempAgentDir(async () => {
 		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, tokenRate: false } });
