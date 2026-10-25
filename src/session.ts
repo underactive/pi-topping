@@ -332,7 +332,7 @@ export class SessionManager {
 		const assistantEvent = event.assistantMessageEvent;
 		if (
 			assistantEvent &&
-			(assistantEvent.type === "text_delta" || assistantEvent.type === "thinking_delta")
+			(assistantEvent.type === "thinking_delta" || (assistantEvent.type === "text_delta" && !this.#state.diffusion))
 		) {
 			this.#state.liveTokens += this.#counter.count(assistantEvent.delta, assistantEvent.type);
 		}
@@ -349,7 +349,7 @@ export class SessionManager {
 		const rawTokens = event.message.usage?.output;
 		const exactTokens =
 			typeof rawTokens === "number" && Number.isFinite(rawTokens) && rawTokens >= 0 ? rawTokens : undefined;
-		this.#state.confirmTokens += exactTokens ?? Math.max(this.#state.liveTokens, this.#state.diffusionTokens);
+		this.#state.confirmTokens += exactTokens ?? this.#state.liveTokens + this.#state.diffusionTokens;
 		if (exactTokens !== undefined) {
 			// Only restart the sampling here, not the held rate or its fade:
 			// those must keep holding/fading across message boundaries to avoid flicker.

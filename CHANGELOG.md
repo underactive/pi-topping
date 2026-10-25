@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Under a diffusion provider (Inception Mercury via pi-inceptionlabs), the working loader's token rate and activity meter now animate as denoising frames arrive instead of showing `--- tps` until the response ends. Diffusion frames resend the whole answer so far with undecoded regions still noisy, so the growth of the decoded prefix between consecutive frames is counted from `provider_stream_event` frames, and the exact `usage.output` still replaces the estimate at message end. Only the `inception-diffusion` API is treated as diffusion; other providers are unchanged.
+- Under a diffusion provider, the final diffusion frame's forwarded text delta is no longer counted into the token rate on top of the decoded frame, so the live token rate no longer spikes from roughly twice the answer's throughput until the response ends; the message-end token estimate now sums the live and diffusion totals instead of keeping the larger one.
 - Under a routesense selection, colors set to the thinking level now follow the level routesense announced for the request. This covers the spinner, activity meter, token rate, response model, response-model footer and completion marker. Pi gives a virtual selection only `off`, so they all showed the `off` gray. The prompt box border still uses the session's level, because it is drawn before the request is routed.
 
 ## [0.13.0] - 2026-10-21

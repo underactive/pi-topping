@@ -1028,6 +1028,71 @@ test("diffusion frames reseed when the stream restarts mid-turn", async (t) => {
 	});
 });
 
+test("the final diffusion frame's text delta is not counted twice", async (t) => {
+	await withTempAgentDir(async () => {
+		const extension = new MockExtension();
+		const messages: (string | undefined)[] = [];
+		const ctx = createContext(messages, [], (color, text) => `<${color}>${text}</${color}>`);
+		let tick: (() => void) | undefined;
+		let now = 1_000;
+		t.mock.method(Date, "now", () => now);
+		mockTimers(t, (callback) => {
+			tick = callback;
+		});
+
+		workingDecorator(extension.asAPI());
+		await extension.emit("agent_start", { type: "agent_start" }, ctx);
+		const partial = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: partial }, ctx);
+		const frame = (content: string): ProviderStreamEvent =>
+			providerStreamEvent({ choices: [{ delta: { content } }] }, "inception", "inception-diffusion");
+
+		await extension.emit("provider_stream_event", frame("one two ~!@#"), ctx);
+		await extension.emit("provider_stream_event", frame("one two three ~!@#"), ctx);
+		now = 1_100;
+		tick!();
+		assert.match(messages.at(-1)!, /<warning>  8 tps<\/warning>/);
+
+		// The final diffusion frame carries the whole answer as one content chunk, which pi-ai
+		// forwards as a single text_delta; the frame accounting above already holds that text, so
+		// the delta must not add the answer to the live total on top of the decoded frames.
+		await extension.emit("provider_stream_event", frame("one two three four five"), ctx);
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: partial,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two three four five", partial },
+		}, ctx);
+		now = 1_200;
+		tick!();
+		assert.match(messages.at(-1)!, /<warning>  9 tps<\/warning>/);
+
+		// The exact usage replaces the estimate at message end.
+		await extension.emit("message_end", { type: "message_end", message: assistantMessage(3) }, ctx);
+		now = 2_400;
+		tick!();
+		assert.match(messages.at(-1)!, /<warning>  9 tps<\/warning>/);
+		now = 2_950;
+		tick!();
+		assert.match(messages.at(-1)!, /<dim>--- tps<\/dim>/);
+
+		// Without an exact usage the reconciled estimate sums the live and diffusion totals.
+		const second = assistantMessage();
+		await extension.emit("message_start", { type: "message_start", message: second }, ctx);
+		await extension.emit("provider_stream_event", frame("one two ~!@#"), ctx);
+		await extension.emit("provider_stream_event", frame("one two three ~!@#"), ctx);
+		await extension.emit("provider_stream_event", frame("one two three four five"), ctx);
+		await extension.emit("message_update", {
+			type: "message_update",
+			message: second,
+			assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "one two three four five", partial: second },
+		}, ctx);
+		await extension.emit("message_end", { type: "message_end", message: { ...second, usage: undefined } }, ctx);
+		now = 3_100;
+		tick!();
+		assert.match(messages.at(-1)!, /↓ 6 tokens/);
+	});
+});
+
 test("disabled token rate omits the throughput segment", async (t) => {
 	await withTempAgentDir(async () => {
 		saveSettings({ ...DEFAULT_SETTINGS, features: { ...DEFAULT_SETTINGS.features, tokenRate: false } });
