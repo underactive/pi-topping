@@ -4,16 +4,12 @@ import {
 	hexToFgAnsi,
 	isSwitchyardProvider,
 	NVIDIA_GREEN_HEX,
-	SWITCHYARD_PROVIDER,
 } from "@underactive/pi-topping-primitives/color";
 import type { ThinkingLevel } from "./format.ts";
 import type { ThinkingLevelColor } from "./settings.ts";
 
-/**
- * The Switchyard provider id, the bright NVIDIA green it shares with pi-topping-statusline's
- * Switchyard border, and the case- and space-insensitive provider check.
- */
-export { isSwitchyardProvider, NVIDIA_GREEN_HEX, SWITCHYARD_PROVIDER };
+/** The bright NVIDIA green shared with pi-topping-statusline's Switchyard border. */
+export { NVIDIA_GREEN_HEX };
 
 /** Always truecolor, as the response-model colorizer has always been. */
 const NVIDIA_GREEN_ANSI = hexToFgAnsi(NVIDIA_GREEN_HEX, "truecolor");
