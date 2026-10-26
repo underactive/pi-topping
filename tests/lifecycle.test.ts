@@ -4235,7 +4235,7 @@ test("the routed thinking level drops its glyph without Nerd Font and resets wit
 		workingDecorator(extension.asAPI());
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);
 		extension.events.emit(CHANNELS.routedModel, routedModel("gpt-6.1-sol", "user", "openai-codex", "medium"));
-		assert.match(stripAnsi(messages.at(-1)!), / · gpt-6\.1-sol med$/);
+		assert.match(stripAnsi(messages.at(-1)!), / · gpt-6\.1-sol \u25d1 med$/u);
 		await extension.emit("agent_settled", agentSettledEvent(), ctx);
 
 		await extension.emit("agent_start", { type: "agent_start" }, ctx);

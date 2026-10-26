@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- The working loader's response model is followed by its thinking level, with the Nerd Font glyph from pi-topping-statusline's nerd preset (for example `gpt-6.1-sol 󰪟 low`), or the short name alone when **Use NerdFont icons** is off. Under a routesense selection the level is the one routesense announced for the request. Otherwise it is the session's level, shown only when the selected model supports reasoning. The level rides on the response model, so it is hidden whenever the response model is: when **Response model** is off, or when the response model only restates the selected model. `off` shows nothing, and the completion marker and response-model footer still show only the model.
+- The working loader's response model is followed by its thinking level, with the Nerd Font glyph from pi-topping-statusline's nerd preset (for example `gpt-6.1-sol 󰪟 low`), or the unicode preset's glyph and short name (for example `◑ med`) when it is off. Under a routesense selection the level is the one routesense announced for the request. Otherwise it is the session's level, shown only when the selected model supports reasoning. The level rides on the response model, so it is hidden whenever the response model is: when **Response model** is off, or when the response model only restates the selected model. `off` shows nothing, and the completion marker and response-model footer still show only the model.
+
+### Changed
+- Depend on `@underactive/pi-topping-primitives` `^0.11.0`; thinking-level labels now come from `./glyphs`. Nerd Font output is unchanged, while the configured Unicode preset is used when Nerd Font icons are off.
 
 ### Fixed
 - Under a diffusion provider (Inception Mercury via pi-inceptionlabs), the working loader's output-token count, token rate and activity meter now grow as diffusion frames arrive, instead of staying at `--- tps` until the response ends. Each frame resends the whole answer so far with undecoded regions still noisy, so pi-topping estimates progress from how far the decoded prefix grows between consecutive frames, read from `provider_stream_event`. The exact `usage.output` still replaces the estimate at message end. Only the `inception-diffusion` API is treated as diffusion; other providers are unchanged.

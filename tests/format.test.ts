@@ -80,8 +80,8 @@ test("formatThinkingLevel prefixes the level name with its Nerd Font glyph", () 
 	assert.equal(formatThinkingLevel("max", true), "\u{f06d} max");
 });
 
-test("formatThinkingLevel drops the glyph without Nerd Font and hides off or absent levels", () => {
-	assert.equal(formatThinkingLevel("high", false), "high");
+test("formatThinkingLevel uses the unicode preset without Nerd Font and hides off or absent levels", () => {
+	assert.equal(formatThinkingLevel("high", false), "\u25d2 high");
 	assert.equal(formatThinkingLevel("off", true), "");
 	assert.equal(formatThinkingLevel(undefined, true), "");
 });

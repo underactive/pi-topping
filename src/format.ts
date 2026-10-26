@@ -1,4 +1,5 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
+import { thinkingLevelLabel } from "@underactive/pi-topping-primitives/glyphs";
 import type { ThinkingLevel } from "@underactive/pi-topping-primitives/models";
 
 /**
@@ -16,24 +17,9 @@ export {
 	type ThinkingLevel,
 } from "@underactive/pi-topping-primitives/models";
 
-/**
- * Thinking-level labels for the loader's response model: the Nerd Font glyph and short name
- * pi-topping-statusline's nerd symbol preset renders, or the bare short name without Nerd Font.
- */
-const THINKING_LEVEL_LABELS: Readonly<Record<Exclude<ThinkingLevel, "off">, { glyph: string; name: string }>> = {
-	minimal: { glyph: "\u{f0a9e}", name: "min" },
-	low: { glyph: "\u{f0a9f}", name: "low" },
-	medium: { glyph: "\u{f0aa1}", name: "med" },
-	high: { glyph: "\u{f0aa3}", name: "high" },
-	xhigh: { glyph: "\u{f0aa5}", name: "xhigh" },
-	max: { glyph: "\u{f06d}", name: "max" },
-};
-
-/** The thinking-level label shown after the response model, or "" for `off` or an absent level. */
+/** The thinking-level label after the response model: statusline's nerd preset, or its unicode preset without Nerd Font; "" for `off` or an absent level. */
 export function formatThinkingLevel(level: ThinkingLevel | undefined, useNerdFont: boolean): string {
-	if (!level || level === "off") return "";
-	const label = THINKING_LEVEL_LABELS[level];
-	return useNerdFont ? `${label.glyph} ${label.name}` : label.name;
+	return thinkingLevelLabel(level, useNerdFont ? "nerd" : "unicode");
 }
 
 /** Milliseconds between activity meter sample pushes. */
