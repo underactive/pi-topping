@@ -8,9 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `CHANGELOG.md` now ships in the npm package, so Pi 1.5.0 can show pi-topping's release notes under "Extension Updates" on the first fresh launch after an update.
 - The working loader's response model is followed by its thinking level, with the Nerd Font glyph from pi-topping-statusline's nerd preset (for example `gpt-6.1-sol 󰪟 low`), or the unicode preset's glyph and short name (for example `◑ med`) when it is off. Under a routesense selection the level is the one routesense announced for the request. Otherwise it is the session's level, shown only when the selected model supports reasoning. The level rides on the response model, so it is hidden whenever the response model is: when **Response model** is off, or when the response model only restates the selected model. `off` shows nothing, and the completion marker and response-model footer still show only the model.
 
 ### Changed
+- Verified compatibility with Pi 1.5.0; development and CI now typecheck and test against it, and the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 1.4.0 to 1.5.0. No runtime behavior changed, the published `peerDependencies` remain `*`, and the minimum supported host remains Pi ≥1.2.0.
+- Pi 1.5.0 now sets `responseModel` for pi-messages providers such as Radius, including under virtual models. pi-topping already reads this field, so the working loader, response-model footer, and completion marker can show the physical model without pi-topping code changes.
 - Depend on `@underactive/pi-topping-primitives` `^0.11.0`; thinking-level labels now come from `./glyphs`. Nerd Font output is unchanged, while the configured Unicode preset is used when Nerd Font icons are off.
 
 ### Fixed

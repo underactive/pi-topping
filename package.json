@@ -20,7 +20,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": ["index.ts", "src/**/*.ts", "wordpacks/*.json", "README.md", "LICENSE"],
+  "files": ["index.ts", "src/**/*.ts", "wordpacks/*.json", "README.md", "CHANGELOG.md", "LICENSE"],
   "scripts": {
     "test": "node -C compiled --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"
@@ -30,8 +30,8 @@
     "@earendil-works/pi-tui": "*"
   },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "1.4.0",
-    "@earendil-works/pi-tui": "1.4.0",
+    "@earendil-works/pi-coding-agent": "1.5.0",
+    "@earendil-works/pi-tui": "1.5.0",
     "@types/node": "^24.0.0",
     "typescript": "^5.9.3"
   },
