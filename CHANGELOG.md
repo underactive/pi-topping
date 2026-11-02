@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Verified compatibility with Pi 1.5.0; development and CI now typecheck and test against it, and the `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` devDependencies moved from 1.4.0 to 1.5.0. No runtime behavior changed, the published `peerDependencies` remain `*`, and the minimum supported host remains Pi ≥1.2.0.
-- Pi 1.5.0 now sets `responseModel` for pi-messages providers such as Radius, including under virtual models. pi-topping already reads this field, so the working loader, response-model footer, and completion marker can show the physical model without pi-topping code changes.
+- On Pi 1.5.0 the working loader's response model, the response-model footer and the completion marker show the physical model under pi-messages providers such as Radius, including under virtual models, because the host now sets `responseModel` on those messages. pi-topping already preferred that field, so nothing changed here; a response model that only restates the selected model is still hidden, and older hosts are unchanged.
 - Depend on `@underactive/pi-topping-primitives` `^0.11.0`; thinking-level labels now come from `./glyphs`. Nerd Font output is unchanged, while the configured Unicode preset is used when Nerd Font icons are off.
 
 ### Fixed
