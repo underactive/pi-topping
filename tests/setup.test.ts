@@ -79,6 +79,7 @@ function runtimeCommands(): RuntimeCommand[] {
 		{ name: "persona-audit", source: "extension", sourceInfo: { path: "/extensions/pi-topping-persona-audit/index.ts" } },
 		{ name: "browser", source: "extension", sourceInfo: { path: "/extensions/pi-topping-web-tools/index.ts" } },
 		{ name: "mf-plan", source: "extension", sourceInfo: { path: "/extensions/pi-topping-moa-fusion/index.ts" } },
+		{ name: "sensei", source: "extension", sourceInfo: { path: "/extensions/pi-topping-sensei/index.ts" } },
 	];
 }
 
@@ -260,7 +261,7 @@ test("/topping-setup disable-side-toppings-check suppresses the missing-extensio
 		const rendered = lines.join("\n");
 		assert.equal(lines[0], `<warning>${"─".repeat(76)}</warning>`);
 		assert.equal(lines.at(-1), `<warning>${"─".repeat(76)}</warning>`);
-		assert.match(rendered, /<text>pi-topping: 5 topping extensions missing<\/text>/);
+		assert.match(rendered, /<text>pi-topping: 6 topping extensions missing<\/text>/);
 		assert.match(rendered, /<accent>@underactive\/pi-topping-moa-fusion<\/accent>/);
 		assert.match(rendered, /<accent>\/topping-setup<\/accent>/);
 		assert.match(rendered, /<accent>\/topping-setup disable-side-toppings-check<\/accent>/);

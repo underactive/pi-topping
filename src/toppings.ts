@@ -51,6 +51,12 @@ export const TOPPINGS: readonly Topping[] = [
 		dir: "pi-topping-moa-fusion",
 		provides: "Mixture-of-Agents Fusion plan mode",
 	},
+	{
+		pkg: "@underactive/pi-topping-sensei",
+		matches: /pi-topping-sensei/i,
+		dir: "pi-topping-sensei",
+		provides: "second-model review of in-flight work",
+	},
 ];
 
 interface PiSettings {
